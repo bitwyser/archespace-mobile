@@ -15,8 +15,7 @@ class BuildInfo {
   );
   static const String buildTime = String.fromEnvironment('BUILD_TIME');
 
-  static const String repoUrl =
-      'https://github.com/patkarmandar/archespace-mobile';
+  static const String repoUrl = 'https://github.com/bitwyser/archespace-mobile';
 
   /// Link to the exact source commit this build was compiled from, or the repo
   /// root for unstamped ("dev") builds.

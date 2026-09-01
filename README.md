@@ -1,9 +1,9 @@
 # ArcheSpace Mobile
 
-[![Release APK](https://github.com/patkarmandar/archespace-mobile/actions/workflows/release.yml/badge.svg)](https://github.com/patkarmandar/archespace-mobile/actions/workflows/release.yml)
-[![Version](https://img.shields.io/github/v/release/patkarmandar/archespace-mobile)](https://github.com/patkarmandar/archespace-mobile/releases)
+[![Release APK](https://github.com/bitwyser/archespace-mobile/actions/workflows/release.yml/badge.svg)](https://github.com/bitwyser/archespace-mobile/actions/workflows/release.yml)
+[![Version](https://img.shields.io/github/v/release/bitwyser/archespace-mobile)](https://github.com/bitwyser/archespace-mobile/releases)
 
-The mobile app for [ArcheSpace](https://github.com/patkarmandar/archespace) — an open source, private, encrypted space to organize everything you are working on. Built with Flutter for Android and iOS.
+The mobile app for [ArcheSpace](https://github.com/bitwyser/archespace) — an open source, private, encrypted space to organize everything you are working on. Built with Flutter for Android and iOS.
 
 It talks to the **same Supabase backend** as the web app and shares the same client-side `arc1` encryption format, so a vault created on one client opens on the other. It follows the same zero-knowledge architecture: your content is encrypted on-device and the backend only ever stores ciphertext, so the server, its operators, and the developers never see your data in readable form.
 
@@ -119,12 +119,12 @@ ArcheSpace uses a device-side vault model. You sign in with Supabase Auth using 
 
 - The [Flutter SDK](https://docs.flutter.dev/get-started/install) (stable channel; this project builds with Flutter 3.44.x / Dart 3.12+).
 - Android Studio / Xcode toolchains for the platforms you target.
-- A running Supabase project - the **same one** the web app uses. Follow the web [README](https://github.com/patkarmandar/archespace#setup) to create and configure it.
+- A running Supabase project - the **same one** the web app uses. Follow the web [README](https://github.com/bitwyser/archespace#setup) to create and configure it.
 
 ### 2. Clone and install
 
 ```bash
-git clone https://github.com/patkarmandar/archespace-mobile
+git clone https://github.com/bitwyser/archespace-mobile
 cd archespace-mobile
 flutter pub get
 ```
