@@ -111,4 +111,72 @@ class StorageRepository {
   Future<void> purge(StoredEntry e) async {
     await _client.from(_table(e)).delete().eq('id', e.id);
   }
+
+  // ── Bulk operations (multi-select) ──────────────────────────
+
+  /// Split entries into (spaceIds, itemIds) for batched table updates.
+  (List<String>, List<String>) _split(Iterable<StoredEntry> entries) => (
+    entries.where((e) => e.isSpace).map((e) => e.id).toList(),
+    entries.where((e) => !e.isSpace).map((e) => e.id).toList(),
+  );
+
+  Future<void> restoreDeletedMany(Iterable<StoredEntry> entries) async {
+    final (spaceIds, itemIds) = _split(entries);
+    if (spaceIds.isNotEmpty) {
+      await _client
+          .from('spaces')
+          .update({'deleted_at': null})
+          .inFilter('id', spaceIds);
+    }
+    if (itemIds.isNotEmpty) {
+      await _client
+          .from('space_items')
+          .update({'deleted_at': null})
+          .inFilter('id', itemIds);
+    }
+  }
+
+  Future<void> restoreArchivedMany(Iterable<StoredEntry> entries) async {
+    final (spaceIds, itemIds) = _split(entries);
+    if (spaceIds.isNotEmpty) {
+      await _client
+          .from('spaces')
+          .update({'archived_at': null})
+          .inFilter('id', spaceIds);
+    }
+    if (itemIds.isNotEmpty) {
+      await _client
+          .from('space_items')
+          .update({'archived_at': null})
+          .inFilter('id', itemIds);
+    }
+  }
+
+  Future<void> moveManyToBin(Iterable<StoredEntry> entries) async {
+    final (spaceIds, itemIds) = _split(entries);
+    final patch = {'deleted_at': _now(), 'archived_at': null};
+    if (spaceIds.isNotEmpty) {
+      await _client.from('spaces').update(patch).inFilter('id', spaceIds);
+    }
+    if (itemIds.isNotEmpty) {
+      await _client.from('space_items').update(patch).inFilter('id', itemIds);
+    }
+  }
+
+  /// Permanently delete many. For spaces, the DB cascade removes their items.
+  Future<void> purgeMany(Iterable<StoredEntry> entries) async {
+    final (spaceIds, itemIds) = _split(entries);
+    if (spaceIds.isNotEmpty) {
+      await _client.from('spaces').delete().inFilter('id', spaceIds);
+    }
+    if (itemIds.isNotEmpty) {
+      await _client.from('space_items').delete().inFilter('id', itemIds);
+    }
+  }
+
+  /// Permanently delete everything in the recycle bin (all soft-deleted rows).
+  Future<void> purgeAll() async {
+    await _client.from('spaces').delete().not('deleted_at', 'is', null);
+    await _client.from('space_items').delete().not('deleted_at', 'is', null);
+  }
 }

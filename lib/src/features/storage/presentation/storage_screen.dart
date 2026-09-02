@@ -24,7 +24,39 @@ class _StorageScreenState extends State<StorageScreen> {
   List<StoredEntry>? _entries;
   Object? _error;
 
+  // Multi-select state. Selection is keyed by table+id so a space and an item
+  // that happen to share an id can't collide.
+  bool _selectMode = false;
+  final Set<String> _selected = {};
+
   bool get _isBin => widget.mode == StorageMode.bin;
+
+  String _key(StoredEntry e) => '${e.isSpace ? 'space' : 'item'}:${e.id}';
+
+  List<StoredEntry> get _selectedEntries => (_entries ?? const <StoredEntry>[])
+      .where((e) => _selected.contains(_key(e)))
+      .toList();
+
+  void _enterSelect([StoredEntry? first]) {
+    setState(() {
+      _selectMode = true;
+      if (first != null) _selected.add(_key(first));
+    });
+  }
+
+  void _exitSelect() {
+    setState(() {
+      _selectMode = false;
+      _selected.clear();
+    });
+  }
+
+  void _toggle(StoredEntry e) {
+    final k = _key(e);
+    setState(() {
+      if (!_selected.remove(k)) _selected.add(k);
+    });
+  }
 
   @override
   void initState() {
@@ -97,6 +129,90 @@ class _StorageScreenState extends State<StorageScreen> {
     }
   }
 
+  Future<bool> _confirm(
+    String title,
+    String message,
+    String confirmLabel,
+  ) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+    return result == true;
+  }
+
+  Future<void> _restoreSelected() async {
+    final selected = _selectedEntries;
+    if (selected.isEmpty) return;
+    try {
+      if (_isBin) {
+        await _repo.restoreDeletedMany(selected);
+      } else {
+        await _repo.restoreArchivedMany(selected);
+      }
+      _exitSelect();
+      if (mounted) _load();
+    } catch (_) {
+      _snack("Couldn't restore them.");
+    }
+  }
+
+  Future<void> _deleteSelected() async {
+    final selected = _selectedEntries;
+    if (selected.isEmpty) return;
+    final n = selected.length;
+    if (_isBin) {
+      final ok = await _confirm(
+        'Delete permanently?',
+        '$n ${n == 1 ? 'entry' : 'entries'} will be permanently deleted. '
+            'This cannot be undone.',
+        'Delete forever',
+      );
+      if (!ok) return;
+    }
+    try {
+      if (_isBin) {
+        await _repo.purgeMany(selected);
+      } else {
+        await _repo.moveManyToBin(selected);
+      }
+      _exitSelect();
+      if (mounted) _load();
+    } catch (_) {
+      _snack("Couldn't delete them.");
+    }
+  }
+
+  Future<void> _emptyBin() async {
+    final ok = await _confirm(
+      'Empty recycle bin?',
+      'Everything in the recycle bin will be permanently deleted. '
+          'This cannot be undone.',
+      'Empty bin',
+    );
+    if (!ok) return;
+    try {
+      await _repo.purgeAll();
+      _exitSelect();
+      if (mounted) _load();
+    } catch (_) {
+      _snack("Couldn't empty the recycle bin.");
+    }
+  }
+
   void _snack(String message) {
     if (mounted) {
       ScaffoldMessenger.of(
@@ -107,8 +223,48 @@ class _StorageScreenState extends State<StorageScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasEntries = _entries?.isNotEmpty ?? false;
     return Scaffold(
-      appBar: AppBar(title: Text(_isBin ? 'Recycle bin' : 'Archive')),
+      appBar: _selectMode
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _exitSelect,
+                tooltip: 'Cancel',
+              ),
+              title: Text('${_selected.length} selected'),
+              actions: [
+                IconButton(
+                  onPressed: _selected.isEmpty ? null : _restoreSelected,
+                  icon: const Icon(Icons.restore),
+                  tooltip: 'Restore',
+                ),
+                IconButton(
+                  onPressed: _selected.isEmpty ? null : _deleteSelected,
+                  icon: Icon(
+                    _isBin ? Icons.delete_forever : Icons.delete_outline,
+                  ),
+                  tooltip: _isBin ? 'Delete permanently' : 'Move to bin',
+                ),
+              ],
+            )
+          : AppBar(
+              title: Text(_isBin ? 'Recycle bin' : 'Archive'),
+              actions: [
+                if (hasEntries)
+                  IconButton(
+                    onPressed: _enterSelect,
+                    icon: const Icon(Icons.checklist),
+                    tooltip: 'Select',
+                  ),
+                if (_isBin && hasEntries)
+                  IconButton(
+                    onPressed: _emptyBin,
+                    icon: const Icon(Icons.delete_sweep_outlined),
+                    tooltip: 'Empty recycle bin',
+                  ),
+              ],
+            ),
       body: _entries == null && _error == null
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(top: false, child: _body()),
@@ -149,13 +305,28 @@ class _StorageScreenState extends State<StorageScreen> {
   }
 
   Widget _tile(StoredEntry e) {
+    final icon = Icon(
+      e.isSpace
+          ? Icons.folder_outlined
+          : (itemTypeDef(e.type)?.icon ?? Icons.notes),
+    );
+    final title = Text(e.label.isEmpty ? 'Untitled' : e.label);
+
+    if (_selectMode) {
+      final selected = _selected.contains(_key(e));
+      return ListTile(
+        leading: icon,
+        title: title,
+        selected: selected,
+        trailing: Checkbox(value: selected, onChanged: (_) => _toggle(e)),
+        onTap: () => _toggle(e),
+      );
+    }
+
     return ListTile(
-      leading: Icon(
-        e.isSpace
-            ? Icons.folder_outlined
-            : (itemTypeDef(e.type)?.icon ?? Icons.notes),
-      ),
-      title: Text(e.label.isEmpty ? 'Untitled' : e.label),
+      leading: icon,
+      title: title,
+      onLongPress: () => _enterSelect(e),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
