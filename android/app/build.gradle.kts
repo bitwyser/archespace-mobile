@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "cc.archespace.app"
+    namespace = "app.archespace.mobile"
     // A plugin dependency (flutter_plugin_android_lifecycle, via file_picker)
     // requires compileSdk 36; override Flutter's default (34).
     compileSdk = 36
@@ -18,7 +18,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "cc.archespace.app"
+        applicationId = "app.archespace.mobile"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
