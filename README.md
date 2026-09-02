@@ -3,7 +3,7 @@
 [![Release APK](https://github.com/bitwyser/archespace-mobile/actions/workflows/release.yml/badge.svg)](https://github.com/bitwyser/archespace-mobile/actions/workflows/release.yml)
 [![Version](https://img.shields.io/github/v/release/bitwyser/archespace-mobile)](https://github.com/bitwyser/archespace-mobile/releases)
 
-The mobile app for [ArcheSpace](https://github.com/bitwyser/archespace) — an open source, private, encrypted space to organize everything you are working on. Built with Flutter for Android and iOS.
+The mobile app for [ArcheSpace](https://github.com/bitwyser/archespace) - an open source, private space for everything you're working on. Your data is encrypted on your device, so the server never sees it. Built with Flutter for Android and iOS.
 
 It talks to the **same Supabase backend** as the web app and shares the same client-side `arc1` encryption format, so a vault created on one client opens on the other. It follows the same zero-knowledge architecture: your content is encrypted on-device and the backend only ever stores ciphertext, so the server, its operators, and the developers never see your data in readable form.
 

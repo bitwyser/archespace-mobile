@@ -1,5 +1,5 @@
 name: archespace_mobile
-description: ArcheSpace mobile app (Flutter). Currently the crypto-contract spike.
+description: "An open source, private space for everything you're working on. Your data is encrypted on your device, so the server never sees it."
 publish_to: "none"
 version: 0.1.0
 
