@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
 import 'package:archespace_mobile/src/features/auth/data/mfa_service.dart';
+import 'package:archespace_mobile/src/features/auth/domain/totp_code.dart';
+import 'package:archespace_mobile/src/features/vault/domain/recovery_code.dart';
 
 /// Second-factor step shown after the password and before the vault. Accepts a
 /// 6-digit authenticator code, or a one-time backup code (which turns off 2FA so
@@ -31,14 +34,25 @@ class _MfaChallengeScreenState extends State<MfaChallengeScreen> {
   }
 
   Future<void> _submit() async {
-    if (_code.text.trim().isEmpty) return;
+    // Validate format before hitting the network so obvious mistakes get an
+    // immediate, specific message instead of a generic rejection.
+    final validationError = _useBackup
+        ? validateRecoveryCode(_code.text)
+        : validateTotpCode(_code.text);
+    if (validationError != null) {
+      setState(() => _error = validationError);
+      return;
+    }
+    final code = _useBackup
+        ? normalizeRecoveryCode(_code.text)
+        : normalizeTotpCode(_code.text);
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
       if (_useBackup) {
-        final ok = await _mfa.redeemBackupCode(_code.text.trim());
+        final ok = await _mfa.redeemBackupCode(code);
         if (!ok) {
           setState(() {
             _error = 'That backup code is not valid or has already been used.';
@@ -54,7 +68,7 @@ class _MfaChallengeScreenState extends State<MfaChallengeScreen> {
         widget.onVerified();
         return;
       }
-      await _mfa.verify(factorId, _code.text);
+      await _mfa.verify(factorId, code);
       widget.onVerified();
     } catch (e) {
       setState(() {
@@ -118,6 +132,17 @@ class _MfaChallengeScreenState extends State<MfaChallengeScreen> {
                         ? TextInputType.text
                         : TextInputType.number,
                     textAlign: TextAlign.center,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    inputFormatters: _useBackup
+                        ? [LengthLimitingTextInputFormatter(24)]
+                        : [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(totpCodeLength),
+                          ],
+                    onChanged: (_) {
+                      if (_error != null) setState(() => _error = null);
+                    },
                     onSubmitted: (_) => _submit(),
                     decoration: InputDecoration(
                       labelText: _useBackup ? 'Backup code' : '6-digit code',

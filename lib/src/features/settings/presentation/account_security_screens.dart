@@ -7,6 +7,7 @@ import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
 import 'package:archespace_mobile/src/features/auth/data/mfa_service.dart';
 import 'package:archespace_mobile/src/features/auth/domain/email.dart';
 import 'package:archespace_mobile/src/features/auth/domain/password_policy.dart';
+import 'package:archespace_mobile/src/features/auth/domain/totp_code.dart';
 import 'package:archespace_mobile/src/features/vault/data/vault_service.dart';
 import 'package:archespace_mobile/src/features/vault/domain/vault_pin.dart';
 
@@ -1184,13 +1185,17 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
   }
 
   Future<void> _confirmEnroll() async {
-    if (_code.text.trim().isEmpty) return;
+    final validationError = validateTotpCode(_code.text);
+    if (validationError != null) {
+      setState(() => _error = validationError);
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      await _mfa.verify(_enroll!.factorId, _code.text);
+      await _mfa.verify(_enroll!.factorId, normalizeTotpCode(_code.text));
       final codes = await _mfa.regenerateBackupCodes(_requireUserId(_auth));
       setState(() {
         _enroll = null;
@@ -1423,6 +1428,15 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
           autofocus: true,
           keyboardType: TextInputType.number,
           textAlign: TextAlign.center,
+          autocorrect: false,
+          enableSuggestions: false,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(totpCodeLength),
+          ],
+          onChanged: (_) {
+            if (_error != null) setState(() => _error = null);
+          },
           onSubmitted: (_) => _confirmEnroll(),
           decoration: const InputDecoration(
             labelText: '6-digit code',
