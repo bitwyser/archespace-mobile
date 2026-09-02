@@ -69,7 +69,7 @@ class _UnlockScreenState extends State<UnlockScreen> {
       _error = null;
     });
     try {
-      final ok = await _biometric.authenticate('Unlock your Arche vault');
+      final ok = await _biometric.authenticate('Unlock your ArcheSpace vault');
       if (!ok) return;
       final masterKey = await _store.readMasterKey();
       if (masterKey == null) {
