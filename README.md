@@ -267,7 +267,7 @@ Other improvements are tracked as issues. If there is something you want to see,
 
 ## Help and support
 
-Need help with setup, self-hosting, login, password recovery, or vault PIN recovery? Reach out at **[help@archespace.cc](mailto:help@archespace.cc)**, or open an issue on the repository.
+Need help with setup, self-hosting, login, password recovery, or vault PIN recovery? Reach out at **[help@archespace.app](mailto:help@archespace.app)**, or open an issue on the repository.
 
 Before reaching out, it helps to include what you were trying to do and what happened, your deployment type (single- or multi-user), your device and OS version, and any relevant logs with secrets redacted.
 
@@ -281,7 +281,7 @@ Contributions are welcome, including bug fixes, features, and docs.
 - The crypto port is safety-critical: if you touch `lib/src/shared/crypto/`, keep it byte-compatible with the web `arc1` format and re-run the conformance vectors.
 - For larger or security-relevant changes, open an issue first so the approach can be discussed.
 
-For development questions, contact **[dev@archespace.cc](mailto:dev@archespace.cc)**.
+For development questions, contact **[bitwyser@archespace.app](mailto:bitwyser@archespace.app)**.
 
 ## License
 
