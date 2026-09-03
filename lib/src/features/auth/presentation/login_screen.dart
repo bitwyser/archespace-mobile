@@ -82,9 +82,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       await _auth.requestPasswordReset(email);
+      // Same confirmation whether or not the email is registered, so the reply
+      // can't be used to enumerate accounts (Supabase also succeeds silently
+      // for unknown emails).
       setState(
         () => _info =
-            'Password reset link sent. Check your email to set a new password.',
+            "If an account exists for that email, we've sent a password "
+            'reset link. Check your inbox and spam folder.',
       );
     } catch (_) {
       setState(
