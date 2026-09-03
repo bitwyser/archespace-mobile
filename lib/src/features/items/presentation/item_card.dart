@@ -221,7 +221,7 @@ class _ItemCardState extends State<ItemCard> {
                             const PopupMenuItem(
                               height: 40,
                               value: 'move',
-                              child: Text('Move to space'),
+                              child: Text('Move'),
                             ),
                           if (onExport != null)
                             const PopupMenuItem(
