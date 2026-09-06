@@ -90,6 +90,13 @@ const List<ItemTypeDef> kItemTypes = [
     icon: Icons.data_object,
     editable: true,
   ),
+  ItemTypeDef(
+    type: 'authenticator',
+    label: 'Authenticator',
+    description: 'Two-factor (TOTP) codes for your accounts',
+    icon: Icons.shield_outlined,
+    editable: true,
+  ),
 ];
 
 ItemTypeDef? itemTypeDef(String type) {
@@ -131,6 +138,8 @@ Map<String, dynamic> defaultContentFor(String type) {
       return {'secret': true, 'cipher': ''};
     case 'draw':
       return {'strokes': <dynamic>[]};
+    case 'authenticator':
+      return {'entries': <dynamic>[]};
     default:
       return <String, dynamic>{};
   }

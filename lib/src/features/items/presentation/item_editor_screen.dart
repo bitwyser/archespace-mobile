@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
 import 'package:archespace_mobile/src/features/items/data/item_repository.dart';
 import 'package:archespace_mobile/src/features/items/domain/draw.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
+import 'package:archespace_mobile/src/features/items/domain/totp.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/features/vault/data/vault_service.dart';
@@ -250,6 +252,8 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
         return _TableEditor(content: _content);
       case 'draw':
         return _DrawEditor(content: _content);
+      case 'authenticator':
+        return _AuthenticatorEditor(content: _content);
       case 'secret':
         return _SecretEditor(
           content: _content,
@@ -1455,6 +1459,300 @@ class _SecretEditorState extends State<_SecretEditor> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Editor for the "authenticator" item type: a list of TOTP accounts rendered
+/// with live rotating codes. Mutates `content['entries']`; the screen's
+/// jsonEncode diff auto-saves when accounts are added, edited, or removed.
+class _AuthenticatorEditor extends StatefulWidget {
+  const _AuthenticatorEditor({required this.content});
+
+  final Map<String, dynamic> content;
+
+  @override
+  State<_AuthenticatorEditor> createState() => _AuthenticatorEditorState();
+}
+
+class _AuthenticatorEditorState extends State<_AuthenticatorEditor> {
+  Timer? _timer;
+  final Map<String, String> _codes = {};
+  int _now = DateTime.now().millisecondsSinceEpoch;
+
+  bool _adding = false;
+  final _issuer = TextEditingController();
+  final _label = TextEditingController();
+  final _secret = TextEditingController();
+  String? _formError;
+
+  List<Map<String, dynamic>> get _entries {
+    final raw = widget.content['entries'];
+    if (raw is! List) return [];
+    return raw.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _adding = _entries.isEmpty;
+    _refreshCodes();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() => _now = DateTime.now().millisecondsSinceEpoch);
+      _refreshCodes();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _issuer.dispose();
+    _label.dispose();
+    _secret.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refreshCodes() async {
+    for (final e in _entries) {
+      final code = await generateTotp(
+        (e['secret'] ?? '').toString(),
+        digits: (e['digits'] as num?)?.toInt() ?? 6,
+        period: (e['period'] as num?)?.toInt() ?? 30,
+        algorithm: (e['algorithm'] ?? 'SHA1').toString(),
+      );
+      if (!mounted) return;
+      if (code != null) _codes[(e['id'] ?? '').toString()] = code;
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _addEntry() {
+    final pasted = parseOtpauthUri(_secret.text);
+    final entry =
+        pasted ??
+        {
+          'issuer': _issuer.text.trim(),
+          'label': _label.text.trim(),
+          'secret': _secret.text.replaceAll(RegExp(r'\s+'), ''),
+          'digits': 6,
+          'period': 30,
+          'algorithm': 'SHA1',
+        };
+    if (!isValidTotpSecret((entry['secret'] ?? '').toString())) {
+      setState(
+        () => _formError = 'Enter a valid Base32 secret or an otpauth:// link.',
+      );
+      return;
+    }
+    if (pasted != null) {
+      if (_issuer.text.trim().isNotEmpty) entry['issuer'] = _issuer.text.trim();
+      if (_label.text.trim().isNotEmpty) entry['label'] = _label.text.trim();
+    }
+    entry['id'] = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+    setState(() {
+      widget.content['entries'] = [..._entries, entry];
+      _issuer.clear();
+      _label.clear();
+      _secret.clear();
+      _formError = null;
+      _adding = false;
+    });
+    _refreshCodes();
+  }
+
+  void _removeEntry(String id) {
+    setState(() {
+      widget.content['entries'] = _entries
+          .where((e) => (e['id'] ?? '').toString() != id)
+          .toList();
+    });
+  }
+
+  String _formatCode(String? code) {
+    if (code == null || code.isEmpty) return '------';
+    final mid = (code.length / 2).ceil();
+    return '${code.substring(0, mid)} ${code.substring(mid)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final entries = _entries;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        for (final entry in entries) _entryTile(entry, scheme),
+        const SizedBox(height: 8),
+        if (_adding) _addForm(scheme) else _addButton(),
+      ],
+    );
+  }
+
+  Widget _entryTile(Map<String, dynamic> entry, ColorScheme scheme) {
+    final id = (entry['id'] ?? '').toString();
+    final period = (entry['period'] as num?)?.toInt() ?? 30;
+    final remaining = secondsRemaining(period, _now);
+    final low = remaining <= 5;
+    final issuer = (entry['issuer'] ?? '').toString();
+    final label = (entry['label'] ?? '').toString();
+    final title = issuer.isNotEmpty
+        ? issuer
+        : (label.isNotEmpty ? label : 'Account');
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.bodyMedium),
+                  if (issuer.isNotEmpty && label.isNotEmpty)
+                    Text(
+                      label,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatCode(_codes[id]),
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 24,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: remaining / period,
+                      minHeight: 3,
+                      backgroundColor: scheme.surfaceContainerHighest,
+                      color: low ? scheme.error : scheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${remaining}s',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: low ? scheme.error : scheme.onSurfaceVariant,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.copy, size: 18),
+              tooltip: 'Copy code',
+              onPressed: () {
+                final code = _codes[id];
+                if (code == null) return;
+                Clipboard.setData(ClipboardData(text: code));
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Code copied.')));
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 18),
+              tooltip: 'Remove account',
+              onPressed: () => _removeEntry(id),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _addForm(ColorScheme scheme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _issuer,
+              decoration: const InputDecoration(
+                labelText: 'Issuer (e.g. GitHub)',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (_) => setState(() => _formError = null),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _label,
+              decoration: const InputDecoration(
+                labelText: 'Account (e.g. you@email)',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (_) => setState(() => _formError = null),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _secret,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: const InputDecoration(
+                labelText: 'Secret key, or paste an otpauth:// link',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (_) => setState(() => _formError = null),
+            ),
+            if (_formError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _formError!,
+                style: TextStyle(color: scheme.error, fontSize: 12),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _addEntry,
+                    child: const Text('Add account'),
+                  ),
+                ),
+                if (_entries.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => setState(() {
+                        _adding = false;
+                        _issuer.clear();
+                        _label.clear();
+                        _secret.clear();
+                        _formError = null;
+                      }),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _addButton() {
+    return OutlinedButton.icon(
+      onPressed: () => setState(() => _adding = true),
+      icon: const Icon(Icons.add),
+      label: const Text('Add account'),
     );
   }
 }
