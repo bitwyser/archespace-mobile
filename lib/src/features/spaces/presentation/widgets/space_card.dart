@@ -21,6 +21,8 @@ class SpaceCard extends StatelessWidget {
     this.selectMode = false,
     this.selected = false,
     this.onSelectToggle,
+    this.onTagClick,
+    this.activeTags = const {},
     this.margin,
   });
 
@@ -34,10 +36,45 @@ class SpaceCard extends StatelessWidget {
   final bool selectMode;
   final bool selected;
   final VoidCallback? onSelectToggle;
+
+  /// Tap a tag to filter by it. Null leaves tags as plain display chips.
+  final void Function(String)? onTagClick;
+  final Set<String> activeTags;
   final EdgeInsetsGeometry? margin;
 
   String get _countLabel =>
       '${space.itemCount} ${space.itemCount == 1 ? 'item' : 'items'}';
+
+  Widget _tagChip(BuildContext context, ColorScheme scheme, String tag) {
+    final active = activeTags.contains(tag);
+    final chip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: active
+            ? scheme.primary.withValues(alpha: 0.15)
+            : scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(6),
+        border: active
+            ? Border.all(color: scheme.primary.withValues(alpha: 0.4))
+            : null,
+      ),
+      child: Text(
+        tag,
+        style: TextStyle(
+          fontSize: 11,
+          color: active ? scheme.primary : scheme.onSurfaceVariant,
+        ),
+      ),
+    );
+    // A tappable chip consumes its own tap, so it filters instead of opening
+    // the space. Null onTagClick (or select mode) leaves it a plain chip.
+    if (onTagClick == null || selectMode) return chip;
+    return InkWell(
+      borderRadius: BorderRadius.circular(6),
+      onTap: () => onTagClick!(tag),
+      child: chip,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -121,23 +158,7 @@ class SpaceCard extends StatelessWidget {
                             runSpacing: 6,
                             children: [
                               for (final tag in space.tags.take(4))
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: scheme.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    tag,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: scheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ),
+                                _tagChip(context, scheme, tag),
                             ],
                           ),
                         ),

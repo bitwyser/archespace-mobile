@@ -43,6 +43,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
   final Set<String> _selected = {};
   String _sort = kSortDefault;
   String _view = 'list';
+  final Set<String> _activeTags = {};
 
   @override
   void initState() {
@@ -562,41 +563,123 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
         'No items yet.\nTap + to add your first item.',
       );
     }
+    final allTags = <String>{for (final i in all) ...i.tags}.toList()..sort();
+    final filtered = _activeTags.isEmpty
+        ? all
+        : all.where((i) => i.tags.any(_activeTags.contains)).toList();
     final items = applySort(
-      all,
+      filtered,
       _sort,
       name: (i) => i.title,
       createdAt: (i) => i.createdAt,
       pinned: (i) => i.pinned,
     );
-    if (_view == 'grid') return _grid(items);
-    return ReorderableListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.only(top: 4, bottom: 88),
-      buildDefaultDragHandles:
-          !_selectMode && !_offline && _sort == kSortDefault,
-      onReorderItem: _onReorder,
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        final isFocus = item.id == widget.focusItemId;
-        return AnimatedContainer(
-          key: ValueKey(item.id),
-          duration: const Duration(milliseconds: 300),
-          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            color: _flashId == item.id
-                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
-                : Colors.transparent,
-          ),
-          child: KeyedSubtree(
-            key: isFocus ? _focusKey : null,
-            child: _itemCard(item, margin: EdgeInsets.zero),
-          ),
-        );
-      },
+    final Widget list = _view == 'grid'
+        ? _grid(items)
+        : ReorderableListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(top: 4, bottom: 88),
+            buildDefaultDragHandles:
+                !_selectMode &&
+                !_offline &&
+                _sort == kSortDefault &&
+                _activeTags.isEmpty,
+            onReorderItem: _onReorder,
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final item = items[index];
+              final isFocus = item.id == widget.focusItemId;
+              return AnimatedContainer(
+                key: ValueKey(item.id),
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: _flashId == item.id
+                      ? Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.12)
+                      : Colors.transparent,
+                ),
+                child: KeyedSubtree(
+                  key: isFocus ? _focusKey : null,
+                  child: _itemCard(item, margin: EdgeInsets.zero),
+                ),
+              );
+            },
+          );
+    if (allTags.isEmpty) return list;
+    return Column(
+      children: [
+        _tagFilterBar(allTags),
+        Expanded(child: list),
+      ],
     );
+  }
+
+  Widget _tagFilterBar(List<String> allTags) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          for (final tag in allTags)
+            FilterChip(
+              label: Text(tag),
+              selected: _activeTags.contains(tag),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              onSelected: (on) => setState(() {
+                if (on) {
+                  _activeTags.add(tag);
+                } else {
+                  _activeTags.remove(tag);
+                }
+              }),
+            ),
+          if (_activeTags.isNotEmpty)
+            TextButton(
+              onPressed: () => setState(_activeTags.clear),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                foregroundColor: scheme.onSurfaceVariant,
+              ),
+              child: const Text('Clear'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _setTags(SpaceItem item, List<String> tags) async {
+    // Optimistic: reflect the change immediately, then persist.
+    setState(() {
+      _items = _items
+          ?.map(
+            (i) => i.id == item.id
+                ? SpaceItem(
+                    id: i.id,
+                    type: i.type,
+                    title: i.title,
+                    content: i.content,
+                    pinned: i.pinned,
+                    tags: tags,
+                    createdAt: i.createdAt,
+                  )
+                : i,
+          )
+          .toList();
+    });
+    try {
+      await ItemRepository(
+        VaultSession.instance.masterKey,
+      ).setTags(item.id, tags);
+    } catch (_) {
+      if (mounted) _load(); // revert to server truth on failure
+    }
   }
 
   /// Two-column masonry grid: items are distributed round-robin so each keeps
@@ -654,5 +737,6 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
     onArchive: () => _archiveItem(item),
     onExport: () => _exportItem(item),
     onDelete: () => _deleteItem(item),
+    onSetTags: _offline ? null : (tags) => _setTags(item, tags),
   );
 }

@@ -28,7 +28,9 @@ class ItemRepository {
     try {
       rows = await _client
           .from('space_items')
-          .select('id, type, title, content, pinned, position, created_at')
+          .select(
+            'id, type, title, content, tags, pinned, position, created_at',
+          )
           .eq('space_id', spaceId)
           .isFilter('deleted_at', null)
           .isFilter('archived_at', null)
@@ -61,6 +63,7 @@ class ItemRepository {
               _masterKey,
             ),
             content: await _decryptContent(m['content']),
+            tags: await _decodeTags(m['tags']),
             pinned: (m['pinned'] ?? false) as bool,
             createdAt: DateTime.tryParse((m['created_at'] ?? '').toString()),
           ),
@@ -83,6 +86,31 @@ class ItemRepository {
       if (decoded is Map) return decoded.cast<String, dynamic>();
     }
     return <String, dynamic>{};
+  }
+
+  Future<List<String>> _decodeTags(Object? raw) async {
+    if (raw is List) return raw.map((e) => e.toString()).toList();
+    if (raw is String && raw.isNotEmpty) {
+      final text = raw.startsWith('arc1:')
+          ? await ArcheCrypto.decryptArc1(raw, _masterKey)
+          : raw;
+      try {
+        final decoded = jsonDecode(text);
+        if (decoded is List) return decoded.map((e) => e.toString()).toList();
+      } catch (_) {}
+    }
+    return const [];
+  }
+
+  Future<String> _encTags(List<String> tags) =>
+      ArcheCrypto.encryptArc1(jsonEncode(tags), _masterKey);
+
+  /// Update an item's tags only (encrypted like space tags).
+  Future<void> setTags(String id, List<String> tags) async {
+    await _client
+        .from('space_items')
+        .update({'tags': await _encTags(tags)})
+        .eq('id', id);
   }
 
   Future<String> _encTitle(String title) =>

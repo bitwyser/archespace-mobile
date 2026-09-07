@@ -32,6 +32,7 @@ class _SpacesScreenState extends State<SpacesScreen> {
   final Set<String> _selected = {};
   String _sort = kSortDefault;
   String _view = 'list';
+  final Set<String> _activeTags = {};
 
   @override
   void initState() {
@@ -67,7 +68,8 @@ class _SpacesScreenState extends State<SpacesScreen> {
     );
   }
 
-  bool get _canReorder => !_selectMode && !_offline && _sort == kSortDefault;
+  bool get _canReorder =>
+      !_selectMode && !_offline && _sort == kSortDefault && _activeTags.isEmpty;
 
   @override
   void dispose() {
@@ -515,23 +517,72 @@ class _SpacesScreenState extends State<SpacesScreen> {
         'No spaces yet.\nTap + to create your first space.',
       );
     }
+    final allTags = <String>{for (final s in all) ...s.tags}.toList()..sort();
+    final filtered = _activeTags.isEmpty
+        ? all
+        : all.where((s) => s.tags.any(_activeTags.contains)).toList();
     final spaces = applySort(
-      all,
+      filtered,
       _sort,
       name: (s) => s.name,
       createdAt: (s) => s.createdAt,
       pinned: (s) => s.pinned,
     );
-    if (_view == 'grid') return _grid(spaces);
-    return ReorderableListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.only(top: 4, bottom: 88),
-      buildDefaultDragHandles: _canReorder,
-      onReorderItem: _onReorder,
-      itemCount: spaces.length,
-      itemBuilder: (context, index) => KeyedSubtree(
-        key: ValueKey(spaces[index].id),
-        child: _spaceCard(spaces[index]),
+    final Widget list = _view == 'grid'
+        ? _grid(spaces)
+        : ReorderableListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(top: 4, bottom: 88),
+            buildDefaultDragHandles: _canReorder,
+            onReorderItem: _onReorder,
+            itemCount: spaces.length,
+            itemBuilder: (context, index) => KeyedSubtree(
+              key: ValueKey(spaces[index].id),
+              child: _spaceCard(spaces[index]),
+            ),
+          );
+    if (allTags.isEmpty) return list;
+    return Column(
+      children: [
+        _tagFilterBar(allTags),
+        Expanded(child: list),
+      ],
+    );
+  }
+
+  Widget _tagFilterBar(List<String> allTags) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          for (final tag in allTags)
+            FilterChip(
+              label: Text(tag),
+              selected: _activeTags.contains(tag),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              onSelected: (on) => setState(() {
+                if (on) {
+                  _activeTags.add(tag);
+                } else {
+                  _activeTags.remove(tag);
+                }
+              }),
+            ),
+          if (_activeTags.isNotEmpty)
+            TextButton(
+              onPressed: () => setState(_activeTags.clear),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                foregroundColor: scheme.onSurfaceVariant,
+              ),
+              child: const Text('Clear'),
+            ),
+        ],
       ),
     );
   }
@@ -610,5 +661,9 @@ class _SpacesScreenState extends State<SpacesScreen> {
     onDuplicate: () => _duplicateSpace(space),
     onArchive: () => _archiveSpace(space),
     onDelete: () => _deleteSpace(space),
+    activeTags: _activeTags,
+    onTagClick: (tag) => setState(() {
+      if (!_activeTags.remove(tag)) _activeTags.add(tag);
+    }),
   );
 }

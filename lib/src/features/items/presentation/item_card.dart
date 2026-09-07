@@ -24,6 +24,7 @@ class ItemCard extends StatefulWidget {
     this.onArchive,
     this.onDelete,
     this.onExport,
+    this.onSetTags,
     this.selectMode = false,
     this.selected = false,
     this.onSelectToggle,
@@ -39,6 +40,9 @@ class ItemCard extends StatefulWidget {
   final VoidCallback? onArchive;
   final VoidCallback? onDelete;
   final VoidCallback? onExport;
+
+  /// Persist a new tag list for this item. Null hides tag editing.
+  final void Function(List<String>)? onSetTags;
   final bool selectMode;
   final bool selected;
   final VoidCallback? onSelectToggle;
@@ -251,6 +255,7 @@ class _ItemCardState extends State<ItemCard> {
                     ),
                 ],
               ),
+              _tagsRow(context, scheme),
               if (!_collapsed) ...[
                 const SizedBox(height: 10),
                 Divider(height: 1, color: scheme.outlineVariant),
@@ -260,6 +265,124 @@ class _ItemCardState extends State<ItemCard> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _tagsRow(BuildContext context, ColorScheme scheme) {
+    final tags = widget.item.tags;
+    final canEdit = widget.onSetTags != null && !widget.selectMode;
+    if (tags.isEmpty && !canEdit) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (final tag in tags)
+            _TagChip(
+              label: tag,
+              onRemove: canEdit ? () => _removeTag(tag) : null,
+            ),
+          if (canEdit)
+            ActionChip(
+              label: const Text('Tag'),
+              avatar: const Icon(Icons.add, size: 14),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              onPressed: _addTag,
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _removeTag(String tag) {
+    widget.onSetTags?.call(widget.item.tags.where((t) => t != tag).toList());
+  }
+
+  Future<void> _addTag() async {
+    final controller = TextEditingController();
+    final value = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add tag'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'tag'),
+          onSubmitted: (v) => Navigator.pop(ctx, v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    if (value == null) return;
+    final additions = value
+        .split(',')
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty);
+    final merged = {...widget.item.tags, ...additions}.toList();
+    if (merged.length != widget.item.tags.length) {
+      widget.onSetTags?.call(merged);
+    }
+  }
+}
+
+class _TagChip extends StatelessWidget {
+  const _TagChip({required this.label, this.onRemove});
+
+  final String label;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: EdgeInsets.only(
+        left: 8,
+        right: onRemove != null ? 2 : 8,
+        top: 2,
+        bottom: 2,
+      ),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          if (onRemove != null)
+            InkWell(
+              onTap: onRemove,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: Icon(
+                  Icons.close,
+                  size: 12,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
