@@ -11,9 +11,12 @@ import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
 /// Create or edit a space (name, description, colour, tags). Pass [existing] to
 /// edit. Pops `true` on save so the caller can refresh.
 class SpaceEditorScreen extends StatefulWidget {
-  const SpaceEditorScreen({super.key, this.existing});
+  const SpaceEditorScreen({super.key, this.existing, this.parentId});
 
   final Space? existing;
+
+  /// When set, a newly created space becomes a sub-space of this parent.
+  final String? parentId;
 
   @override
   State<SpaceEditorScreen> createState() => _SpaceEditorScreenState();
@@ -80,6 +83,7 @@ class _SpaceEditorScreenState extends State<SpaceEditorScreen> {
           description: _description.text.trim(),
           color: _color,
           tags: _tags,
+          parentId: widget.parentId,
         );
       }
       if (mounted) Navigator.pop(context, true);

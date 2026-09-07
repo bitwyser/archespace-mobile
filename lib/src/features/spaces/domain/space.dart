@@ -7,6 +7,7 @@ class Space {
     required this.pinned,
     this.tags = const [],
     this.color,
+    this.parentId,
     this.itemCount = 0,
     this.pinnedCount = 0,
     this.createdAt,
@@ -17,6 +18,9 @@ class Space {
   final String description;
   final bool pinned;
   final List<String> tags;
+
+  /// Parent space id for a sub-space (one-level nesting), or null for top-level.
+  final String? parentId;
 
   /// Preset colour id (violet/blue/green/amber/rose/slate), or null.
   final String? color;

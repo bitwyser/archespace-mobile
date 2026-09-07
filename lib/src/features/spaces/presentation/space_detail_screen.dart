@@ -9,6 +9,8 @@ import 'package:archespace_mobile/src/features/items/presentation/item_card.dart
 import 'package:archespace_mobile/src/features/items/presentation/item_editor_screen.dart';
 import 'package:archespace_mobile/src/features/spaces/data/space_repository.dart';
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
+import 'package:archespace_mobile/src/features/spaces/presentation/space_editor_screen.dart';
+import 'package:archespace_mobile/src/features/spaces/presentation/widgets/space_card.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/shared/export/pdf_exporter.dart';
 import 'package:archespace_mobile/src/shared/realtime/table_watcher.dart';
@@ -33,6 +35,7 @@ class SpaceDetailScreen extends StatefulWidget {
 
 class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
   List<SpaceItem>? _items;
+  List<Space> _subSpaces = const [];
   Object? _error;
   bool _offline = false;
   TableWatcher? _watcher;
@@ -78,9 +81,21 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       final result = await ItemRepository(
         VaultSession.instance.masterKey,
       ).listItems(widget.space.id);
+      // Sub-spaces (one-level nesting): only a top-level space can have them.
+      List<Space> subs = const [];
+      if (widget.space.parentId == null) {
+        try {
+          subs = await SpaceRepository(
+            VaultSession.instance.masterKey,
+          ).listSubSpaces(widget.space.id);
+        } catch (_) {
+          // Non-fatal: items still load without the sub-space list.
+        }
+      }
       if (mounted) {
         setState(() {
           _items = result.items;
+          _subSpaces = subs;
           _offline = result.fromCache;
           _error = null;
         });
@@ -108,6 +123,82 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       if (mounted) setState(() => _flashId = null);
     });
   }
+
+  Future<void> _createSubSpace() async {
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => SpaceEditorScreen(parentId: widget.space.id),
+      ),
+    );
+    if (created == true && mounted) _load();
+  }
+
+  void _openSubSpace(Space sub) {
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute<void>(
+            builder: (_) => SpaceDetailScreen(space: sub),
+          ),
+        )
+        .then((_) {
+          if (mounted) _load();
+        });
+  }
+
+  Future<void> _subSpaceOp(
+    Future<void> Function(SpaceRepository) op,
+    String errorMsg,
+  ) async {
+    try {
+      await op(SpaceRepository(VaultSession.instance.masterKey));
+      if (mounted) _load();
+    } catch (_) {
+      _showError(errorMsg);
+    }
+  }
+
+  Future<void> _editSubSpace(Space sub) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => SpaceEditorScreen(existing: sub)),
+    );
+    if (saved == true && mounted) _load();
+  }
+
+  Future<void> _deleteSubSpace(Space sub) async {
+    final ok = await confirmAction(
+      context,
+      title: 'Move space to recycle bin?',
+      message: 'This space and all its items will be moved to the recycle bin.',
+      confirmLabel: 'Move to recycle bin',
+      destructive: true,
+    );
+    if (ok) {
+      await _subSpaceOp(
+        (r) => r.deleteSpace(sub.id),
+        "Couldn't delete the space.",
+      );
+    }
+  }
+
+  Widget _subSpaceCard(Space sub) => SpaceCard(
+    space: sub,
+    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    onTap: () => _openSubSpace(sub),
+    onTogglePin: () => _subSpaceOp(
+      (r) => r.setPinned(sub.id, !sub.pinned),
+      "Couldn't update the space.",
+    ),
+    onEdit: () => _editSubSpace(sub),
+    onDuplicate: () => _subSpaceOp(
+      (r) => r.duplicateSpace(sub),
+      "Couldn't duplicate the space.",
+    ),
+    onArchive: () => _subSpaceOp(
+      (r) => r.archiveSpace(sub.id),
+      "Couldn't archive the space.",
+    ),
+    onDelete: () => _deleteSubSpace(sub),
+  );
 
   Future<void> _editItem(SpaceItem item) async {
     final saved = await Navigator.of(context).push<bool>(
@@ -460,6 +551,14 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
                 widget.space.name.isEmpty ? 'Untitled' : widget.space.name,
               ),
               actions: [
+                // Sub-spaces (one-level): only a top-level space can create them.
+                if (!_selectMode && widget.space.parentId == null)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _createSubSpace,
+                    icon: const Icon(Icons.create_new_folder_outlined),
+                    tooltip: 'New space',
+                  ),
                 if (hasItems)
                   IconButton(
                     visualDensity: VisualDensity.compact,
@@ -558,7 +657,12 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       return ScrollableMessage('Failed to load items:\n$_error');
     }
     final all = _items ?? const <SpaceItem>[];
-    if (all.isEmpty) {
+    // Sub-spaces render above the items in the same view (matching the web),
+    // hidden while selecting items.
+    final subSection = (_subSpaces.isEmpty || _selectMode)
+        ? null
+        : Column(children: [for (final s in _subSpaces) _subSpaceCard(s)]);
+    if (all.isEmpty && subSection == null) {
       return const ScrollableMessage(
         'No items yet.\nTap + to add your first item.',
       );
@@ -575,8 +679,9 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       pinned: (i) => i.pinned,
     );
     final Widget list = _view == 'grid'
-        ? _grid(items)
+        ? _grid(items, header: subSection)
         : ReorderableListView.builder(
+            header: subSection,
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(top: 4, bottom: 88),
             buildDefaultDragHandles:
@@ -684,7 +789,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
 
   /// Two-column masonry grid: items are distributed round-robin so each keeps
   /// its natural height (no reordering in this view).
-  Widget _grid(List<SpaceItem> items) {
+  Widget _grid(List<SpaceItem> items, {Widget? header}) {
     final columns = <List<Widget>>[<Widget>[], <Widget>[]];
     for (var i = 0; i < items.length; i++) {
       final item = items[i];
@@ -709,11 +814,17 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(6, 8, 6, 88),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: Column(children: columns[0])),
-          Expanded(child: Column(children: columns[1])),
+          ?header,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: Column(children: columns[0])),
+              Expanded(child: Column(children: columns[1])),
+            ],
+          ),
         ],
       ),
     );

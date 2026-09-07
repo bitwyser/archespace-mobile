@@ -26,7 +26,7 @@ class SpaceRepository {
       rows = await _client
           .from('spaces')
           .select(
-            'id, name, description, tags, color, pinned, position, created_at',
+            'id, name, description, tags, color, parent_id, pinned, position, created_at',
           )
           .isFilter('deleted_at', null)
           .isFilter('archived_at', null)
@@ -85,6 +85,7 @@ class SpaceRepository {
             pinned: (m['pinned'] ?? false) as bool,
             tags: await _decodeTags(m['tags']),
             color: m['color'] as String?,
+            parentId: m['parent_id'] as String?,
             itemCount: (m['_item_count'] ?? 0) as int,
             pinnedCount: (m['_pinned_count'] ?? 0) as int,
             createdAt: DateTime.tryParse((m['created_at'] ?? '').toString()),
@@ -176,6 +177,7 @@ class SpaceRepository {
     String description = '',
     String? color,
     List<String> tags = const [],
+    String? parentId,
   }) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw StateError('Not authenticated');
@@ -186,7 +188,7 @@ class SpaceRepository {
         .isFilter('deleted_at', null)
         .isFilter('archived_at', null);
 
-    await _client.from('spaces').insert({
+    final payload = {
       'user_id': userId,
       'name': await _enc(name),
       'description': await _enc(description),
@@ -195,7 +197,15 @@ class SpaceRepository {
       // web) rather than null, which would violate the constraint.
       'tags': await _encTags(tags),
       'position': existing.length,
-    });
+    };
+    if (parentId != null) payload['parent_id'] = parentId;
+    await _client.from('spaces').insert(payload);
+  }
+
+  /// Sub-spaces of a top-level space (one-level nesting).
+  Future<List<Space>> listSubSpaces(String parentId) async {
+    final result = await listSpaces();
+    return result.spaces.where((s) => s.parentId == parentId).toList();
   }
 
   Future<void> updateSpace({
@@ -222,10 +232,11 @@ class SpaceRepository {
   }
 
   Future<void> archiveSpace(String id) async {
+    // Cascade to child spaces (one-level nesting).
     await _client
         .from('spaces')
         .update({'archived_at': DateTime.now().toUtc().toIso8601String()})
-        .eq('id', id);
+        .or('id.eq.$id,parent_id.eq.$id');
   }
 
   String _nowIso() => DateTime.now().toUtc().toIso8601String();
@@ -246,25 +257,38 @@ class SpaceRepository {
 
   Future<void> bulkArchive(List<String> ids) async {
     if (ids.isEmpty) return;
+    final now = _nowIso();
     await _client
         .from('spaces')
-        .update({'archived_at': _nowIso()})
+        .update({'archived_at': now})
         .inFilter('id', ids);
+    // Cascade to child spaces of any archived top-level space.
+    await _client
+        .from('spaces')
+        .update({'archived_at': now})
+        .inFilter('parent_id', ids);
   }
 
   Future<void> bulkDelete(List<String> ids) async {
     if (ids.isEmpty) return;
+    final now = _nowIso();
     await _client
         .from('spaces')
-        .update({'deleted_at': _nowIso()})
+        .update({'deleted_at': now})
         .inFilter('id', ids);
+    // Cascade to child spaces.
+    await _client
+        .from('spaces')
+        .update({'deleted_at': now})
+        .inFilter('parent_id', ids);
   }
 
   /// Soft-delete to the recycle bin (sets deleted_at), matching the web.
+  /// Cascades to child spaces (one-level nesting).
   Future<void> deleteSpace(String id) async {
     await _client
         .from('spaces')
         .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})
-        .eq('id', id);
+        .or('id.eq.$id,parent_id.eq.$id');
   }
 }

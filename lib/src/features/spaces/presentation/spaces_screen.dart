@@ -131,7 +131,11 @@ class _SpacesScreenState extends State<SpacesScreen> {
   void _selectAll() => setState(() {
     _selected
       ..clear()
-      ..addAll((_spaces ?? const <Space>[]).map((s) => s.id));
+      ..addAll(
+        (_spaces ?? const <Space>[])
+            .where((s) => s.parentId == null)
+            .map((s) => s.id),
+      );
   });
 
   void _snack(String message) {
@@ -511,7 +515,10 @@ class _SpacesScreenState extends State<SpacesScreen> {
     if (_spaces == null && _error != null) {
       return ScrollableMessage('Failed to load spaces:\n$_error');
     }
-    final all = _spaces ?? const <Space>[];
+    // Only top-level spaces on the dashboard; sub-spaces live inside their parent.
+    final all = (_spaces ?? const <Space>[])
+        .where((s) => s.parentId == null)
+        .toList();
     if (all.isEmpty) {
       return const ScrollableMessage(
         'No spaces yet.\nTap + to create your first space.',
