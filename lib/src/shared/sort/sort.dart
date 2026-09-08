@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:archespace_mobile/src/shared/widgets/action_icon_button.dart';
+
 const String kSortDefault = 'default';
 const String kSortName = 'name';
 const String kSortNewest = 'newest';
@@ -42,18 +44,41 @@ class SortMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.sort),
+    return ActionIconButton(
+      icon: Icons.sort,
       tooltip: 'Sort',
-      onSelected: onChanged,
+      onPressed: () => _open(context),
+    );
+  }
+
+  /// Open the sort menu anchored to the button, so the trigger can be the same
+  /// circular ActionIconButton used by the other app-bar actions.
+  Future<void> _open(BuildContext context) async {
+    final button = context.findRenderObject() as RenderBox?;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (button == null || overlay == null) return;
+    final position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(
+          button.size.bottomRight(Offset.zero),
+          ancestor: overlay,
+        ),
+      ),
+      Offset.zero & overlay.size,
+    );
+    final selected = await showMenu<String>(
+      context: context,
+      position: position,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      menuPadding: const EdgeInsets.symmetric(vertical: 4),
-      itemBuilder: (context) => [
+      items: [
         _sortItem(kSortDefault, 'Default order'),
         _sortItem(kSortName, 'Name'),
         _sortItem(kSortNewest, 'Newest'),
       ],
     );
+    if (selected != null) onChanged(selected);
   }
 
   /// A compact menu row (matching the 3-dot action menus) with an inline check

@@ -17,6 +17,7 @@ import 'package:archespace_mobile/src/features/vault/application/vault_session.d
 import 'package:archespace_mobile/src/shared/export/pdf_exporter.dart';
 import 'package:archespace_mobile/src/shared/realtime/table_watcher.dart';
 import 'package:archespace_mobile/src/shared/sort/sort.dart';
+import 'package:archespace_mobile/src/shared/widgets/action_icon_button.dart';
 import 'package:archespace_mobile/src/shared/widgets/bulk_action_bar.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
 import 'package:archespace_mobile/src/shared/widgets/offline_banner.dart';
@@ -549,19 +550,9 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
     );
   }
 
-  /// A compact app-bar icon action: smaller icon and tight spacing so several
-  /// fit comfortably in the top-right without crowding.
-  Widget _barAction(IconData icon, String tooltip, VoidCallback onPressed) {
-    return IconButton(
-      visualDensity: const VisualDensity(horizontal: -3, vertical: -2),
-      iconSize: 21,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      constraints: const BoxConstraints(),
-      onPressed: onPressed,
-      icon: Icon(icon),
-      tooltip: tooltip,
-    );
-  }
+  /// A compact app-bar icon action with a consistent circular tap splash.
+  Widget _barAction(IconData icon, String tooltip, VoidCallback onPressed) =>
+      ActionIconButton(icon: icon, tooltip: tooltip, onPressed: onPressed);
 
   @override
   Widget build(BuildContext context) {
@@ -576,10 +567,10 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
               ),
               title: Text('${_selected.length} selected'),
               actions: [
-                IconButton(
-                  onPressed: _selectAll,
-                  icon: const Icon(Icons.select_all),
+                ActionIconButton(
+                  icon: Icons.select_all,
                   tooltip: 'Select all',
+                  onPressed: _selectAll,
                 ),
               ],
             )

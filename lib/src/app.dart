@@ -28,17 +28,24 @@ class ArcheApp extends StatelessWidget {
       builder: (context, _) => MaterialApp(
         title: 'ArcheSpace',
         themeMode: appearance.themeMode,
-        theme: ThemeData(
-          colorSchemeSeed: appearance.accent,
-          brightness: Brightness.light,
-          useMaterial3: true,
-        ),
-        darkTheme: ThemeData(
-          colorSchemeSeed: appearance.accent,
-          brightness: Brightness.dark,
-          useMaterial3: true,
-        ),
+        theme: _theme(appearance.accent, Brightness.light),
+        darkTheme: _theme(appearance.accent, Brightness.dark),
         home: const _RootGate(),
+      ),
+    );
+  }
+
+  /// Base theme for a brightness. A global [IconButtonThemeData] with a
+  /// [CircleBorder] keeps every icon button's tap splash a circle (Material 3
+  /// otherwise draws a stadium-shaped state layer), so all action buttons and
+  /// the 3-dot menus look consistent.
+  static ThemeData _theme(Color accent, Brightness brightness) {
+    return ThemeData(
+      colorSchemeSeed: accent,
+      brightness: brightness,
+      useMaterial3: true,
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(shape: const CircleBorder()),
       ),
     );
   }

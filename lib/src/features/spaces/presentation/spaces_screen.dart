@@ -11,6 +11,7 @@ import 'package:archespace_mobile/src/features/vault/application/vault_session.d
 import 'package:archespace_mobile/src/shared/offline/write_queue.dart';
 import 'package:archespace_mobile/src/shared/realtime/table_watcher.dart';
 import 'package:archespace_mobile/src/shared/sort/sort.dart';
+import 'package:archespace_mobile/src/shared/widgets/action_icon_button.dart';
 import 'package:archespace_mobile/src/shared/widgets/bulk_action_bar.dart';
 import 'package:archespace_mobile/src/shared/widgets/offline_banner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -314,10 +315,10 @@ class _SpacesScreenState extends State<SpacesScreen> {
               ),
               title: Text('${_selected.length} selected'),
               actions: [
-                IconButton(
-                  onPressed: _selectAll,
-                  icon: const Icon(Icons.select_all),
+                ActionIconButton(
+                  icon: Icons.select_all,
                   tooltip: 'Select all',
+                  onPressed: _selectAll,
                 ),
               ],
             )
@@ -327,19 +328,19 @@ class _SpacesScreenState extends State<SpacesScreen> {
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
               actions: [
-                IconButton(
-                  onPressed: VaultSession.instance.lock,
-                  icon: const Icon(Icons.lock_outline),
+                ActionIconButton(
+                  icon: Icons.lock_outline,
                   tooltip: 'Lock vault',
+                  onPressed: VaultSession.instance.lock,
                 ),
-                IconButton(
+                ActionIconButton(
+                  icon: Icons.settings_outlined,
+                  tooltip: 'Settings',
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => const SettingsScreen(),
                     ),
                   ),
-                  icon: const Icon(Icons.settings_outlined),
-                  tooltip: 'Settings',
                 ),
               ],
             ),
@@ -487,21 +488,17 @@ class _SpacesScreenState extends State<SpacesScreen> {
             ),
           ),
           const Spacer(),
-          IconButton(
-            visualDensity: VisualDensity.compact,
-            onPressed: () => _setView(_view == 'grid' ? 'list' : 'grid'),
-            icon: Icon(
-              _view == 'grid'
-                  ? Icons.view_agenda_outlined
-                  : Icons.grid_view_outlined,
-            ),
+          ActionIconButton(
+            icon: _view == 'grid'
+                ? Icons.view_agenda_outlined
+                : Icons.grid_view_outlined,
             tooltip: _view == 'grid' ? 'List view' : 'Grid view',
+            onPressed: () => _setView(_view == 'grid' ? 'list' : 'grid'),
           ),
-          IconButton(
-            visualDensity: VisualDensity.compact,
-            onPressed: _enterSelect,
-            icon: const Icon(Icons.checklist),
+          ActionIconButton(
+            icon: Icons.checklist,
             tooltip: 'Select',
+            onPressed: _enterSelect,
           ),
           SortMenu(value: _sort, onChanged: _setSort),
         ],
