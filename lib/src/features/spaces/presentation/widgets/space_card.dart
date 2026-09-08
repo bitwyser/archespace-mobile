@@ -79,7 +79,9 @@ class SpaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final accent = selected || space.pinned;
+    // In select mode only selection drives the accent border - a pinned card
+    // keeps its default border so it isn't confused with a selected one.
+    final accent = selected || (space.pinned && !selectMode);
     // The full border tracks pinned/selected (a softened accent, matching the
     // web) or a subtle default; the space colour is shown only as a top border,
     // also softened so it reads calmer on the card.
@@ -188,61 +190,49 @@ class SpaceCard extends StatelessWidget {
                         ),
                       ),
                       if (!selectMode)
-                        Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: scheme.outlineVariant),
-                            borderRadius: BorderRadius.circular(8),
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert, size: 18),
+                          iconSize: 18,
+                          padding: EdgeInsets.zero,
+                          tooltip: 'Space actions',
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          child: SizedBox(
-                            height: 28,
-                            width: 28,
-                            child: PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_horiz, size: 16),
-                              iconSize: 16,
-                              padding: EdgeInsets.zero,
-                              tooltip: 'Space actions',
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              menuPadding: const EdgeInsets.symmetric(
-                                vertical: 4,
-                              ),
-                              onSelected: (value) {
-                                if (value == 'pin') onTogglePin();
-                                if (value == 'edit') onEdit();
-                                if (value == 'duplicate') onDuplicate();
-                                if (value == 'archive') onArchive();
-                                if (value == 'delete') onDelete();
-                              },
-                              itemBuilder: (context) => [
-                                PopupMenuItem(
-                                  height: 40,
-                                  value: 'pin',
-                                  child: Text(space.pinned ? 'Unpin' : 'Pin'),
-                                ),
-                                const PopupMenuItem(
-                                  height: 40,
-                                  value: 'edit',
-                                  child: Text('Edit'),
-                                ),
-                                const PopupMenuItem(
-                                  height: 40,
-                                  value: 'duplicate',
-                                  child: Text('Duplicate'),
-                                ),
-                                const PopupMenuItem(
-                                  height: 40,
-                                  value: 'archive',
-                                  child: Text('Archive'),
-                                ),
-                                const PopupMenuItem(
-                                  height: 40,
-                                  value: 'delete',
-                                  child: Text('Delete'),
-                                ),
-                              ],
+                          menuPadding: const EdgeInsets.symmetric(vertical: 4),
+                          onSelected: (value) {
+                            if (value == 'pin') onTogglePin();
+                            if (value == 'edit') onEdit();
+                            if (value == 'duplicate') onDuplicate();
+                            if (value == 'archive') onArchive();
+                            if (value == 'delete') onDelete();
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              height: 40,
+                              value: 'pin',
+                              child: Text(space.pinned ? 'Unpin' : 'Pin'),
                             ),
-                          ),
+                            const PopupMenuItem(
+                              height: 40,
+                              value: 'edit',
+                              child: Text('Edit'),
+                            ),
+                            const PopupMenuItem(
+                              height: 40,
+                              value: 'duplicate',
+                              child: Text('Duplicate'),
+                            ),
+                            const PopupMenuItem(
+                              height: 40,
+                              value: 'archive',
+                              child: Text('Archive'),
+                            ),
+                            const PopupMenuItem(
+                              height: 40,
+                              value: 'delete',
+                              child: Text('Delete'),
+                            ),
+                          ],
                         ),
                     ],
                   ),

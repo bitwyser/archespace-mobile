@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -468,27 +470,38 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
     return '${safe.isEmpty ? 'export' : safe}.pdf';
   }
 
-  Future<void> _exportSpace() async {
-    try {
-      final bytes = await PdfExporter.buildSpace(
-        widget.space.name,
-        _items ?? const [],
-      );
-      await Printing.sharePdf(
-        bytes: bytes,
-        filename: _fileName(widget.space.name),
-      );
-    } catch (_) {
-      _showError("Couldn't export the space.");
-    }
-  }
+  Future<void> _exportSpace() => _export(
+    build: () => PdfExporter.buildSpace(widget.space.name, _items ?? const []),
+    filename: _fileName(widget.space.name),
+    label: 'space',
+  );
 
-  Future<void> _exportItem(SpaceItem item) async {
+  Future<void> _exportItem(SpaceItem item) => _export(
+    build: () => PdfExporter.buildItem(item),
+    filename: _fileName(item.title),
+    label: 'item',
+  );
+
+  /// Build the PDF behind a progress spinner (so a large space doesn't look
+  /// like a frozen screen), then hand it to the share sheet. Any failure is
+  /// surfaced instead of silently doing nothing.
+  Future<void> _export({
+    required Future<Uint8List> Function() build,
+    required String filename,
+    required String label,
+  }) async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
     try {
-      final bytes = await PdfExporter.buildItem(item);
-      await Printing.sharePdf(bytes: bytes, filename: _fileName(item.title));
-    } catch (_) {
-      _showError("Couldn't export the item.");
+      final bytes = await build();
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+      await Printing.sharePdf(bytes: bytes, filename: filename);
+    } catch (e) {
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+      _showError("Couldn't export the $label: $e");
     }
   }
 
@@ -502,28 +515,33 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
   }
 
   void _openAddSheet() {
-    // Not scroll-controlled, so the sheet opens at the default height (about
-    // half the screen) like the settings menu, rather than full screen; the
-    // list scrolls within it.
+    // Scroll-controlled with a fixed ~70% height so it opens taller than the
+    // default half sheet but not full screen; the list scrolls within it. The
+    // tiles are dense to keep the menu compact.
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.only(bottom: 8),
-          children: [
-            for (final def in kItemTypes.where((d) => d.editable))
-              ListTile(
-                leading: Icon(def.icon),
-                title: Text(def.label),
-                subtitle: Text(def.description),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _addItem(def.type);
-                },
-              ),
-          ],
+      builder: (sheetContext) => SizedBox(
+        height: MediaQuery.sizeOf(sheetContext).height * 0.7,
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 8),
+            children: [
+              for (final def in kItemTypes.where((d) => d.editable))
+                ListTile(
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  leading: Icon(def.icon),
+                  title: Text(def.label),
+                  subtitle: Text(def.description),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _addItem(def.type);
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -568,8 +586,12 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
                 widget.space.name.isEmpty ? 'Untitled' : widget.space.name,
               ),
               actions: [
+                // Wait until items have loaded so the actions all appear at
+                // once, rather than this one showing during the load.
                 // Sub-spaces (one-level): only a top-level space can create them.
-                if (!_selectMode && widget.space.parentId == null)
+                if (_items != null &&
+                    !_selectMode &&
+                    widget.space.parentId == null)
                   _barAction(
                     Icons.create_new_folder_outlined,
                     'New space',
