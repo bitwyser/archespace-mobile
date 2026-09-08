@@ -79,12 +79,14 @@ class SpaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    // The full border tracks pinned/selected (accent) or default (subtle); the
-    // space colour is shown only as a top border, matching the web.
-    final border = selected || space.pinned
-        ? scheme.primary
+    final accent = selected || space.pinned;
+    // The full border tracks pinned/selected (a softened accent, matching the
+    // web) or a subtle default; the space colour is shown only as a top border,
+    // also softened so it reads calmer on the card.
+    final border = accent
+        ? scheme.primary.withValues(alpha: 0.5)
         : scheme.outlineVariant;
-    final topColor = spaceColor(space.color);
+    final topColor = spaceColor(space.color)?.withValues(alpha: 0.65);
 
     return Stack(
       children: [
@@ -92,9 +94,10 @@ class SpaceCard extends StatelessWidget {
           margin:
               margin ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           clipBehavior: Clip.antiAlias,
+          color: scheme.surfaceContainerLowest,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: border, width: selected ? 2 : 1.5),
+            side: BorderSide(color: border, width: accent ? 2 : 1.5),
           ),
           child: InkWell(
             onTap: selectMode ? onSelectToggle : onTap,

@@ -74,25 +74,22 @@ class _ItemCardState extends State<ItemCard> {
     final onDelete = widget.onDelete;
     final onExport = widget.onExport;
     final scheme = Theme.of(context).colorScheme;
-    // Border tracks pinned/selected (accent) or a subtle default, matching the
-    // web item card and the mobile space card. Pinned/selected also gets a
-    // faint accent tint (web: bg-accent/5).
+    // Border tracks pinned/selected with a softened accent (matching the web)
+    // or a subtle default; the card sits on a darker recessed surface, with no
+    // full-card accent wash (the web dropped that).
     final accent = selected || item.pinned;
-    final borderColor = accent ? scheme.primary : scheme.outlineVariant;
+    final borderColor = accent
+        ? scheme.primary.withValues(alpha: 0.5)
+        : scheme.outlineVariant;
     return Card(
       margin:
           widget.margin ??
           const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       clipBehavior: Clip.antiAlias,
-      color: accent
-          ? Color.alphaBlend(
-              scheme.primary.withValues(alpha: 0.05),
-              scheme.surface,
-            )
-          : null,
+      color: scheme.surfaceContainerLowest,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: borderColor, width: selected ? 2 : 1.5),
+        side: BorderSide(color: borderColor, width: accent ? 2 : 1.5),
       ),
       child: InkWell(
         onTap: selectMode ? onSelectToggle : onTap,
