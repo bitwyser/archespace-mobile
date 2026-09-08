@@ -10,6 +10,7 @@ import 'package:archespace_mobile/src/features/items/domain/draw.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/features/items/domain/totp.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
+import 'package:archespace_mobile/src/features/items/presentation/rich_text_editor.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/features/vault/data/vault_service.dart';
 import 'package:archespace_mobile/src/shared/crypto/arche_crypto.dart';
@@ -238,6 +239,8 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
       case 'textbox':
       case 'markdown':
         return _NoteEditor(content: _content);
+      case 'richtext':
+        return RichTextEditorField(content: _content);
       case 'code':
         return _CodeEditor(content: _content);
       case 'menu_list':

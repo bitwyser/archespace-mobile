@@ -7,6 +7,7 @@ import 'package:highlight/highlight.dart' show highlight;
 import 'package:archespace_mobile/src/features/items/domain/draw.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_clipboard.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
+import 'package:archespace_mobile/src/features/items/domain/rich_text_html.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
 import 'package:archespace_mobile/src/shared/widgets/select_box.dart';
 
@@ -408,6 +409,16 @@ class _ItemBody extends StatelessWidget {
         return md.isEmpty
             ? const _Empty()
             : MarkdownBody(data: md, selectable: false);
+      case 'richtext':
+        final spans = parseRichHtml((c['html'] ?? '').toString());
+        return spans.isEmpty
+            ? const _Empty()
+            : Text.rich(
+                richSpansToTextSpan(
+                  spans,
+                  base: DefaultTextStyle.of(context).style,
+                ),
+              );
       case 'code':
         return _Code(code: (c['code'] ?? '').toString());
       case 'menu_list':

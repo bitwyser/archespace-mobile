@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:archespace_mobile/src/features/items/domain/rich_text_html.dart';
 import 'package:archespace_mobile/src/shared/crypto/arche_crypto.dart';
 
 /// One searchable entry: either a space or an item. [haystack] is the
@@ -135,6 +136,8 @@ String _itemText(String type, String title, Map<String, dynamic> content) {
     case 'textbox':
     case 'markdown':
       parts.add((content['text'] ?? '').toString());
+    case 'richtext':
+      parts.add(richHtmlToPlainText((content['html'] ?? '').toString()));
     case 'menu_list':
     case 'numbered_list':
     case 'checkbox_list':

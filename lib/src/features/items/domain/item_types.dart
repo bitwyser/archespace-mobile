@@ -28,6 +28,13 @@ const List<ItemTypeDef> kItemTypes = [
     editable: true,
   ),
   ItemTypeDef(
+    type: 'richtext',
+    label: 'Rich Text',
+    description: 'Formatted text - bold, italic, underline, font size',
+    icon: Icons.text_fields,
+    editable: true,
+  ),
+  ItemTypeDef(
     type: 'markdown',
     label: 'Markdown',
     description: 'Rich text with markdown',
@@ -114,6 +121,8 @@ Map<String, dynamic> defaultContentFor(String type) {
     case 'textbox':
     case 'markdown':
       return {'text': ''};
+    case 'richtext':
+      return {'html': ''};
     case 'code':
       return {'code': ''};
     case 'menu_list':

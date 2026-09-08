@@ -6,6 +6,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'package:archespace_mobile/src/features/items/domain/draw.dart';
+import 'package:archespace_mobile/src/features/items/domain/rich_text_html.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
 
 /// Builds a PDF for a whole space or a single item, per item type. Mirrors the
@@ -58,6 +59,9 @@ class PdfExporter {
       case 'textbox':
       case 'markdown':
         final text = (c['text'] ?? '').toString();
+        return pw.Text(text.isEmpty ? '(empty)' : text);
+      case 'richtext':
+        final text = richHtmlToPlainText((c['html'] ?? '').toString());
         return pw.Text(text.isEmpty ? '(empty)' : text);
       case 'code':
         final code = (c['code'] ?? '').toString();
