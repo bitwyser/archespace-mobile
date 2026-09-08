@@ -2,7 +2,6 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui';
 
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'package:archespace_mobile/src/features/items/domain/draw.dart';
@@ -66,21 +65,15 @@ class PdfExporter {
       case 'code':
         final code = (c['code'] ?? '').toString();
         if (code.isEmpty) return pw.Text('(empty)');
-        return pw.Container(
-          width: double.infinity,
-          padding: const pw.EdgeInsets.all(8),
-          decoration: pw.BoxDecoration(
-            color: PdfColors.grey100,
-            border: pw.Border.all(color: PdfColors.grey400),
-            borderRadius: pw.BorderRadius.circular(4),
-          ),
-          child: pw.Text(
-            code,
-            style: pw.TextStyle(
-              font: pw.Font.courier(),
-              fontSize: 9,
-              lineSpacing: 2,
-            ),
+        // Plain monospace text (not wrapped in a decorated Container): a fixed
+        // Container cannot be split across pages, so a code block taller than
+        // one page would make pw.MultiPage loop forever (the export hang).
+        return pw.Text(
+          code,
+          style: pw.TextStyle(
+            font: pw.Font.courier(),
+            fontSize: 9,
+            lineSpacing: 2,
           ),
         );
       case 'menu_list':

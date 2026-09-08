@@ -916,7 +916,7 @@ class _AuthenticatorPreviewState extends State<_AuthenticatorPreview> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [for (final e in widget.entries) _row(context, scheme, e)],
     );
   }
@@ -933,8 +933,14 @@ class _AuthenticatorPreviewState extends State<_AuthenticatorPreview> {
     final period = (e['period'] as num?)?.toInt() ?? 30;
     final remaining = period - (_now ~/ 1000) % period;
     final code = _codes[id];
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Row(
         children: [
           Expanded(

@@ -496,6 +496,8 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
     try {
+      // Yield a frame so the spinner paints before the (synchronous) PDF build.
+      await Future<void>.delayed(Duration.zero);
       final bytes = await build();
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
       await Printing.sharePdf(bytes: bytes, filename: filename);
@@ -582,6 +584,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
               ],
             )
           : AppBar(
+              titleSpacing: 0,
               title: Text(
                 widget.space.name.isEmpty ? 'Untitled' : widget.space.name,
               ),

@@ -178,63 +178,71 @@ class SpaceCard extends StatelessWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 6, 10, 6),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _countLabel,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: scheme.onSurfaceVariant,
+                  child: SizedBox(
+                    height: 36,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _countLabel,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: scheme.onSurfaceVariant,
+                            ),
                           ),
                         ),
-                      ),
-                      if (!selectMode)
-                        PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert, size: 18),
-                          iconSize: 18,
-                          padding: EdgeInsets.zero,
-                          tooltip: 'Space actions',
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                        if (!selectMode)
+                          SizedBox(
+                            height: 32,
+                            width: 32,
+                            child: PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert, size: 18),
+                              padding: EdgeInsets.zero,
+                              tooltip: 'Space actions',
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              menuPadding: const EdgeInsets.symmetric(
+                                vertical: 4,
+                              ),
+                              onSelected: (value) {
+                                if (value == 'pin') onTogglePin();
+                                if (value == 'edit') onEdit();
+                                if (value == 'duplicate') onDuplicate();
+                                if (value == 'archive') onArchive();
+                                if (value == 'delete') onDelete();
+                              },
+                              itemBuilder: (context) => [
+                                PopupMenuItem(
+                                  height: 40,
+                                  value: 'pin',
+                                  child: Text(space.pinned ? 'Unpin' : 'Pin'),
+                                ),
+                                const PopupMenuItem(
+                                  height: 40,
+                                  value: 'edit',
+                                  child: Text('Edit'),
+                                ),
+                                const PopupMenuItem(
+                                  height: 40,
+                                  value: 'duplicate',
+                                  child: Text('Duplicate'),
+                                ),
+                                const PopupMenuItem(
+                                  height: 40,
+                                  value: 'archive',
+                                  child: Text('Archive'),
+                                ),
+                                const PopupMenuItem(
+                                  height: 40,
+                                  value: 'delete',
+                                  child: Text('Delete'),
+                                ),
+                              ],
+                            ),
                           ),
-                          menuPadding: const EdgeInsets.symmetric(vertical: 4),
-                          onSelected: (value) {
-                            if (value == 'pin') onTogglePin();
-                            if (value == 'edit') onEdit();
-                            if (value == 'duplicate') onDuplicate();
-                            if (value == 'archive') onArchive();
-                            if (value == 'delete') onDelete();
-                          },
-                          itemBuilder: (context) => [
-                            PopupMenuItem(
-                              height: 40,
-                              value: 'pin',
-                              child: Text(space.pinned ? 'Unpin' : 'Pin'),
-                            ),
-                            const PopupMenuItem(
-                              height: 40,
-                              value: 'edit',
-                              child: Text('Edit'),
-                            ),
-                            const PopupMenuItem(
-                              height: 40,
-                              value: 'duplicate',
-                              child: Text('Duplicate'),
-                            ),
-                            const PopupMenuItem(
-                              height: 40,
-                              value: 'archive',
-                              child: Text('Archive'),
-                            ),
-                            const PopupMenuItem(
-                              height: 40,
-                              value: 'delete',
-                              child: Text('Delete'),
-                            ),
-                          ],
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
