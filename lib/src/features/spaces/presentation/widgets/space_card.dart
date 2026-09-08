@@ -48,7 +48,7 @@ class SpaceCard extends StatelessWidget {
   Widget _tagChip(BuildContext context, ColorScheme scheme, String tag) {
     final active = activeTags.contains(tag);
     final chip = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
         color: active
             ? scheme.primary.withValues(alpha: 0.15)
@@ -61,7 +61,7 @@ class SpaceCard extends StatelessWidget {
       child: Text(
         tag,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: 10,
           color: active ? scheme.primary : scheme.onSurfaceVariant,
         ),
       ),

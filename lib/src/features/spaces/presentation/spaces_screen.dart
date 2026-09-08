@@ -15,6 +15,7 @@ import 'package:archespace_mobile/src/shared/widgets/bulk_action_bar.dart';
 import 'package:archespace_mobile/src/shared/widgets/offline_banner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:archespace_mobile/src/shared/widgets/scrollable_message.dart';
+import 'package:archespace_mobile/src/shared/widgets/tag_filter_bar.dart';
 
 class SpacesScreen extends StatefulWidget {
   const SpacesScreen({super.key});
@@ -391,12 +392,9 @@ class _SpacesScreenState extends State<SpacesScreen> {
               top: false,
               child: Column(
                 children: [
+                  // Only the search bar is fixed; the "Spaces" count/actions
+                  // header and tag filter scroll with the list (see _body).
                   if (!_selectMode && hasSpaces) _buildSearchBar(context),
-                  if (!_selectMode && hasSpaces)
-                    _buildSpacesHeader(
-                      context,
-                      (_spaces ?? const <Space>[]).length,
-                    ),
                   if (_offline) const OfflineBanner(),
                   ValueListenableBuilder<int>(
                     valueListenable: WriteQueue.instance.pending,
@@ -535,9 +533,27 @@ class _SpacesScreenState extends State<SpacesScreen> {
       createdAt: (s) => s.createdAt,
       pinned: (s) => s.pinned,
     );
-    final Widget list = _view == 'grid'
-        ? _grid(spaces)
+    // The count/actions header and tag filter scroll with the list, and are
+    // hidden while selecting (the app bar shows the selection state instead).
+    final headerChildren = <Widget>[];
+    if (!_selectMode) {
+      headerChildren.add(
+        _buildSpacesHeader(context, (_spaces ?? const <Space>[]).length),
+      );
+      if (allTags.isNotEmpty) headerChildren.add(_tagFilterBar(allTags));
+    }
+    final header = headerChildren.isEmpty
+        ? null
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: headerChildren,
+          );
+
+    return _view == 'grid'
+        ? _grid(spaces, header: header)
         : ReorderableListView.builder(
+            header: header,
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(top: 4, bottom: 88),
             buildDefaultDragHandles: _canReorder,
@@ -548,56 +564,21 @@ class _SpacesScreenState extends State<SpacesScreen> {
               child: _spaceCard(spaces[index]),
             ),
           );
-    if (allTags.isEmpty) return list;
-    return Column(
-      children: [
-        _tagFilterBar(allTags),
-        Expanded(child: list),
-      ],
-    );
   }
 
   Widget _tagFilterBar(List<String> allTags) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      child: Wrap(
-        spacing: 6,
-        runSpacing: 6,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          for (final tag in allTags)
-            FilterChip(
-              label: Text(tag),
-              selected: _activeTags.contains(tag),
-              visualDensity: VisualDensity.compact,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              onSelected: (on) => setState(() {
-                if (on) {
-                  _activeTags.add(tag);
-                } else {
-                  _activeTags.remove(tag);
-                }
-              }),
-            ),
-          if (_activeTags.isNotEmpty)
-            TextButton(
-              onPressed: () => setState(_activeTags.clear),
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                foregroundColor: scheme.onSurfaceVariant,
-              ),
-              child: const Text('Clear'),
-            ),
-        ],
-      ),
+    return compactTagFilterBar(
+      context: context,
+      allTags: allTags,
+      activeTags: _activeTags,
+      onChanged: () => setState(() {}),
     );
   }
 
   /// Two-column masonry grid. Cards keep their natural height (round-robin
   /// distribution); when reordering is allowed each is a long-press draggable
   /// and a drop target, persisting the new order like the list view.
-  Widget _grid(List<Space> spaces) {
+  Widget _grid(List<Space> spaces, {Widget? header}) {
     final canReorder = _canReorder;
     final columns = <List<Widget>>[<Widget>[], <Widget>[]];
     for (var i = 0; i < spaces.length; i++) {
@@ -606,11 +587,17 @@ class _SpacesScreenState extends State<SpacesScreen> {
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(6, 6, 6, 88),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: Column(children: columns[0])),
-          Expanded(child: Column(children: columns[1])),
+          ?header,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: Column(children: columns[0])),
+              Expanded(child: Column(children: columns[1])),
+            ],
+          ),
         ],
       ),
     );

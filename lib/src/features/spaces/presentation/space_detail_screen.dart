@@ -19,6 +19,7 @@ import 'package:archespace_mobile/src/shared/widgets/bulk_action_bar.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
 import 'package:archespace_mobile/src/shared/widgets/offline_banner.dart';
 import 'package:archespace_mobile/src/shared/widgets/scrollable_message.dart';
+import 'package:archespace_mobile/src/shared/widgets/tag_filter_bar.dart';
 
 class SpaceDetailScreen extends StatefulWidget {
   const SpaceDetailScreen({super.key, required this.space, this.focusItemId});
@@ -501,9 +502,11 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
   }
 
   void _openAddSheet() {
+    // Not scroll-controlled, so the sheet opens at the default height (about
+    // half the screen) like the settings menu, rather than full screen; the
+    // list scrolls within it.
     showModalBottomSheet<void>(
       context: context,
-      isScrollControlled: true,
       showDragHandle: true,
       builder: (sheetContext) => SafeArea(
         child: ListView(
@@ -523,6 +526,20 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// A compact app-bar icon action: smaller icon and tight spacing so several
+  /// fit comfortably in the top-right without crowding.
+  Widget _barAction(IconData icon, String tooltip, VoidCallback onPressed) {
+    return IconButton(
+      visualDensity: const VisualDensity(horizontal: -3, vertical: -2),
+      iconSize: 21,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      constraints: const BoxConstraints(),
+      onPressed: onPressed,
+      icon: Icon(icon),
+      tooltip: tooltip,
     );
   }
 
@@ -553,39 +570,29 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
               actions: [
                 // Sub-spaces (one-level): only a top-level space can create them.
                 if (!_selectMode && widget.space.parentId == null)
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    onPressed: _createSubSpace,
-                    icon: const Icon(Icons.create_new_folder_outlined),
-                    tooltip: 'New space',
+                  _barAction(
+                    Icons.create_new_folder_outlined,
+                    'New space',
+                    _createSubSpace,
                   ),
                 if (hasItems)
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () =>
-                        _setView(_view == 'grid' ? 'list' : 'grid'),
-                    icon: Icon(
-                      _view == 'grid'
-                          ? Icons.view_agenda_outlined
-                          : Icons.grid_view_outlined,
-                    ),
-                    tooltip: _view == 'grid' ? 'List view' : 'Grid view',
+                  _barAction(
+                    _view == 'grid'
+                        ? Icons.view_agenda_outlined
+                        : Icons.grid_view_outlined,
+                    _view == 'grid' ? 'List view' : 'Grid view',
+                    () => _setView(_view == 'grid' ? 'list' : 'grid'),
                   ),
                 if (hasItems)
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    onPressed: _enterSelect,
-                    icon: const Icon(Icons.checklist),
-                    tooltip: 'Select',
-                  ),
+                  _barAction(Icons.checklist, 'Select', _enterSelect),
                 if (hasItems) SortMenu(value: _sort, onChanged: _setSort),
                 if (hasItems)
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    onPressed: _exportSpace,
-                    icon: const Icon(Icons.picture_as_pdf_outlined),
-                    tooltip: 'Export PDF',
+                  _barAction(
+                    Icons.picture_as_pdf_outlined,
+                    'Export PDF',
+                    _exportSpace,
                   ),
+                const SizedBox(width: 4),
               ],
             ),
       floatingActionButton: _selectMode
@@ -713,7 +720,8 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
               );
             },
           );
-    if (allTags.isEmpty) return list;
+    // Hide the tag filter bar while selecting items.
+    if (allTags.isEmpty || _selectMode) return list;
     return Column(
       children: [
         _tagFilterBar(allTags),
@@ -723,39 +731,11 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
   }
 
   Widget _tagFilterBar(List<String> allTags) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      child: Wrap(
-        spacing: 6,
-        runSpacing: 6,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          for (final tag in allTags)
-            FilterChip(
-              label: Text(tag),
-              selected: _activeTags.contains(tag),
-              visualDensity: VisualDensity.compact,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              onSelected: (on) => setState(() {
-                if (on) {
-                  _activeTags.add(tag);
-                } else {
-                  _activeTags.remove(tag);
-                }
-              }),
-            ),
-          if (_activeTags.isNotEmpty)
-            TextButton(
-              onPressed: () => setState(_activeTags.clear),
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                foregroundColor: scheme.onSurfaceVariant,
-              ),
-              child: const Text('Clear'),
-            ),
-        ],
-      ),
+    return compactTagFilterBar(
+      context: context,
+      allTags: allTags,
+      activeTags: _activeTags,
+      onChanged: () => setState(() {}),
     );
   }
 

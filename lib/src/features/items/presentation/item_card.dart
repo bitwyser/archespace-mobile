@@ -59,6 +59,14 @@ class ItemCard extends StatefulWidget {
 
 class _ItemCardState extends State<ItemCard> {
   bool _collapsed = false;
+  bool _addingTag = false;
+  final TextEditingController _tagController = TextEditingController();
+
+  @override
+  void dispose() {
+    _tagController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -276,19 +284,61 @@ class _ItemCardState extends State<ItemCard> {
       child: Wrap(
         spacing: 6,
         runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           for (final tag in tags)
             _TagChip(
               label: tag,
               onRemove: canEdit ? () => _removeTag(tag) : null,
             ),
-          if (canEdit)
-            ActionChip(
-              label: const Text('Tag'),
-              avatar: const Icon(Icons.add, size: 14),
-              visualDensity: VisualDensity.compact,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              onPressed: _addTag,
+          if (canEdit && !_addingTag)
+            InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: () => setState(() => _addingTag = true),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: scheme.outlineVariant),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add, size: 12, color: scheme.onSurfaceVariant),
+                    const SizedBox(width: 2),
+                    Text(
+                      'Tag',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (canEdit && _addingTag)
+            SizedBox(
+              width: 120,
+              child: TextField(
+                controller: _tagController,
+                autofocus: true,
+                style: const TextStyle(fontSize: 12),
+                textInputAction: TextInputAction.done,
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: 'tag',
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                onSubmitted: (_) => _commitTag(),
+                onTapOutside: (_) => _commitTag(),
+              ),
             ),
         ],
       ),
@@ -299,31 +349,10 @@ class _ItemCardState extends State<ItemCard> {
     widget.onSetTags?.call(widget.item.tags.where((t) => t != tag).toList());
   }
 
-  Future<void> _addTag() async {
-    final controller = TextEditingController();
-    final value = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add tag'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'tag'),
-          onSubmitted: (v) => Navigator.pop(ctx, v),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-    if (value == null) return;
+  /// Commit the inline tag field: merge any comma-separated tags, then close.
+  void _commitTag() {
+    final value = _tagController.text;
+    _tagController.clear();
     final additions = value
         .split(',')
         .map((t) => t.trim())
@@ -332,6 +361,7 @@ class _ItemCardState extends State<ItemCard> {
     if (merged.length != widget.item.tags.length) {
       widget.onSetTags?.call(merged);
     }
+    if (mounted) setState(() => _addingTag = false);
   }
 }
 
@@ -346,14 +376,14 @@ class _TagChip extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: EdgeInsets.only(
-        left: 8,
-        right: onRemove != null ? 2 : 8,
-        top: 2,
-        bottom: 2,
+        left: 6,
+        right: onRemove != null ? 1 : 6,
+        top: 1,
+        bottom: 1,
       ),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: scheme.outlineVariant),
       ),
       child: Row(
@@ -362,7 +392,7 @@ class _TagChip extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w500,
               color: scheme.onSurfaceVariant,
             ),
