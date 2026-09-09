@@ -94,7 +94,7 @@ class SpaceCard extends StatelessWidget {
       children: [
         Card(
           margin:
-              margin ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              margin ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
           clipBehavior: Clip.antiAlias,
           color: scheme.surfaceContainerLowest,
           shape: RoundedRectangleBorder(

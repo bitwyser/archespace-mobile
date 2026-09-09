@@ -603,7 +603,7 @@ class _SpacesScreenState extends State<SpacesScreen> {
   }
 
   Widget _gridCard(Space space, bool canReorder) {
-    final card = _spaceCard(space, margin: const EdgeInsets.all(4));
+    final card = _spaceCard(space, margin: const EdgeInsets.all(2));
     if (!canReorder) {
       return KeyedSubtree(key: ValueKey(space.id), child: card);
     }
