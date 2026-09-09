@@ -48,11 +48,17 @@ class ArcheApp extends StatelessWidget {
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(shape: const CircleBorder()),
       ),
-      // Compact input fields app-wide (short labels + tight padding). The item
-      // editor resets this to the roomy default for note/content entry.
+      // Standard rounded input boxes app-wide: a smooth-cornered outline with
+      // the label sitting inside as a placeholder (never floating into the
+      // border as a "legend"), plus compact padding. The item editor keeps the
+      // same rounded look but with roomy padding for note/content entry.
       inputDecorationTheme: const InputDecorationTheme(
         isDense: true,
         contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        floatingLabelBehavior: FloatingLabelBehavior.never,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+        ),
       ),
     );
   }

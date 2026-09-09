@@ -209,10 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       keyboardType: TextInputType.emailAddress,
                       autofillHints: const [AutofillHints.email],
                       enabled: !_loading,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        border: OutlineInputBorder(),
-                      ),
+                      decoration: const InputDecoration(labelText: 'Email'),
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -225,7 +222,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       onSubmitted: (_) => _submit(),
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        border: const OutlineInputBorder(),
                         suffixIconConstraints: const BoxConstraints(
                           minWidth: 44,
                           minHeight: 44,
@@ -248,7 +244,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         onSubmitted: (_) => _submit(),
                         decoration: const InputDecoration(
                           labelText: 'Confirm password',
-                          border: OutlineInputBorder(),
                         ),
                       ),
                     ],

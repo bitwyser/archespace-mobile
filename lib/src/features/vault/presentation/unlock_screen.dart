@@ -281,10 +281,7 @@ class _UnlockScreenState extends State<UnlockScreen> {
           keyboardType: TextInputType.number,
           enabled: !_loading,
           onSubmitted: (_) => _unlockWithPin(),
-          decoration: const InputDecoration(
-            labelText: 'PIN or passphrase',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'PIN or passphrase'),
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),
@@ -341,10 +338,7 @@ class _UnlockScreenState extends State<UnlockScreen> {
           autocorrect: false,
           enableSuggestions: false,
           onChanged: (_) => setState(() => _error = null),
-          decoration: const InputDecoration(
-            labelText: 'Recovery code',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'Recovery code'),
         ),
         const SizedBox(height: 12),
         TextField(
@@ -355,10 +349,7 @@ class _UnlockScreenState extends State<UnlockScreen> {
           enableSuggestions: false,
           onChanged: (_) => setState(() => _error = null),
           onSubmitted: (_) => _resetWithRecovery(),
-          decoration: const InputDecoration(
-            labelText: 'New vault PIN',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'New vault PIN'),
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),

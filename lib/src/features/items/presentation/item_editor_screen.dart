@@ -183,59 +183,65 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _handleBack();
       },
-      // Opt out of the app-wide compact input theme: the note/content editors
-      // keep the roomy default so writing longer text stays comfortable.
+      // Opt out of the app-wide compact padding so writing longer text stays
+      // comfortable, but keep the same rounded outline with an inside
+      // placeholder for the form fields here.
       child: Theme(
         data: Theme.of(context).copyWith(
-          inputDecorationTheme: const InputDecorationTheme(),
-        ),
-        child: Scaffold(
-        appBar: AppBar(
-          title: Text(widget.existing != null ? 'Edit $label' : 'New $label'),
-          actions: [
-            _saving
-                ? const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : IconButton(
-                    onPressed: _saveAndClose,
-                    icon: const Icon(Icons.check),
-                    tooltip: 'Save',
-                  ),
-          ],
-        ),
-        body: SafeArea(
-          top: false,
-          child: Padding(
-            // Top trimmed to 8 so the title sits a uniform, small distance
-            // below the app bar (matching the divider gap beneath it); bottom
-            // trimmed to 8 so the trailing add button (list/card/table editors)
-            // sits a uniform, small distance from the screen edge.
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  controller: _title,
-                  style: Theme.of(context).textTheme.titleLarge,
-                  decoration: const InputDecoration(
-                    hintText: 'Title',
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(vertical: 4),
-                  ),
-                ),
-                const Divider(height: 8),
-                Expanded(child: _buildBody()),
-              ],
+          inputDecorationTheme: const InputDecorationTheme(
+            floatingLabelBehavior: FloatingLabelBehavior.never,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
           ),
         ),
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(widget.existing != null ? 'Edit $label' : 'New $label'),
+            actions: [
+              _saving
+                  ? const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : IconButton(
+                      onPressed: _saveAndClose,
+                      icon: const Icon(Icons.check),
+                      tooltip: 'Save',
+                    ),
+            ],
+          ),
+          body: SafeArea(
+            top: false,
+            child: Padding(
+              // Top trimmed to 8 so the title sits a uniform, small distance
+              // below the app bar (matching the divider gap beneath it); bottom
+              // trimmed to 8 so the trailing add button (list/card/table editors)
+              // sits a uniform, small distance from the screen edge.
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: _title,
+                    style: Theme.of(context).textTheme.titleLarge,
+                    decoration: const InputDecoration(
+                      hintText: 'Title',
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 4),
+                    ),
+                  ),
+                  const Divider(height: 8),
+                  Expanded(child: _buildBody()),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -1443,10 +1449,7 @@ class _SecretEditorState extends State<_SecretEditor> {
             keyboardType: TextInputType.number,
             enabled: !_busy,
             onSubmitted: (_) => _reveal(),
-            decoration: const InputDecoration(
-              labelText: 'Vault PIN',
-              border: OutlineInputBorder(),
-            ),
+            decoration: const InputDecoration(labelText: 'Vault PIN'),
           ),
           if (_error != null)
             Padding(
@@ -1692,7 +1695,6 @@ class _AuthenticatorEditorState extends State<_AuthenticatorEditor> {
               controller: _issuer,
               decoration: const InputDecoration(
                 labelText: 'Issuer (e.g. GitHub)',
-                border: OutlineInputBorder(),
                 isDense: true,
               ),
               onChanged: (_) => setState(() => _formError = null),
@@ -1702,7 +1704,6 @@ class _AuthenticatorEditorState extends State<_AuthenticatorEditor> {
               controller: _label,
               decoration: const InputDecoration(
                 labelText: 'Account (e.g. you@email)',
-                border: OutlineInputBorder(),
                 isDense: true,
               ),
               onChanged: (_) => setState(() => _formError = null),
@@ -1714,7 +1715,6 @@ class _AuthenticatorEditorState extends State<_AuthenticatorEditor> {
               enableSuggestions: false,
               decoration: const InputDecoration(
                 labelText: 'Secret key, or paste an otpauth:// link',
-                border: OutlineInputBorder(),
                 isDense: true,
               ),
               onChanged: (_) => setState(() => _formError = null),

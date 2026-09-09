@@ -22,11 +22,7 @@ class BrandWordmark extends StatelessWidget {
     final svg = _template
         .replaceAll('#32d3aa', _hex(accent))
         .replaceAll('#ffffff', _hex(text));
-    return SvgPicture.string(
-      svg,
-      height: height,
-      semanticsLabel: 'ArcheSpace',
-    );
+    return SvgPicture.string(svg, height: height, semanticsLabel: 'ArcheSpace');
   }
 }
 

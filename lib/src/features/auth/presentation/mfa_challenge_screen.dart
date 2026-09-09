@@ -146,7 +146,6 @@ class _MfaChallengeScreenState extends State<MfaChallengeScreen> {
                     onSubmitted: (_) => _submit(),
                     decoration: InputDecoration(
                       labelText: _useBackup ? 'Backup code' : '6-digit code',
-                      border: const OutlineInputBorder(),
                     ),
                   ),
                   if (_error != null) ...[

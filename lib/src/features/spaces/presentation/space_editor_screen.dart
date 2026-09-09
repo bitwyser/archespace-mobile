@@ -165,10 +165,7 @@ class _SpaceEditorScreenState extends State<SpaceEditorScreen> {
               TextField(
                 controller: _name,
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Name'),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -177,7 +174,6 @@ class _SpaceEditorScreenState extends State<SpaceEditorScreen> {
                 maxLines: 5,
                 decoration: const InputDecoration(
                   labelText: 'Description',
-                  border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
               ),
@@ -273,7 +269,6 @@ class _SpaceEditorScreenState extends State<SpaceEditorScreen> {
           onSubmitted: _addTags,
           decoration: const InputDecoration(
             hintText: 'Add a tag and press Enter',
-            border: OutlineInputBorder(),
             isDense: true,
           ),
         ),

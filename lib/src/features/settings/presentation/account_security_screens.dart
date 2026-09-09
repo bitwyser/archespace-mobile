@@ -157,10 +157,7 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
                 controller: _newEmail,
                 keyboardType: TextInputType.emailAddress,
                 enabled: !_loading,
-                decoration: const InputDecoration(
-                  labelText: 'New email',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'New email'),
               ),
               const SizedBox(height: 12),
               _ObscureField(
@@ -181,10 +178,7 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
                 controller: _code,
                 keyboardType: TextInputType.number,
                 enabled: !_loading,
-                decoration: const InputDecoration(
-                  labelText: '6-digit code',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: '6-digit code'),
               ),
               const SizedBox(height: 20),
               _SubmitButton(
@@ -693,10 +687,7 @@ class _ResetPinScreenState extends State<ResetPinScreen> {
               enabled: !_loading,
               autocorrect: false,
               enableSuggestions: false,
-              decoration: const InputDecoration(
-                labelText: 'Recovery code',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'Recovery code'),
             ),
             const SizedBox(height: 12),
             _PinField(
@@ -870,10 +861,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
               enabled: !_loading,
               autocorrect: false,
               enableSuggestions: false,
-              decoration: const InputDecoration(
-                labelText: 'Confirmation text',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'Confirmation text'),
             ),
             const SizedBox(height: 12),
             _ObscureField(
@@ -935,7 +923,6 @@ class _ObscureField extends StatelessWidget {
       enabled: enabled,
       decoration: InputDecoration(
         labelText: label,
-        border: const OutlineInputBorder(),
         suffixIcon: IconButton(
           icon: Icon(obscure ? Icons.visibility : Icons.visibility_off),
           onPressed: onToggle,
@@ -967,10 +954,7 @@ class _PinField extends StatelessWidget {
       autocorrect: false,
       enableSuggestions: false,
       onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
+      decoration: InputDecoration(labelText: label),
     );
   }
 }
@@ -1273,10 +1257,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
               controller: controller,
               obscureText: true,
               autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Login password',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'Login password'),
             ),
           ],
         ),
@@ -1438,10 +1419,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
             if (_error != null) setState(() => _error = null);
           },
           onSubmitted: (_) => _confirmEnroll(),
-          decoration: const InputDecoration(
-            labelText: '6-digit code',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: '6-digit code'),
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),

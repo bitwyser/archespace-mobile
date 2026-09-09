@@ -162,10 +162,7 @@ class _VaultSetupScreenState extends State<VaultSetupScreen> {
           autocorrect: false,
           enableSuggestions: false,
           onChanged: (_) => setState(() => _error = null),
-          decoration: const InputDecoration(
-            labelText: 'New vault PIN',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'New vault PIN'),
         ),
         const SizedBox(height: 12),
         TextField(
@@ -175,10 +172,7 @@ class _VaultSetupScreenState extends State<VaultSetupScreen> {
           autocorrect: false,
           enableSuggestions: false,
           onSubmitted: (_) => _create(),
-          decoration: const InputDecoration(
-            labelText: 'Confirm vault PIN',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'Confirm vault PIN'),
         ),
         if (warning != null) ...[
           const SizedBox(height: 12),
