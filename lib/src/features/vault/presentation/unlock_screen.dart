@@ -259,7 +259,7 @@ class _UnlockScreenState extends State<UnlockScreen> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Icon(Icons.lock_outline, size: 48),
+        const Icon(Icons.lock_outline, size: 40),
         const SizedBox(height: 16),
         Text(
           'Enter your vault PIN',
@@ -284,6 +284,8 @@ class _UnlockScreenState extends State<UnlockScreen> {
           decoration: const InputDecoration(
             labelText: 'PIN or passphrase',
             border: OutlineInputBorder(),
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           ),
         ),
         if (_error != null) ...[
@@ -320,7 +322,7 @@ class _UnlockScreenState extends State<UnlockScreen> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Icon(Icons.vpn_key_outlined, size: 48),
+        const Icon(Icons.vpn_key_outlined, size: 40),
         const SizedBox(height: 16),
         Text(
           'Reset with recovery code',
@@ -344,6 +346,8 @@ class _UnlockScreenState extends State<UnlockScreen> {
           decoration: const InputDecoration(
             labelText: 'Recovery code',
             border: OutlineInputBorder(),
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           ),
         ),
         const SizedBox(height: 12),
@@ -358,6 +362,8 @@ class _UnlockScreenState extends State<UnlockScreen> {
           decoration: const InputDecoration(
             labelText: 'New vault PIN',
             border: OutlineInputBorder(),
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           ),
         ),
         if (_error != null) ...[
