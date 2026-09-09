@@ -182,19 +182,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     Center(
                       child: SvgPicture.asset(
                         'assets/archespace-logo.svg',
-                        height: 44,
+                        height: 36,
                         semanticsLabel: 'ArcheSpace',
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      AppConfig.allowSignup
-                          ? 'Sign in or create an account'
-                          : 'Sign in to your account',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 28),
                     if (AppConfig.allowSignup) ...[
                       SizedBox(
                         width: double.infinity,
@@ -226,6 +218,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Email',
                         border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -240,7 +237,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: InputDecoration(
                         labelText: 'Password',
                         border: const OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        suffixIconConstraints: const BoxConstraints(
+                          minWidth: 44,
+                          minHeight: 44,
+                        ),
                         suffixIcon: IconButton(
+                          iconSize: 20,
                           icon: Icon(
                             _obscure ? Icons.visibility : Icons.visibility_off,
                           ),
@@ -258,6 +265,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         decoration: const InputDecoration(
                           labelText: 'Confirm password',
                           border: OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
+                          ),
                         ),
                       ),
                     ],
