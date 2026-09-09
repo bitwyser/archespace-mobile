@@ -330,6 +330,8 @@ class _SpacesScreenState extends State<SpacesScreen> {
                   icon: Icons.lock_outline,
                   tooltip: 'Lock vault',
                   onPressed: VaultSession.instance.lock,
+                  iconSize: 24,
+                  size: 48,
                 ),
                 ActionIconButton(
                   icon: Icons.settings_outlined,
@@ -339,6 +341,8 @@ class _SpacesScreenState extends State<SpacesScreen> {
                       builder: (_) => const SettingsScreen(),
                     ),
                   ),
+                  iconSize: 24,
+                  size: 48,
                 ),
               ],
             ),
