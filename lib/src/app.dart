@@ -11,6 +11,7 @@ import 'package:archespace_mobile/src/features/vault/data/vault_service.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/features/vault/presentation/inactivity_locker.dart';
 import 'package:archespace_mobile/src/features/auth/presentation/login_screen.dart';
+import 'package:archespace_mobile/src/features/onboarding/presentation/splash_screen.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/spaces_screen.dart';
 import 'package:archespace_mobile/src/features/settings/application/appearance_controller.dart';
 import 'package:archespace_mobile/src/features/vault/presentation/unlock_screen.dart';
@@ -70,6 +71,10 @@ class _RootGateState extends State<_RootGate> {
   final AuthService _auth = AuthService();
   late final StreamSubscription<AuthState> _sub;
 
+  // Show the app-open splash once per launch, before the login screen. A brand
+  // new (or signed-out) user taps continue to reach login / create account.
+  bool _splashDone = false;
+
   @override
   void initState() {
     super.initState();
@@ -93,7 +98,28 @@ class _RootGateState extends State<_RootGate> {
   @override
   Widget build(BuildContext context) {
     if (_auth.currentSession == null) {
-      return const LoginScreen();
+      // Cross-fade + slide from the splash to the login screen on continue.
+      return AnimatedSwitcher(
+        duration: const Duration(milliseconds: 450),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.04),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        ),
+        child: _splashDone
+            ? const LoginScreen(key: ValueKey('login'))
+            : SplashScreen(
+                key: const ValueKey('splash'),
+                onContinue: () => setState(() => _splashDone = true),
+              ),
+      );
     }
     // 2FA (if enabled) must pass before the vault: password -> 2FA -> vault PIN.
     return _MfaGate(
