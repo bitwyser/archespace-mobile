@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
@@ -178,10 +179,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'ArcheSpace',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineMedium,
+                    Center(
+                      child: SvgPicture.asset(
+                        'assets/archespace-logo.svg',
+                        height: 44,
+                        semanticsLabel: 'ArcheSpace',
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(

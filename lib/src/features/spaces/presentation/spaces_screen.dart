@@ -12,6 +12,7 @@ import 'package:archespace_mobile/src/shared/offline/write_queue.dart';
 import 'package:archespace_mobile/src/shared/realtime/table_watcher.dart';
 import 'package:archespace_mobile/src/shared/sort/sort.dart';
 import 'package:archespace_mobile/src/shared/widgets/action_icon_button.dart';
+import 'package:archespace_mobile/src/shared/widgets/brand_wordmark.dart';
 import 'package:archespace_mobile/src/shared/widgets/bulk_action_bar.dart';
 import 'package:archespace_mobile/src/shared/widgets/offline_banner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -323,10 +324,7 @@ class _SpacesScreenState extends State<SpacesScreen> {
               ],
             )
           : AppBar(
-              title: const Text(
-                'ArcheSpace',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
+              title: const BrandWordmark(height: 22),
               actions: [
                 ActionIconButton(
                   icon: Icons.lock_outline,

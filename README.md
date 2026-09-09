@@ -1,4 +1,9 @@
-# ArcheSpace Mobile
+<p>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/archespace-logo.svg">
+    <img alt="ArcheSpace" src="assets/archespace-logo-light.svg" width="360">
+  </picture>
+</p>
 
 [![Release APK](https://github.com/bitwyser/archespace-mobile/actions/workflows/release.yml/badge.svg)](https://github.com/bitwyser/archespace-mobile/actions/workflows/release.yml)
 [![Version](https://img.shields.io/github/v/release/bitwyser/archespace-mobile)](https://github.com/bitwyser/archespace-mobile/releases)
