@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
 import 'package:archespace_mobile/src/features/auth/domain/email.dart';
 import 'package:archespace_mobile/src/features/auth/domain/password_policy.dart';
 import 'package:archespace_mobile/src/shared/config/app_config.dart';
+import 'package:archespace_mobile/src/shared/widgets/brand_glyph.dart';
 
 enum _Mode { signIn, signUp }
 
@@ -179,13 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Center(
-                      child: SvgPicture.asset(
-                        'assets/archespace-logo.svg',
-                        height: 36,
-                        semanticsLabel: 'ArcheSpace',
-                      ),
-                    ),
+                    const Center(child: BrandGlyph(size: 56)),
                     const SizedBox(height: 28),
                     if (AppConfig.allowSignup) ...[
                       SizedBox(
