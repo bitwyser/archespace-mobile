@@ -218,11 +218,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Email',
                         border: OutlineInputBorder(),
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 14,
-                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -237,11 +232,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: InputDecoration(
                         labelText: 'Password',
                         border: const OutlineInputBorder(),
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 14,
-                        ),
                         suffixIconConstraints: const BoxConstraints(
                           minWidth: 44,
                           minHeight: 44,
@@ -265,11 +255,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         decoration: const InputDecoration(
                           labelText: 'Confirm password',
                           border: OutlineInputBorder(),
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 14,
-                          ),
                         ),
                       ),
                     ],

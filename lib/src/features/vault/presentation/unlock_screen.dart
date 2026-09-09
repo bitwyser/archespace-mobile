@@ -284,8 +284,6 @@ class _UnlockScreenState extends State<UnlockScreen> {
           decoration: const InputDecoration(
             labelText: 'PIN or passphrase',
             border: OutlineInputBorder(),
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           ),
         ),
         if (_error != null) ...[
@@ -346,8 +344,6 @@ class _UnlockScreenState extends State<UnlockScreen> {
           decoration: const InputDecoration(
             labelText: 'Recovery code',
             border: OutlineInputBorder(),
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           ),
         ),
         const SizedBox(height: 12),
@@ -362,8 +358,6 @@ class _UnlockScreenState extends State<UnlockScreen> {
           decoration: const InputDecoration(
             labelText: 'New vault PIN',
             border: OutlineInputBorder(),
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           ),
         ),
         if (_error != null) ...[

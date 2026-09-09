@@ -183,7 +183,13 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _handleBack();
       },
-      child: Scaffold(
+      // Opt out of the app-wide compact input theme: the note/content editors
+      // keep the roomy default so writing longer text stays comfortable.
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          inputDecorationTheme: const InputDecorationTheme(),
+        ),
+        child: Scaffold(
         appBar: AppBar(
           title: Text(widget.existing != null ? 'Edit $label' : 'New $label'),
           actions: [
@@ -229,6 +235,7 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

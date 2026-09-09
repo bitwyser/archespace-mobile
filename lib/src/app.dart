@@ -47,6 +47,12 @@ class ArcheApp extends StatelessWidget {
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(shape: const CircleBorder()),
       ),
+      // Compact input fields app-wide (short labels + tight padding). The item
+      // editor resets this to the roomy default for note/content entry.
+      inputDecorationTheme: const InputDecorationTheme(
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      ),
     );
   }
 }
