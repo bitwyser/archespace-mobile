@@ -35,6 +35,18 @@ const List<AccentOption> kAccentOptions = [
     description: 'A warm gold accent with a calm, focused feel.',
     color: Color(0xFFF6B84B),
   ),
+  AccentOption(
+    id: 'sky',
+    name: 'Sky Blue',
+    description: 'A clear azure blue with a bright, calm feel.',
+    color: Color(0xFF38A5F0),
+  ),
+  AccentOption(
+    id: 'rose',
+    name: 'Rose',
+    description: 'A warm rose pink with a soft, friendly feel.',
+    color: Color(0xFFF56B8A),
+  ),
 ];
 
 const String kDefaultAccentId = 'mint';
