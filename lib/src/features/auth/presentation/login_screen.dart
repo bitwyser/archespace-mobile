@@ -59,8 +59,6 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _error = 'Enter your password.');
       return;
     }
-    // Commit the autofill session so the OS/password manager offers to save.
-    TextInput.finishAutofillContext();
     if (_isSignUp) {
       await _createAccount();
     } else {
@@ -108,6 +106,9 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       await _auth.signIn(email: _email.text.trim(), password: _password.text);
+      // Commit the autofill session on success so the password manager offers
+      // to save the working credential.
+      TextInput.finishAutofillContext();
       // On success the auth stream rebuilds the root gate -> unlock screen.
     } on AuthException catch (e) {
       setState(() => _error = e.message);
@@ -139,6 +140,9 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _email.text.trim(),
         password: _password.text,
       );
+      // Account created (session or pending email confirmation) - commit the
+      // autofill session so the password manager offers to save it.
+      TextInput.finishAutofillContext();
       if (response.session != null) {
         // Signed in immediately; the root gate takes over to set up the vault.
         return;
@@ -207,7 +211,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextField(
                       controller: _email,
                       keyboardType: TextInputType.emailAddress,
-                      autofillHints: const [AutofillHints.email],
+                      // Username first so the field is recognized as the login
+                      // identifier and paired with the password credential.
+                      autofillHints: const [
+                        AutofillHints.username,
+                        AutofillHints.email,
+                      ],
                       enabled: !_loading,
                       decoration: const InputDecoration(labelText: 'Email'),
                     ),
@@ -241,6 +250,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         controller: _confirm,
                         obscureText: _obscure,
                         enabled: !_loading,
+                        autofillHints: const [AutofillHints.newPassword],
                         onSubmitted: (_) => _submit(),
                         decoration: const InputDecoration(
                           labelText: 'Confirm password',
