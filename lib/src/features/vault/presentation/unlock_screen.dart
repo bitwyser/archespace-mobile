@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 
 import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
 import 'package:archespace_mobile/src/features/vault/data/biometric_service.dart';
@@ -25,6 +26,8 @@ class _UnlockScreenState extends State<UnlockScreen> {
   final TextEditingController _pin = TextEditingController();
   final TextEditingController _recoveryCode = TextEditingController();
   final TextEditingController _newPin = TextEditingController();
+  final TextEditingController _accountPassword = TextEditingController();
+  final TextEditingController _confirmPin = TextEditingController();
 
   bool _loading = false;
   String? _error;
@@ -35,6 +38,10 @@ class _UnlockScreenState extends State<UnlockScreen> {
   bool _forgotPin = false;
   Uint8List? _resetMasterKey;
   String? _newRecoveryCode;
+
+  // Destructive "lost recovery code too" reset: wipe data and start fresh.
+  bool _resetVaultMode = false;
+  bool _resetConfirmed = false;
 
   @override
   void initState() {
@@ -47,6 +54,8 @@ class _UnlockScreenState extends State<UnlockScreen> {
     _pin.dispose();
     _recoveryCode.dispose();
     _newPin.dispose();
+    _accountPassword.dispose();
+    _confirmPin.dispose();
     super.dispose();
   }
 
@@ -160,6 +169,81 @@ class _UnlockScreenState extends State<UnlockScreen> {
     });
   }
 
+  void _enterResetVault() {
+    setState(() {
+      _resetVaultMode = true;
+      _forgotPin = false;
+      _error = null;
+      _accountPassword.clear();
+      _newPin.clear();
+      _confirmPin.clear();
+      _resetConfirmed = false;
+    });
+  }
+
+  void _cancelResetVault() {
+    setState(() {
+      _resetVaultMode = false;
+      _error = null;
+    });
+  }
+
+  /// Destructive reset for when both the PIN and recovery code are lost:
+  /// re-verify the account password, then wipe all data and create a fresh
+  /// vault. Old data is unrecoverable (that is the point).
+  Future<void> _resetVault() async {
+    final user = _auth.currentUser;
+    final userId = user?.id;
+    final email = user?.email;
+    if (userId == null || email == null) return;
+
+    if (_accountPassword.text.isEmpty) {
+      setState(() => _error = 'Enter your account password.');
+      return;
+    }
+    if (_newPin.text.trim().isEmpty) {
+      setState(() => _error = 'Enter a new vault PIN.');
+      return;
+    }
+    if (_newPin.text.trim() != _confirmPin.text.trim()) {
+      setState(() => _error = 'PINs do not match.');
+      return;
+    }
+    if (!_resetConfirmed) {
+      setState(() => _error = 'Tick the box to confirm this deletes your data.');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      // Re-verify the account password before destroying anything.
+      try {
+        await _auth.signIn(email: email, password: _accountPassword.text);
+      } on AuthException {
+        setState(() => _error = 'Incorrect account password.');
+        return;
+      }
+      final result = await _vault.resetVault(userId, _newPin.text.trim());
+      // The old biometric key wrapped the destroyed master key - clear it.
+      await _store.clear();
+      setState(() {
+        _resetVaultMode = false;
+        _biometricEnabled = false;
+        _resetMasterKey = result.masterKey;
+        _newRecoveryCode = result.recoveryCode;
+      });
+    } on VaultException catch (e) {
+      setState(() => _error = e.message);
+    } catch (_) {
+      setState(() => _error = 'Could not reset the vault. Check your connection.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   /// Verify the recovery code, set the new PIN, and rotate the recovery code.
   /// The master key is unchanged, so any saved biometric key still works.
   Future<void> _resetWithRecovery() async {
@@ -223,7 +307,13 @@ class _UnlockScreenState extends State<UnlockScreen> {
     final newRecoveryCode = _newRecoveryCode;
     return Scaffold(
       appBar: AppBar(
-        title: Text(_forgotPin ? 'Reset vault PIN' : 'Unlock vault'),
+        title: Text(
+          _resetVaultMode
+              ? 'Reset vault'
+              : _forgotPin
+              ? 'Reset vault PIN'
+              : 'Unlock vault',
+        ),
         actions: [
           IconButton(
             onPressed: _confirmSignOut,
@@ -244,6 +334,8 @@ class _UnlockScreenState extends State<UnlockScreen> {
                       onContinue: _continueAfterReset,
                       title: 'Save your new recovery code',
                     )
+                  : _resetVaultMode
+                  ? _buildResetVaultForm(context)
                   : _forgotPin
                   ? _buildResetForm(context)
                   : _buildUnlockForm(context),
@@ -375,6 +467,117 @@ class _UnlockScreenState extends State<UnlockScreen> {
         TextButton(
           onPressed: _loading ? null : _cancelForgotPin,
           child: const Text('Back to unlock'),
+        ),
+        TextButton(
+          onPressed: _loading ? null : _enterResetVault,
+          style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+          ),
+          child: const Text('Lost your recovery code too? Reset vault'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResetVaultForm(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Icon(Icons.warning_amber_rounded, size: 40, color: scheme.error),
+        const SizedBox(height: 16),
+        Text(
+          'Reset vault',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Use this only if you have lost both your PIN and recovery code.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: scheme.errorContainer.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            'This permanently deletes all your spaces and items. They are '
+            'encrypted and cannot be recovered without your PIN or recovery '
+            'code. This cannot be undone.',
+            style: TextStyle(color: scheme.error, fontSize: 12),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _accountPassword,
+          obscureText: true,
+          enabled: !_loading,
+          onChanged: (_) => setState(() => _error = null),
+          decoration: const InputDecoration(labelText: 'Account password'),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _newPin,
+          obscureText: true,
+          enabled: !_loading,
+          autocorrect: false,
+          enableSuggestions: false,
+          onChanged: (_) => setState(() => _error = null),
+          decoration: const InputDecoration(labelText: 'New vault PIN'),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _confirmPin,
+          obscureText: true,
+          enabled: !_loading,
+          autocorrect: false,
+          enableSuggestions: false,
+          onChanged: (_) => setState(() => _error = null),
+          decoration: const InputDecoration(labelText: 'Confirm vault PIN'),
+        ),
+        const SizedBox(height: 4),
+        CheckboxListTile(
+          value: _resetConfirmed,
+          onChanged: _loading
+              ? null
+              : (v) => setState(() {
+                  _resetConfirmed = v ?? false;
+                  _error = null;
+                }),
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: const Text(
+            'I understand this permanently deletes all my data.',
+            style: TextStyle(fontSize: 12),
+          ),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Text(_error!, style: TextStyle(color: scheme.error)),
+        ],
+        const SizedBox(height: 12),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: scheme.error),
+          onPressed: _loading ? null : _resetVault,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: _loading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Delete data & reset vault'),
+          ),
+        ),
+        TextButton(
+          onPressed: _loading ? null : _cancelResetVault,
+          child: const Text('Cancel'),
         ),
       ],
     );

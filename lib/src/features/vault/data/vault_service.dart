@@ -132,6 +132,30 @@ class VaultService {
     return (masterKey: masterKey, recoveryCode: recoveryCode);
   }
 
+  /// Reset the vault when BOTH the PIN and recovery code are lost. Permanently
+  /// deletes all encrypted content and the vault row (the data is unrecoverable
+  /// without the key - that is the point), then creates a fresh vault and a new
+  /// recovery code. The caller MUST re-verify the account password first.
+  Future<({Uint8List masterKey, String recoveryCode})> resetVault(
+    String userId,
+    String pin,
+  ) async {
+    final pinErr = validateVaultPin(pin);
+    if (pinErr != null) throw VaultException(pinErr);
+
+    // Delete all encrypted content (space_items cascade from spaces, but delete
+    // both explicitly), then drop the old vault row so setup starts fresh.
+    await _client.from('space_items').delete().eq('user_id', userId);
+    await _client.from('spaces').delete().eq('user_id', userId);
+    await _client.from('user_encryption').delete().eq('user_id', userId);
+    await CacheStore.delete(_metaCacheKey);
+
+    final masterKey = ArcheCrypto.randomAesKey();
+    final recoveryCode = generateRecoveryCode();
+    await _persistPinWrapped(userId, pin, masterKey, recoveryCode: recoveryCode);
+    return (masterKey: masterKey, recoveryCode: recoveryCode);
+  }
+
   /// Verify the current PIN, then re-wrap the master key under [newPin].
   /// Returns the unchanged master key. Leaves any recovery code untouched.
   Future<Uint8List> changePin(

@@ -58,6 +58,14 @@ class CacheStore {
     await write(key, rows);
   }
 
+  /// Remove a single cached key (e.g. the vault metadata on a vault reset).
+  static Future<void> delete(String key) async {
+    try {
+      final file = await _file(key);
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
+  }
+
   /// Wipe the whole cache (e.g. on sign-out, so the next account can't read it).
   static Future<void> clear() async {
     try {
