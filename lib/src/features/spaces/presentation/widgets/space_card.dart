@@ -170,6 +170,13 @@ class SpaceCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: scheme.outlineVariant,
+                  indent: 16,
+                  endIndent: 12,
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 6, 10, 6),
                   child: SizedBox(
