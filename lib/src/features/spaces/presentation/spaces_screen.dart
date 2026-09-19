@@ -324,7 +324,7 @@ class _SpacesScreenState extends State<SpacesScreen> {
               ],
             )
           : AppBar(
-              title: const BrandWordmark(height: 22),
+              title: const BrandWordmark(height: 24),
               actions: [
                 ActionIconButton(
                   icon: Icons.lock_outline,
