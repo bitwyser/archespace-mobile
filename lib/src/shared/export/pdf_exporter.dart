@@ -2,6 +2,8 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui';
 
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'package:archespace_mobile/src/features/items/domain/draw.dart';
@@ -17,11 +19,21 @@ class PdfExporter {
     String name,
     List<SpaceItem> items,
   ) async {
-    final doc = pw.Document();
+    final logo = await _logoSvg();
+    final stamp = _timestamp();
+    final theme = await _theme();
+    final doc = pw.Document(theme: theme);
     doc.addPage(
       pw.MultiPage(
+        header: (context) => _pageHeader(logo, stamp),
+        footer: (context) => _pageFooter(context),
         build: (context) => [
-          pw.Header(level: 0, text: name.isEmpty ? 'Space' : name),
+          // The space name once, at the start of the document (not per page).
+          pw.Text(
+            name.isEmpty ? 'Space' : name,
+            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 12),
           if (items.isEmpty) pw.Text('This space has no items.'),
           for (final item in items) _section(item),
         ],
@@ -31,10 +43,81 @@ class PdfExporter {
   }
 
   static Future<Uint8List> buildItem(SpaceItem item) async {
-    final doc = pw.Document();
-    doc.addPage(pw.MultiPage(build: (context) => [_section(item)]));
+    final logo = await _logoSvg();
+    final stamp = _timestamp();
+    final theme = await _theme();
+    final doc = pw.Document(theme: theme);
+    doc.addPage(
+      pw.MultiPage(
+        header: (context) => _pageHeader(logo, stamp),
+        footer: (context) => _pageFooter(context),
+        build: (context) => [_section(item)],
+      ),
+    );
     return doc.save();
   }
+
+  // A monospace face (for code) with broad glyph coverage, kept for _body.
+  static pw.Font? _mono;
+
+  /// A theme using DejaVu (broad symbol/arrow coverage, unlike the built-in
+  /// Helvetica), and the DejaVu mono face for code.
+  static Future<pw.ThemeData> _theme() async {
+    final base = pw.Font.ttf(await rootBundle.load('assets/fonts/DejaVuSans.ttf'));
+    final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/DejaVuSans-Bold.ttf'));
+    _mono = pw.Font.ttf(await rootBundle.load('assets/fonts/DejaVuSansMono.ttf'));
+    return pw.ThemeData.withFont(base: base, bold: bold);
+  }
+
+  /// The ArcheSpace wordmark for the page corner. The bundled asset targets a
+  /// dark UI (white "Space"); ink it so it reads on the white PDF page.
+  static Future<String> _logoSvg() async {
+    final svg = await rootBundle.loadString('assets/archespace-logo.svg');
+    return svg.replaceAll('#ffffff', '#0f1115');
+  }
+
+  /// The export time, e.g. "9/19/26, 8:36 PM".
+  static String _timestamp() {
+    final n = DateTime.now();
+    final h = n.hour % 12 == 0 ? 12 : n.hour % 12;
+    final ampm = n.hour >= 12 ? 'PM' : 'AM';
+    final mm = n.minute.toString().padLeft(2, '0');
+    final yy = (n.year % 100).toString().padLeft(2, '0');
+    return '${n.month}/${n.day}/$yy, $h:$mm $ampm';
+  }
+
+  static const pw.TextStyle _chromeStyle = pw.TextStyle(
+    fontSize: 8,
+    color: PdfColors.grey600,
+  );
+
+  /// Every page's header: export time top-left, logo top-right.
+  static pw.Widget _pageHeader(String logoSvg, String stamp) => pw.Container(
+    margin: const pw.EdgeInsets.only(bottom: 12),
+    child: pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.center,
+      children: [
+        pw.Text(stamp, style: _chromeStyle),
+        pw.Spacer(),
+        pw.SizedBox(width: 96, height: 15, child: pw.SvgImage(svg: logoSvg)),
+      ],
+    ),
+  );
+
+  /// Every page's footer: site URL bottom-left, page number bottom-right.
+  static pw.Widget _pageFooter(pw.Context context) => pw.Container(
+    margin: const pw.EdgeInsets.only(top: 8),
+    child: pw.Row(
+      children: [
+        pw.Text('https://archespace.app/', style: _chromeStyle),
+        pw.Spacer(),
+        pw.Text(
+          '${context.pageNumber}/${context.pagesCount}',
+          style: _chromeStyle,
+        ),
+      ],
+    ),
+  );
 
   static pw.Widget _section(SpaceItem item) {
     return pw.Column(
@@ -70,11 +153,7 @@ class PdfExporter {
         // one page would make pw.MultiPage loop forever (the export hang).
         return pw.Text(
           code,
-          style: pw.TextStyle(
-            font: pw.Font.courier(),
-            fontSize: 9,
-            lineSpacing: 2,
-          ),
+          style: pw.TextStyle(font: _mono, fontSize: 9, lineSpacing: 2),
         );
       case 'menu_list':
         return _bullets(c, ordered: false);
@@ -122,7 +201,7 @@ class PdfExporter {
       children: [
         for (final it in items)
           pw.Text(
-            '${(it['checked'] ?? false) == true ? '[x]' : '[ ]'} '
+            '${(it['checked'] ?? false) == true ? '☑' : '☐'}  '
             '${(it['text'] ?? '').toString()}',
           ),
       ],

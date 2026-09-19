@@ -58,3 +58,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/archespace-logo.svg
+    - assets/fonts/DejaVuSans.ttf
+    - assets/fonts/DejaVuSans-Bold.ttf
+    - assets/fonts/DejaVuSansMono.ttf
