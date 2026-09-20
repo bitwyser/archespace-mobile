@@ -18,6 +18,7 @@ import 'package:archespace_mobile/src/shared/export/pdf_exporter.dart';
 import 'package:archespace_mobile/src/shared/realtime/table_watcher.dart';
 import 'package:archespace_mobile/src/shared/sort/sort.dart';
 import 'package:archespace_mobile/src/shared/widgets/action_icon_button.dart';
+import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/widgets/bulk_action_bar.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
 import 'package:archespace_mobile/src/shared/widgets/offline_banner.dart';
@@ -339,11 +340,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       ).setPinned(item.id, !item.pinned);
       if (mounted) _load();
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Couldn't update the item.")),
-        );
-      }
+      _showError("Couldn't update the item.");
     }
   }
 
@@ -354,9 +351,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       ).duplicateItem(widget.space.id, item);
       if (mounted) {
         _load();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Item duplicated')));
+        showSuccessSnack(context, 'Item duplicated');
       }
     } catch (_) {
       _showError("Couldn't duplicate the item.");
@@ -411,9 +406,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       ).moveItem(item.id, target.id);
       if (mounted) {
         _load();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Moved to ${target.name}')));
+        showSuccessSnack(context, 'Moved to ${target.name}');
       }
     } catch (_) {
       _showError("Couldn't move the item.");
@@ -427,9 +420,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       ).archiveItem(item.id);
       if (mounted) {
         _load();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Item archived')));
+        showSuccessSnack(context, 'Item archived');
       }
     } catch (_) {
       _showError("Couldn't archive the item.");
@@ -449,9 +440,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       await ItemRepository(VaultSession.instance.masterKey).deleteItem(item.id);
       if (mounted) {
         _load();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Item moved to recycle bin')),
-        );
+        showSuccessSnack(context, 'Item moved to recycle bin');
       }
     } catch (_) {
       _showError("Couldn't delete the item.");
@@ -459,11 +448,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
   }
 
   void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    }
+    if (mounted) showErrorSnack(context, message);
   }
 
   String _fileName(String name) {

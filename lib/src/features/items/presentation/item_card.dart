@@ -12,6 +12,7 @@ import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/features/items/domain/rich_text_html.dart';
 import 'package:archespace_mobile/src/features/items/domain/totp.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
+import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/widgets/select_box.dart';
 
 /// Renders one space item as a card: a type badge, title, and a type-specific
@@ -184,11 +185,7 @@ class _ItemCardState extends State<ItemCard> {
                             ClipboardData(text: itemClipboardText(item)),
                           );
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Copied to clipboard'),
-                              ),
-                            );
+                            showSuccessSnack(context, 'Copied to clipboard');
                           }
                         },
                       ),

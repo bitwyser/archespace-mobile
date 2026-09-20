@@ -14,6 +14,7 @@ import 'package:archespace_mobile/src/features/items/presentation/rich_text_edit
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/features/vault/data/vault_service.dart';
 import 'package:archespace_mobile/src/shared/crypto/arche_crypto.dart';
+import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/util/errors.dart';
 
 /// Full-screen editor for one item. Pass [existing] to edit, or [type] (with no
@@ -151,11 +152,7 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        if (!silent) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(saveErrorMessage(e))));
-        }
+        if (!silent) showErrorSnack(context, saveErrorMessage(e));
       }
       return false;
     }
@@ -1668,9 +1665,7 @@ class _AuthenticatorEditorState extends State<_AuthenticatorEditor> {
                 final code = _codes[id];
                 if (code == null) return;
                 Clipboard.setData(ClipboardData(text: code));
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Code copied.')));
+                showSuccessSnack(context, 'Code copied.');
               },
             ),
             IconButton(

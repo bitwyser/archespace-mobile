@@ -6,6 +6,7 @@ import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/spaces/domain/space_colors.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/shared/util/errors.dart';
+import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
 
 /// Create or edit a space (name, description, colour, tags). Pass [existing] to
@@ -61,9 +62,7 @@ class _SpaceEditorScreenState extends State<SpaceEditorScreen> {
     _addTags(_tagInput.text); // fold any pending text into tags
     final name = _name.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a name for the space.')),
-      );
+      showErrorSnack(context, 'Enter a name for the space.');
       return;
     }
     setState(() => _saving = true);
@@ -90,9 +89,7 @@ class _SpaceEditorScreenState extends State<SpaceEditorScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(saveErrorMessage(e))));
+        showErrorSnack(context, saveErrorMessage(e));
       }
     }
   }

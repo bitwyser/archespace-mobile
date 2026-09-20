@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
+
 /// One-time recovery-code display, shown after creating a vault or resetting the
 /// PIN. The code is shown once and must be saved before continuing.
 class RecoveryCodeStep extends StatelessWidget {
@@ -61,9 +63,7 @@ class RecoveryCodeStep extends StatelessWidget {
                 tooltip: 'Copy',
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: code));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Recovery code copied.')),
-                  );
+                  showSuccessSnack(context, 'Recovery code copied.');
                 },
               ),
             ],

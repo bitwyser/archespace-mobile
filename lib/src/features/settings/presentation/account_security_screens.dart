@@ -10,6 +10,7 @@ import 'package:archespace_mobile/src/features/auth/domain/password_policy.dart'
 import 'package:archespace_mobile/src/features/auth/domain/totp_code.dart';
 import 'package:archespace_mobile/src/features/vault/data/vault_service.dart';
 import 'package:archespace_mobile/src/features/vault/domain/vault_pin.dart';
+import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 
 /// Returns the signed-in user id, or throws if the session vanished.
 String _requireUserId(AuthService auth) {
@@ -53,25 +54,24 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
 
   Future<void> _sendCode() async {
     final messenger = ScaffoldMessenger.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final nextEmail = _newEmail.text.trim().toLowerCase();
     final current = _auth.currentUser?.email?.toLowerCase();
     final emailError = validateEmail(nextEmail);
     if (emailError != null) {
-      messenger.showSnackBar(SnackBar(content: Text(emailError)));
+      showErrorVia(messenger, scheme, emailError);
       return;
     }
     if (nextEmail == current) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('New email must be different from your current one.'),
-        ),
+      showErrorVia(
+        messenger,
+        scheme,
+        'New email must be different from your current one.',
       );
       return;
     }
     if (_password.text.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Enter your login password to continue.')),
-      );
+      showErrorVia(messenger, scheme, 'Enter your login password to continue.');
       return;
     }
 
@@ -82,20 +82,20 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
       await _auth.reauthenticate();
       if (!mounted) return;
       setState(() => _codeStep = true);
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('We sent a 6-digit code to your current email.'),
-        ),
+      showInfoVia(
+        messenger,
+        scheme,
+        'We sent a 6-digit code to your current email.',
       );
     } on AuthException catch (e) {
       final invalid = e.message.toLowerCase().contains('invalid');
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(invalid ? 'Login password is incorrect.' : e.message),
-        ),
+      showErrorVia(
+        messenger,
+        scheme,
+        invalid ? 'Login password is incorrect.' : e.message,
       );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(_authMessage(e))));
+      showErrorVia(messenger, scheme, _authMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -103,12 +103,11 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
 
   Future<void> _confirmChange() async {
     final messenger = ScaffoldMessenger.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final navigator = Navigator.of(context);
     final nextEmail = _newEmail.text.trim().toLowerCase();
     if (_code.text.trim().isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Enter the 6-digit code.')),
-      );
+      showErrorVia(messenger, scheme, 'Enter the 6-digit code.');
       return;
     }
 
@@ -116,17 +115,15 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
     try {
       await _auth.updateEmail(nextEmail, _code.text.trim());
       await _auth.signOut();
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Confirmation link sent to your new email. Open it, then sign in again.',
-          ),
-        ),
+      showSuccessVia(
+        messenger,
+        scheme,
+        'Confirmation link sent to your new email. Open it, then sign in again.',
       );
       navigator.popUntil((route) => route.isFirst);
     } catch (e) {
       if (mounted) setState(() => _loading = false);
-      messenger.showSnackBar(SnackBar(content: Text(_authMessage(e))));
+      showErrorVia(messenger, scheme, _authMessage(e));
     }
   }
 
@@ -228,40 +225,33 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   Future<void> _changePassword() async {
     final messenger = ScaffoldMessenger.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final navigator = Navigator.of(context);
     final email = _auth.currentUser?.email;
 
     if (_current.text.isEmpty || email == null) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Enter your current password.')),
-      );
+      showErrorVia(messenger, scheme, 'Enter your current password.');
       return;
     }
     if (_next.text.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Enter a new password.')),
-      );
+      showErrorVia(messenger, scheme, 'Enter a new password.');
       return;
     }
     final pwError = validatePassword(_next.text);
     if (pwError != null) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(pwError.replaceFirst('Password', 'New password')),
-        ),
+      showErrorVia(
+        messenger,
+        scheme,
+        pwError.replaceFirst('Password', 'New password'),
       );
       return;
     }
     if (_confirm.text.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Confirm your new password.')),
-      );
+      showErrorVia(messenger, scheme, 'Confirm your new password.');
       return;
     }
     if (_next.text != _confirm.text) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('New passwords do not match.')),
-      );
+      showErrorVia(messenger, scheme, 'New passwords do not match.');
       return;
     }
 
@@ -271,42 +261,41 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       await _auth.signIn(email: email, password: _current.text);
       await _auth.updatePassword(_next.text);
       await _auth.signOut();
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Login password updated. Sign in again with your new password.',
-          ),
-        ),
+      showSuccessVia(
+        messenger,
+        scheme,
+        'Login password updated. Sign in again with your new password.',
       );
       navigator.popUntil((route) => route.isFirst);
     } on AuthException catch (e) {
       if (mounted) setState(() => _loading = false);
       final invalid = e.message.toLowerCase().contains('invalid');
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(invalid ? 'Current password is incorrect.' : e.message),
-        ),
+      showErrorVia(
+        messenger,
+        scheme,
+        invalid ? 'Current password is incorrect.' : e.message,
       );
     } catch (e) {
       if (mounted) setState(() => _loading = false);
-      messenger.showSnackBar(SnackBar(content: Text(_authMessage(e))));
+      showErrorVia(messenger, scheme, _authMessage(e));
     }
   }
 
   Future<void> _sendReset() async {
     final messenger = ScaffoldMessenger.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final email = _auth.currentUser?.email;
     if (email == null) return;
     setState(() => _resetLoading = true);
     try {
       await _auth.requestPasswordReset(email);
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Password reset link sent. Check your email.'),
-        ),
+      showSuccessVia(
+        messenger,
+        scheme,
+        'Password reset link sent. Check your email.',
       );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(_authMessage(e))));
+      showErrorVia(messenger, scheme, _authMessage(e));
     } finally {
       if (mounted) setState(() => _resetLoading = false);
     }
@@ -404,47 +393,38 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
 
   Future<void> _changePin() async {
     final messenger = ScaffoldMessenger.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final navigator = Navigator.of(context);
     if (_current.text.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Enter your current vault PIN.')),
-      );
+      showErrorVia(messenger, scheme, 'Enter your current vault PIN.');
       return;
     }
     if (_next.text.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Enter a new vault PIN.')),
-      );
+      showErrorVia(messenger, scheme, 'Enter a new vault PIN.');
       return;
     }
     final pinError = validateVaultPin(_next.text);
     if (pinError != null) {
-      messenger.showSnackBar(SnackBar(content: Text(pinError)));
+      showErrorVia(messenger, scheme, pinError);
       return;
     }
     if (_confirm.text.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Confirm your new vault PIN.')),
-      );
+      showErrorVia(messenger, scheme, 'Confirm your new vault PIN.');
       return;
     }
     if (_next.text != _confirm.text) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('New PINs do not match.')),
-      );
+      showErrorVia(messenger, scheme, 'New PINs do not match.');
       return;
     }
 
     setState(() => _loading = true);
     try {
       await _vault.changePin(_requireUserId(_auth), _current.text, _next.text);
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Vault PIN updated.')),
-      );
+      showSuccessVia(messenger, scheme, 'Vault PIN updated.');
       navigator.pop();
     } catch (e) {
       if (mounted) setState(() => _loading = false);
-      messenger.showSnackBar(SnackBar(content: Text(_authMessage(e))));
+      showErrorVia(messenger, scheme, _authMessage(e));
     }
   }
 
@@ -526,6 +506,7 @@ class _SetupRecoveryScreenState extends State<SetupRecoveryScreen> {
 
   Future<void> _create() async {
     final messenger = ScaffoldMessenger.of(context);
+    final scheme = Theme.of(context).colorScheme;
     setState(() => _loading = true);
     try {
       final code = await _vault.createRecoveryCode(
@@ -534,11 +515,9 @@ class _SetupRecoveryScreenState extends State<SetupRecoveryScreen> {
       );
       setState(() => _code = code);
       _pin.clear();
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Recovery code created. Save it now.')),
-      );
+      showSuccessVia(messenger, scheme, 'Recovery code created. Save it now.');
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(_authMessage(e))));
+      showErrorVia(messenger, scheme, _authMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -612,33 +591,26 @@ class _ResetPinScreenState extends State<ResetPinScreen> {
 
   Future<void> _reset() async {
     final messenger = ScaffoldMessenger.of(context);
+    final scheme = Theme.of(context).colorScheme;
     if (_recoveryCode.text.trim().isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Enter your recovery code.')),
-      );
+      showErrorVia(messenger, scheme, 'Enter your recovery code.');
       return;
     }
     if (_next.text.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Enter a new vault PIN.')),
-      );
+      showErrorVia(messenger, scheme, 'Enter a new vault PIN.');
       return;
     }
     final pinError = validateVaultPin(_next.text);
     if (pinError != null) {
-      messenger.showSnackBar(SnackBar(content: Text(pinError)));
+      showErrorVia(messenger, scheme, pinError);
       return;
     }
     if (_confirm.text.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Confirm your new vault PIN.')),
-      );
+      showErrorVia(messenger, scheme, 'Confirm your new vault PIN.');
       return;
     }
     if (_next.text != _confirm.text) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('New PINs do not match.')),
-      );
+      showErrorVia(messenger, scheme, 'New PINs do not match.');
       return;
     }
 
@@ -653,13 +625,13 @@ class _ResetPinScreenState extends State<ResetPinScreen> {
       _recoveryCode.clear();
       _next.clear();
       _confirm.clear();
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Vault PIN updated. Save your new recovery code.'),
-        ),
+      showSuccessVia(
+        messenger,
+        scheme,
+        'Vault PIN updated. Save your new recovery code.',
       );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(_authMessage(e))));
+      showErrorVia(messenger, scheme, _authMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -754,21 +726,16 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
 
   Future<void> _delete() async {
     final messenger = ScaffoldMessenger.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final navigator = Navigator.of(context);
     final email = _auth.currentUser?.email;
 
     if (_confirmText.text != _phrase) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Type "$_phrase" to confirm.')),
-      );
+      showErrorVia(messenger, scheme, 'Type "$_phrase" to confirm.');
       return;
     }
     if (_password.text.isEmpty || _pin.text.isEmpty || email == null) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Enter your login password and vault PIN.'),
-        ),
-      );
+      showErrorVia(messenger, scheme, 'Enter your login password and vault PIN.');
       return;
     }
 
@@ -778,21 +745,19 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
       await _auth.signIn(email: email, password: _password.text);
       await _vault.unlock(_requireUserId(_auth), _pin.text);
       await _auth.deleteAccount();
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Your account has been deleted.')),
-      );
+      showSuccessVia(messenger, scheme, 'Your account has been deleted.');
       navigator.popUntil((route) => route.isFirst);
     } on AuthException catch (e) {
       if (mounted) setState(() => _loading = false);
       final invalid = e.message.toLowerCase().contains('invalid');
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(invalid ? 'Login password is incorrect.' : e.message),
-        ),
+      showErrorVia(
+        messenger,
+        scheme,
+        invalid ? 'Login password is incorrect.' : e.message,
       );
     } catch (e) {
       if (mounted) setState(() => _loading = false);
-      messenger.showSnackBar(SnackBar(content: Text(_authMessage(e))));
+      showErrorVia(messenger, scheme, _authMessage(e));
     }
   }
 
@@ -1028,9 +993,7 @@ class _RecoveryCodeCard extends StatelessWidget {
                 tooltip: 'Copy',
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: code));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Recovery code copied.')),
-                  );
+                  showSuccessSnack(context, 'Recovery code copied.');
                 },
               ),
             ],
@@ -1124,12 +1087,12 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
     }
   }
 
-  void _snack(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    }
+  void _snackError(String message) {
+    if (mounted) showErrorSnack(context, message);
+  }
+
+  void _snackSuccess(String message) {
+    if (mounted) showSuccessSnack(context, message);
   }
 
   Future<void> _startEnroll() async {
@@ -1206,7 +1169,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
       await _refresh();
     } catch (e) {
       setState(() => _busy = false);
-      _snack(_authMessage(e));
+      _snackError(_authMessage(e));
     }
   }
 
@@ -1221,7 +1184,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
       );
       if (!ok) {
         setState(() => _busy = false);
-        _snack('Login password is incorrect.');
+        _snackError('Login password is incorrect.');
         return;
       }
       final factorId = await _mfa.verifiedFactorId();
@@ -1232,10 +1195,10 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
           .eq('user_id', _requireUserId(_auth));
       await _refresh();
       setState(() => _busy = false);
-      _snack('Two-factor authentication disabled.');
+      _snackSuccess('Two-factor authentication disabled.');
     } catch (e) {
       setState(() => _busy = false);
-      _snack(_authMessage(e));
+      _snackError(_authMessage(e));
     }
   }
 
@@ -1496,7 +1459,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
               child: OutlinedButton.icon(
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: codes.first));
-                  _snack('Backup code copied.');
+                  _snackSuccess('Backup code copied.');
                 },
                 icon: const Icon(Icons.copy),
                 label: const Text('Copy'),

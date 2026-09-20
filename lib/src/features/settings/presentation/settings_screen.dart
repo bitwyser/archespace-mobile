@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:archespace_mobile/src/shared/config/build_info.dart';
 import 'package:archespace_mobile/src/shared/config/legal.dart';
+import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 
 import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
 import 'package:archespace_mobile/src/features/backup/data/backup_repository.dart';
@@ -60,7 +61,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _store.saveMasterKey(VaultSession.instance.masterKey);
     if (!mounted) return;
     setState(() => _biometricEnabled = true);
-    _snack('Biometric unlock enabled.');
+    showSuccessSnack(context, 'Biometric unlock enabled.');
   }
 
   void _lock() {
@@ -97,7 +98,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (selected != null) {
       await AutoLockController.instance.setId(selected);
-      if (mounted) _snack('Auto-lock updated.');
+      if (mounted) showSuccessSnack(context, 'Auto-lock updated.');
     }
   }
 
@@ -115,9 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _store.clear();
     if (!mounted) return;
     setState(() => _biometricEnabled = false);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Biometric unlock disabled.')));
+    showSuccessSnack(context, 'Biometric unlock disabled.');
   }
 
   Future<void> _signOut() async {
@@ -158,15 +157,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       Uri.parse(url),
       mode: LaunchMode.externalApplication,
     );
-    if (!ok) _snack("Couldn't open the link.");
-  }
-
-  void _snack(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    }
+    if (!ok && mounted) showErrorSnack(context, "Couldn't open the link.");
   }
 
   Future<void> _exportBackup() async {
@@ -183,9 +174,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         allowedExtensions: const ['json'],
         bytes: bytes,
       );
-      if (path != null) _snack('Backup saved.');
+      if (path != null && mounted) showSuccessSnack(context, 'Backup saved.');
     } catch (_) {
-      _snack("Couldn't export the backup.");
+      if (mounted) showErrorSnack(context, "Couldn't export the backup.");
     }
   }
 
@@ -208,11 +199,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final skippedLabel = summary.skipped > 0
           ? ' (${summary.skipped} skipped)'
           : '';
-      _snack('Imported $spacesLabel and $itemsLabel$skippedLabel.');
+      if (!mounted) return;
+      showSuccessSnack(
+        context,
+        'Imported $spacesLabel and $itemsLabel$skippedLabel.',
+      );
     } on FormatException {
-      _snack("That backup file isn't valid.");
+      if (mounted) showErrorSnack(context, "That backup file isn't valid.");
     } catch (_) {
-      _snack("Couldn't import the backup.");
+      if (mounted) showErrorSnack(context, "Couldn't import the backup.");
     }
   }
 

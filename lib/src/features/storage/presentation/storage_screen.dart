@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/features/storage/data/storage_repository.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
+import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/widgets/scrollable_message.dart';
 
 enum StorageMode { archive, bin }
@@ -215,11 +216,7 @@ class _StorageScreenState extends State<StorageScreen> {
   }
 
   void _snack(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    }
+    if (mounted) showErrorSnack(context, message);
   }
 
   @override

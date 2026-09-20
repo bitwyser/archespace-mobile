@@ -13,6 +13,7 @@ import 'package:archespace_mobile/src/shared/realtime/table_watcher.dart';
 import 'package:archespace_mobile/src/shared/sort/sort.dart';
 import 'package:archespace_mobile/src/shared/widgets/action_icon_button.dart';
 import 'package:archespace_mobile/src/shared/widgets/brand_wordmark.dart';
+import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/widgets/bulk_action_bar.dart';
 import 'package:archespace_mobile/src/shared/widgets/offline_banner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -111,11 +112,7 @@ class _SpacesScreenState extends State<SpacesScreen> {
       ).setPinned(space.id, !space.pinned);
       if (mounted) _load();
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Couldn't update the space.")),
-        );
-      }
+      if (mounted) showErrorSnack(context, "Couldn't update the space.");
     }
   }
 
@@ -142,11 +139,7 @@ class _SpacesScreenState extends State<SpacesScreen> {
   });
 
   void _snack(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    }
+    if (mounted) showErrorSnack(context, message);
   }
 
   /// `newIndex` arrives already adjusted for the removed item (onReorderItem).
@@ -227,16 +220,10 @@ class _SpacesScreenState extends State<SpacesScreen> {
       ).duplicateSpace(space);
       if (mounted) {
         _load();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Space duplicated')));
+        showSuccessSnack(context, 'Space duplicated');
       }
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Couldn't duplicate the space.")),
-        );
-      }
+      if (mounted) showErrorSnack(context, "Couldn't duplicate the space.");
     }
   }
 
@@ -247,16 +234,10 @@ class _SpacesScreenState extends State<SpacesScreen> {
       ).archiveSpace(space.id);
       if (mounted) {
         _load();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Space archived')));
+        showSuccessSnack(context, 'Space archived');
       }
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Couldn't archive the space.")),
-        );
-      }
+      if (mounted) showErrorSnack(context, "Couldn't archive the space.");
     }
   }
 
@@ -295,11 +276,7 @@ class _SpacesScreenState extends State<SpacesScreen> {
       ).deleteSpace(space.id);
       if (mounted) _load();
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Couldn't delete the space.")),
-        );
-      }
+      if (mounted) showErrorSnack(context, "Couldn't delete the space.");
     }
   }
 
