@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:archespace_mobile/src/shared/config/build_info.dart';
+import 'package:archespace_mobile/src/shared/config/legal.dart';
 
 import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
 import 'package:archespace_mobile/src/features/backup/data/backup_repository.dart';
@@ -150,6 +151,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _push(Widget screen) {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+  }
+
+  Future<void> _openUrl(String url) async {
+    final ok = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!ok) _snack("Couldn't open the link.");
   }
 
   void _snack(String message) {
@@ -347,6 +356,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 onTap: _enableBiometric,
               ),
+            const _SectionHeader('About'),
+            ListTile(
+              leading: const Icon(Icons.description_outlined),
+              title: const Text('Terms of Service'),
+              trailing: const Icon(Icons.open_in_new, size: 18),
+              onTap: () => _openUrl(Legal.termsUrl),
+            ),
+            ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: const Text('Privacy Policy'),
+              trailing: const Icon(Icons.open_in_new, size: 18),
+              onTap: () => _openUrl(Legal.privacyUrl),
+            ),
             const Divider(),
             ListTile(
               leading: Icon(
