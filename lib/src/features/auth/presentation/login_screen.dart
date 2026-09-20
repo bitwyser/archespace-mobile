@@ -8,6 +8,7 @@ import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
 import 'package:archespace_mobile/src/features/auth/domain/email.dart';
 import 'package:archespace_mobile/src/features/auth/domain/password_policy.dart';
 import 'package:archespace_mobile/src/shared/config/app_config.dart';
+import 'package:archespace_mobile/src/shared/config/build_info.dart';
 import 'package:archespace_mobile/src/shared/config/legal.dart';
 import 'package:archespace_mobile/src/shared/widgets/brand_wordmark.dart';
 
@@ -414,6 +415,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             : const Text('Forgot password?'),
                       ),
                     ],
+                    const SizedBox(height: 24),
+                    Text(
+                      'Everything in Encrypted Space · v${BuildInfo.appVersion}',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                      ),
+                    ),
                   ],
                 ),
               ),
