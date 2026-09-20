@@ -677,7 +677,15 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
 
   Widget _body() {
     if (_items == null && _error != null) {
-      return ScrollableMessage('Failed to load items:\n$_error');
+      return StateMessage(
+        icon: Icons.cloud_off_outlined,
+        title: "Couldn't load items",
+        message: 'Something went wrong. Check your connection and try again.',
+        actionLabel: 'Retry',
+        actionIcon: Icons.refresh,
+        onAction: _load,
+        destructiveIcon: true,
+      );
     }
     final all = _items ?? const <SpaceItem>[];
     // Sub-spaces render above the items in the same view (matching the web),
@@ -686,8 +694,13 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
         ? null
         : Column(children: [for (final s in _subSpaces) _subSpaceCard(s)]);
     if (all.isEmpty && subSection == null) {
-      return const ScrollableMessage(
-        'No items yet.\nTap + to add your first item.',
+      return StateMessage(
+        icon: Icons.note_add_outlined,
+        title: 'No items yet',
+        message: 'Add notes, lists, secrets, and more to this space.',
+        actionLabel: 'Add item',
+        actionIcon: Icons.add,
+        onAction: _openAddSheet,
       );
     }
     final allTags = <String>{for (final i in all) ...i.tags}.toList()..sort();

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/features/storage/data/storage_repository.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
+import 'package:archespace_mobile/src/shared/widgets/scrollable_message.dart';
 
 enum StorageMode { archive, bin }
 
@@ -273,19 +274,24 @@ class _StorageScreenState extends State<StorageScreen> {
 
   Widget _body() {
     if (_entries == null && _error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text('Failed to load:\n$_error', textAlign: TextAlign.center),
-        ),
+      return StateMessage(
+        icon: Icons.cloud_off_outlined,
+        title: "Couldn't load",
+        message: 'Something went wrong. Check your connection and try again.',
+        actionLabel: 'Retry',
+        actionIcon: Icons.refresh,
+        onAction: _load,
+        destructiveIcon: true,
       );
     }
     final entries = _entries ?? const <StoredEntry>[];
     if (entries.isEmpty) {
-      return Center(
-        child: Text(
-          _isBin ? 'The recycle bin is empty.' : 'Nothing archived yet.',
-        ),
+      return StateMessage(
+        icon: _isBin ? Icons.delete_outline : Icons.archive_outlined,
+        title: _isBin ? 'Recycle bin is empty' : 'Nothing archived yet',
+        message: _isBin
+            ? 'Spaces and items you delete appear here for 30 days.'
+            : 'Archive a space or item to tuck it away without deleting it.',
       );
     }
     final spaces = entries.where((e) => e.isSpace).toList();

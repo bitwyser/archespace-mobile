@@ -5,6 +5,7 @@ import 'package:archespace_mobile/src/features/search/data/search_repository.dar
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_detail_screen.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
+import 'package:archespace_mobile/src/shared/widgets/scrollable_message.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -82,25 +83,33 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _results() {
     if (_all == null && _error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            'Search unavailable:\n$_error',
-            textAlign: TextAlign.center,
-          ),
-        ),
+      return StateMessage(
+        icon: Icons.cloud_off_outlined,
+        title: 'Search unavailable',
+        message: 'Something went wrong. Check your connection and try again.',
+        actionLabel: 'Retry',
+        actionIcon: Icons.refresh,
+        onAction: _load,
+        destructiveIcon: true,
       );
     }
     final q = _query.trim().toLowerCase();
     if (q.isEmpty) {
-      return const Center(child: Text('Type to search your spaces and items.'));
+      return const StateMessage(
+        icon: Icons.search,
+        title: 'Search your vault',
+        message: 'Find spaces and items by name or content.',
+      );
     }
     final matches = _all!.where((h) => h.haystack.contains(q)).toList();
     final spaces = matches.where((h) => h.isSpace).toList();
     final items = matches.where((h) => !h.isSpace).toList();
     if (matches.isEmpty) {
-      return const Center(child: Text('No results found.'));
+      return StateMessage(
+        icon: Icons.search_off,
+        title: 'No results',
+        message: 'Nothing matched "${_query.trim()}". Try a different term.',
+      );
     }
     return ListView(
       children: [

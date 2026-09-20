@@ -510,15 +510,29 @@ class _SpacesScreenState extends State<SpacesScreen> {
 
   Widget _body() {
     if (_spaces == null && _error != null) {
-      return ScrollableMessage('Failed to load spaces:\n$_error');
+      return StateMessage(
+        icon: Icons.cloud_off_outlined,
+        title: "Couldn't load your spaces",
+        message: 'Something went wrong. Check your connection and try again.',
+        actionLabel: 'Retry',
+        actionIcon: Icons.refresh,
+        onAction: _load,
+        destructiveIcon: true,
+      );
     }
     // Only top-level spaces on the dashboard; sub-spaces live inside their parent.
     final all = (_spaces ?? const <Space>[])
         .where((s) => s.parentId == null)
         .toList();
     if (all.isEmpty) {
-      return const ScrollableMessage(
-        'No spaces yet.\nTap + to create your first space.',
+      return StateMessage(
+        icon: Icons.workspaces_outline,
+        title: 'No spaces yet',
+        message: 'Spaces keep your notes and items organized. Create your '
+            'first one to get started.',
+        actionLabel: 'New space',
+        actionIcon: Icons.add,
+        onAction: _createSpace,
       );
     }
     final allTags = <String>{for (final s in all) ...s.tags}.toList()..sort();
