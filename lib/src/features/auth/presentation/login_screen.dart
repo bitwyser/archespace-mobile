@@ -64,6 +64,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _switchMode(_Mode mode) {
+    // Clear the form when switching, so nothing carries between sign-in and
+    // create-account (matches web, where the two are separate pages).
+    _password.clear();
+    _confirm.clear();
     setState(() {
       _mode = mode;
       _error = null;
@@ -297,30 +301,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Center(child: BrandWordmark(height: 40)),
-                    const SizedBox(height: 28),
-                    if (AppConfig.allowSignup) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: SegmentedButton<_Mode>(
-                          segments: const [
-                            ButtonSegment(
-                              value: _Mode.signIn,
-                              label: Text('Sign in'),
-                            ),
-                            ButtonSegment(
-                              value: _Mode.signUp,
-                              label: Text('Create account'),
-                            ),
-                          ],
-                          selected: {_mode},
-                          showSelectedIcon: false,
-                          onSelectionChanged: _loading
-                              ? null
-                              : (selection) => _switchMode(selection.first),
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Text(
+                        _isSignUp
+                            ? 'Create your account'
+                            : 'Sign in to your account',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                    ],
+                    ),
+                    const SizedBox(height: 24),
                     TextField(
                       controller: _email,
                       keyboardType: TextInputType.emailAddress,
@@ -493,6 +487,40 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               )
                             : const Text('Forgot password?'),
+                      ),
+                    ],
+                    if (AppConfig.allowSignup) ...[
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              _isSignUp
+                                  ? 'Already have an account?'
+                                  : 'New to ArcheSpace?',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color
+                                        ?.withValues(alpha: 0.7),
+                                  ),
+                            ),
+                            TextButton(
+                              onPressed: _loading
+                                  ? null
+                                  : () => _switchMode(
+                                      _isSignUp ? _Mode.signIn : _Mode.signUp,
+                                    ),
+                              child: Text(
+                                _isSignUp ? 'Sign in' : 'Create an account',
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                     const SizedBox(height: 24),
