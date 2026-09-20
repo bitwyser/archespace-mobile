@@ -61,10 +61,53 @@ class ItemCard extends StatefulWidget {
   State<ItemCard> createState() => _ItemCardState();
 }
 
+// When a preview body is taller than this, the card clamps it to this height
+// (with a fade) by default instead of showing the whole thing; expanding via the
+// chevron restores full height. Tapping the card still opens the full editor.
+const double _kCollapsedMaxHeight = 260;
+
 class _ItemCardState extends State<ItemCard> {
   bool _collapsed = false;
   bool _addingTag = false;
+  // Measured: is the body taller than the clamp threshold? Drives the
+  // auto-collapse default and whether the collapse/expand control is shown.
+  bool _overflowing = false;
+  // Once the user toggles collapse manually, stop overriding it from the auto
+  // measurement.
+  bool _userToggled = false;
+  final GlobalKey _bodyKey = GlobalKey();
   final TextEditingController _tagController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureBody());
+  }
+
+  @override
+  void didUpdateWidget(covariant ItemCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Content changed (e.g. after an edit) - re-measure the natural height.
+    if (oldWidget.item.content != widget.item.content) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _measureBody());
+    }
+  }
+
+  /// Measure the body's natural height (it is laid out unclamped whenever it is
+  /// not overflowing, so this reads the true height) and decide whether the card
+  /// is "long". Long cards auto-collapse unless the user has toggled.
+  void _measureBody() {
+    if (!mounted) return;
+    final box = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
+    final height = box?.size.height;
+    if (height == null) return;
+    final long = height > _kCollapsedMaxHeight + 16;
+    if (long == _overflowing) return;
+    setState(() {
+      _overflowing = long;
+      if (!_userToggled) _collapsed = long;
+    });
+  }
 
   @override
   void dispose() {
@@ -157,7 +200,7 @@ class _ItemCardState extends State<ItemCard> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (!selectMode)
+                  if (!selectMode && (_overflowing || _collapsed))
                     SizedBox(
                       height: 32,
                       width: 32,
@@ -168,8 +211,10 @@ class _ItemCardState extends State<ItemCard> {
                         ),
                         padding: EdgeInsets.zero,
                         tooltip: _collapsed ? 'Expand' : 'Collapse',
-                        onPressed: () =>
-                            setState(() => _collapsed = !_collapsed),
+                        onPressed: () => setState(() {
+                          _collapsed = !_collapsed;
+                          _userToggled = true;
+                        }),
                       ),
                     ),
                   if (!selectMode && isCopyableType(item.type))
@@ -264,16 +309,68 @@ class _ItemCardState extends State<ItemCard> {
                 ],
               ),
               _tagsRow(context, scheme),
-              if (!_collapsed) ...[
-                const SizedBox(height: 10),
-                Divider(height: 1, color: scheme.outlineVariant),
-                const SizedBox(height: 10),
-                _ItemBody(item: item),
-              ],
+              const SizedBox(height: 10),
+              Divider(height: 1, color: scheme.outlineVariant),
+              const SizedBox(height: 10),
+              _buildBody(scheme),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// The body preview. When collapsed-and-long it is clamped to a fixed height
+  /// and clipped (with a bottom fade) rather than hidden; otherwise it shows at
+  /// its natural height. The body is keyed so its natural height can be measured
+  /// even while clamped (a disabled scroll view gives it unbounded height).
+  Widget _buildBody(ColorScheme scheme) {
+    final clamp = _collapsed && _overflowing;
+    final body = KeyedSubtree(key: _bodyKey, child: _ItemBody(item: widget.item));
+    if (!clamp) return body;
+    return Stack(
+      children: [
+        SizedBox(
+          height: _kCollapsedMaxHeight,
+          width: double.infinity,
+          child: SingleChildScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            child: body,
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: IgnorePointer(
+            child: Container(
+              height: 44,
+              alignment: Alignment.bottomCenter,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    scheme.surfaceContainerLowest.withValues(alpha: 0),
+                    scheme.surfaceContainerLowest,
+                  ],
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Text(
+                  'Show more',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
