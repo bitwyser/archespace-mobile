@@ -1,11 +1,14 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
 import 'package:archespace_mobile/src/features/auth/domain/email.dart';
 import 'package:archespace_mobile/src/features/auth/domain/password_policy.dart';
 import 'package:archespace_mobile/src/shared/config/app_config.dart';
+import 'package:archespace_mobile/src/shared/config/legal.dart';
 import 'package:archespace_mobile/src/shared/widgets/brand_wordmark.dart';
 
 enum _Mode { signIn, signUp }
@@ -27,17 +30,36 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   bool _resetLoading = false;
   bool _obscure = true;
+  // Explicit consent to the Terms and Privacy Policy, required before an account
+  // can be created (GDPR/DPDP: record affirmative agreement at sign-up).
+  bool _acceptedTerms = false;
   String? _error;
   String? _info;
 
+  final TapGestureRecognizer _termsTap = TapGestureRecognizer();
+  final TapGestureRecognizer _privacyTap = TapGestureRecognizer();
+
   bool get _isSignUp => _mode == _Mode.signUp;
+
+  @override
+  void initState() {
+    super.initState();
+    _termsTap.onTap = () => _openLegal(Legal.termsUrl);
+    _privacyTap.onTap = () => _openLegal(Legal.privacyUrl);
+  }
 
   @override
   void dispose() {
     _email.dispose();
     _password.dispose();
     _confirm.dispose();
+    _termsTap.dispose();
+    _privacyTap.dispose();
     super.dispose();
+  }
+
+  Future<void> _openLegal(String url) async {
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
   void _switchMode(_Mode mode) {
@@ -45,6 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _mode = mode;
       _error = null;
       _info = null;
+      _acceptedTerms = false;
     });
   }
 
@@ -129,6 +152,13 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _error = 'Passwords do not match.');
       return;
     }
+    if (!_acceptedTerms) {
+      setState(
+        () => _error =
+            'Please accept the Terms of Service and Privacy Policy to continue.',
+      );
+      return;
+    }
 
     setState(() {
       _loading = true;
@@ -139,6 +169,13 @@ class _LoginScreenState extends State<LoginScreen> {
       final response = await _auth.signUp(
         email: _email.text.trim(),
         password: _password.text,
+        // Record which policy version was accepted. The server stamps the
+        // authoritative accepted-at time; the client timestamp is for
+        // reference only (see the user_consent trigger in schema.sql).
+        data: {
+          'terms_version': Legal.termsVersion,
+          'terms_accepted_at': DateTime.now().toUtc().toIso8601String(),
+        },
       );
       // Account created (session or pending email confirmation) - commit the
       // autofill session so the password manager offers to save it.
@@ -256,6 +293,73 @@ class _LoginScreenState extends State<LoginScreen> {
                           labelText: 'Confirm password',
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      InkWell(
+                        onTap: _loading
+                            ? null
+                            : () => setState(
+                                () => _acceptedTerms = !_acceptedTerms,
+                              ),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: Checkbox(
+                                  value: _acceptedTerms,
+                                  onChanged: _loading
+                                      ? null
+                                      : (v) => setState(
+                                          () => _acceptedTerms = v ?? false,
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 3),
+                                  child: Text.rich(
+                                    TextSpan(
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                      children: [
+                                        const TextSpan(text: 'I agree to the '),
+                                        TextSpan(
+                                          text: 'Terms of Service',
+                                          style: TextStyle(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          recognizer: _termsTap,
+                                        ),
+                                        const TextSpan(text: ' and '),
+                                        TextSpan(
+                                          text: 'Privacy Policy',
+                                          style: TextStyle(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          recognizer: _privacyTap,
+                                        ),
+                                        const TextSpan(text: '.'),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                     if (_error != null) ...[
                       const SizedBox(height: 12),
@@ -277,7 +381,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                     const SizedBox(height: 20),
                     FilledButton(
-                      onPressed: _loading ? null : _submit,
+                      onPressed: (_loading || (_isSignUp && !_acceptedTerms))
+                          ? null
+                          : _submit,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: _loading
