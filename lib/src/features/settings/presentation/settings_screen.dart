@@ -396,9 +396,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
-/// Shows the app version and the source commit this build was compiled from.
-/// The commit hash links to GitHub so anyone can verify the running binary
-/// against the audited, open-source code.
+/// Shows the app version, which links to the exact source commit this build
+/// was compiled from on GitHub, so anyone can verify the running binary against
+/// the audited, open-source code.
 class _BuildFooter extends StatefulWidget {
   const _BuildFooter();
 
@@ -445,11 +445,10 @@ class _BuildFooterState extends State<_BuildFooter> {
           TextSpan(
             style: baseStyle,
             children: [
-              TextSpan(text: 'ArcheSpace v${BuildInfo.appVersion}  ·  build '),
+              const TextSpan(text: 'ArcheSpace '),
               TextSpan(
-                text: BuildInfo.buildHash,
+                text: 'v${BuildInfo.appVersion}',
                 style: baseStyle?.copyWith(
-                  fontFamily: 'monospace',
                   decoration: BuildInfo.isStamped
                       ? TextDecoration.underline
                       : null,
