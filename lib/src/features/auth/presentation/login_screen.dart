@@ -9,7 +9,7 @@ import 'package:archespace_mobile/src/features/auth/domain/email.dart';
 import 'package:archespace_mobile/src/features/auth/domain/password_policy.dart';
 import 'package:archespace_mobile/src/shared/config/app_config.dart';
 import 'package:archespace_mobile/src/shared/config/legal.dart';
-import 'package:archespace_mobile/src/shared/widgets/brand_wordmark.dart';
+import 'package:archespace_mobile/src/shared/widgets/brand_glyph.dart';
 
 enum _Mode { signIn, signUp }
 
@@ -289,9 +289,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 36, 24, 24),
-          child: Center(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 380),
               child: AutofillGroup(
@@ -299,13 +299,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Center(child: BrandWordmark(height: 44)),
+                    const Center(child: BrandGlyph(size: 56)),
                     const SizedBox(height: 44),
                     Center(
                       child: Text(
                         _isSignUp
-                            ? 'Create your account'
-                            : 'Sign in to your account',
+                            ? 'Sign up for ArcheSpace'
+                            : 'Sign in to ArcheSpace',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Theme.of(
                             context,
@@ -367,7 +367,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       _buildMatchIndicator(context),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 10),
                       InkWell(
                         onTap: _loading
                             ? null
@@ -453,7 +453,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     FilledButton(
                       onPressed: (_loading || (_isSignUp && !_acceptedTerms))
                           ? null
@@ -473,6 +473,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     if (!_isSignUp) ...[
                       TextButton(
+                        style: TextButton.styleFrom(
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
                         onPressed: (_loading || _resetLoading)
                             ? null
                             : _forgotPassword,
@@ -488,6 +492,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                     if (AppConfig.allowSignup) ...[
+                      const SizedBox(height: 6),
                       Center(
                         child: Wrap(
                           alignment: WrapAlignment.center,
@@ -507,6 +512,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                             ),
                             TextButton(
+                              style: TextButton.styleFrom(
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 8,
+                                ),
+                              ),
                               onPressed: _loading
                                   ? null
                                   : () => _switchMode(
