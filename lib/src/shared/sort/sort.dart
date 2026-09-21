@@ -73,7 +73,7 @@ class SortMenu extends StatelessWidget {
       position: position,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       items: [
-        _sortItem(kSortDefault, 'Default order'),
+        _sortItem(kSortDefault, 'Default'),
         _sortItem(kSortName, 'Name'),
         _sortItem(kSortNewest, 'Newest'),
       ],
