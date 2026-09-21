@@ -8,7 +8,6 @@ import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
 import 'package:archespace_mobile/src/features/auth/domain/email.dart';
 import 'package:archespace_mobile/src/features/auth/domain/password_policy.dart';
 import 'package:archespace_mobile/src/shared/config/app_config.dart';
-import 'package:archespace_mobile/src/shared/config/build_info.dart';
 import 'package:archespace_mobile/src/shared/config/legal.dart';
 import 'package:archespace_mobile/src/shared/widgets/brand_wordmark.dart';
 
@@ -290,9 +289,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 36, 24, 24),
+          child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 380),
               child: AutofillGroup(
@@ -300,8 +299,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Center(child: BrandWordmark(height: 40)),
-                    const SizedBox(height: 10),
+                    const Center(child: BrandWordmark(height: 44)),
+                    const SizedBox(height: 44),
                     Center(
                       child: Text(
                         _isSignUp
@@ -473,7 +472,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     if (!_isSignUp) ...[
-                      const SizedBox(height: 4),
                       TextButton(
                         onPressed: (_loading || _resetLoading)
                             ? null
@@ -490,7 +488,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                     if (AppConfig.allowSignup) ...[
-                      const SizedBox(height: 8),
                       Center(
                         child: Wrap(
                           alignment: WrapAlignment.center,
@@ -523,16 +520,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 24),
-                    Text(
-                      'Everything in Encrypted Space · v${BuildInfo.appVersion}',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(
-                          context,
-                        ).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
-                      ),
-                    ),
                   ],
                 ),
               ),

@@ -445,13 +445,10 @@ class _BuildFooterState extends State<_BuildFooter> {
           TextSpan(
             style: baseStyle,
             children: [
-              const TextSpan(text: 'ArcheSpace '),
+              const TextSpan(text: 'ArcheSpace  ·  '),
               TextSpan(
                 text: 'v${BuildInfo.appVersion}',
                 style: baseStyle?.copyWith(
-                  decoration: BuildInfo.isStamped
-                      ? TextDecoration.underline
-                      : null,
                   color: BuildInfo.isStamped
                       ? Theme.of(context).colorScheme.primary
                       : muted,

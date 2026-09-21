@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'package:archespace_mobile/src/features/settings/application/appearance_controller.dart';
-import 'package:archespace_mobile/src/shared/widgets/brand_wordmark.dart';
 
-/// The app-open landing screen: the ArcheSpace wordmark and a circular accent
-/// button that continues to the login / create-account screen. A fuller
-/// introduction can replace the middle of this screen later.
+/// The app-open landing screen: a circular accent button that continues to the
+/// login / create-account screen. A fuller introduction can replace the middle
+/// of this screen later.
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key, required this.onContinue});
 
@@ -26,8 +25,6 @@ class SplashScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const BrandWordmark(height: 46),
-              const SizedBox(height: 64),
               Semantics(
                 button: true,
                 label: 'Continue',
