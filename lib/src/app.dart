@@ -41,12 +41,22 @@ class ArcheApp extends StatelessWidget {
   /// otherwise draws a stadium-shaped state layer), so all action buttons and
   /// the 3-dot menus look consistent.
   static ThemeData _theme(Color accent, Brightness brightness) {
-    return ThemeData(
-      colorSchemeSeed: accent,
+    final scheme = ColorScheme.fromSeed(
+      seedColor: accent,
       brightness: brightness,
+    );
+    return ThemeData(
+      colorScheme: scheme,
       useMaterial3: true,
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(shape: const CircleBorder()),
+      ),
+      // The add (+) FAB uses the bright accent with a dark icon (primary /
+      // onPrimary) rather than the muted default primaryContainer, so it reads
+      // as the clear primary action.
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: scheme.primary,
+        foregroundColor: scheme.onPrimary,
       ),
       // Standard rounded input boxes app-wide: a smooth-cornered outline with
       // the label sitting inside as a placeholder (never floating into the
