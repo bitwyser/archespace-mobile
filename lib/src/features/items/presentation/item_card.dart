@@ -61,20 +61,19 @@ class ItemCard extends StatefulWidget {
   State<ItemCard> createState() => _ItemCardState();
 }
 
-// When a preview body is taller than this, the card clamps it to this height
-// (with a fade) by default instead of showing the whole thing; expanding via the
-// chevron restores full height. Tapping the card still opens the full editor.
-const double _kCollapsedMaxHeight = 260;
+// A body taller than this is clamped to this fixed height (clipped, not
+// hidden); tapping the card then reveals it in full. The header chevron is a
+// separate control that hides the body entirely (header only).
+const double _kCollapsedMaxHeight = 480;
 
 class _ItemCardState extends State<ItemCard> {
+  // Header-only collapse (chevron): hides the body entirely.
   bool _collapsed = false;
   bool _addingTag = false;
-  // Measured: is the body taller than the clamp threshold? Drives the
-  // auto-collapse default and whether the collapse/expand control is shown.
+  // Measured: is the body taller than the clamp threshold?
   bool _overflowing = false;
-  // Once the user toggles collapse manually, stop overriding it from the auto
-  // measurement.
-  bool _userToggled = false;
+  // Set when a long, clamped body is tapped to reveal it in full.
+  bool _expanded = false;
   final GlobalKey _bodyKey = GlobalKey();
   final TextEditingController _tagController = TextEditingController();
 
@@ -93,20 +92,16 @@ class _ItemCardState extends State<ItemCard> {
     }
   }
 
-  /// Measure the body's natural height (it is laid out unclamped whenever it is
-  /// not overflowing, so this reads the true height) and decide whether the card
-  /// is "long". Long cards auto-collapse unless the user has toggled.
+  /// Measure the body's natural height (the OverflowBox lays it out unclamped,
+  /// so this reads the true height) and flag whether the body is "long" - long
+  /// bodies clamp to a fixed height until tapped.
   void _measureBody() {
     if (!mounted) return;
     final box = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
     final height = box?.size.height;
     if (height == null) return;
     final long = height > _kCollapsedMaxHeight + 16;
-    if (long == _overflowing) return;
-    setState(() {
-      _overflowing = long;
-      if (!_userToggled) _collapsed = long;
-    });
+    if (long != _overflowing) setState(() => _overflowing = long);
   }
 
   @override
@@ -151,7 +146,13 @@ class _ItemCardState extends State<ItemCard> {
         side: BorderSide(color: borderColor, width: accent ? 2 : 1.5),
       ),
       child: InkWell(
-        onTap: selectMode ? onSelectToggle : onTap,
+        // A clamped (long, not yet expanded) body reveals itself in full on
+        // tap; otherwise a tap opens the full editor.
+        onTap: selectMode
+            ? onSelectToggle
+            : (!_collapsed && _overflowing && !_expanded)
+            ? () => setState(() => _expanded = true)
+            : onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(14),
@@ -207,7 +208,7 @@ class _ItemCardState extends State<ItemCard> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (!selectMode && (_overflowing || _collapsed))
+                  if (!selectMode)
                     SizedBox(
                       height: 32,
                       width: 32,
@@ -218,10 +219,8 @@ class _ItemCardState extends State<ItemCard> {
                         ),
                         padding: EdgeInsets.zero,
                         tooltip: _collapsed ? 'Expand' : 'Collapse',
-                        onPressed: () => setState(() {
-                          _collapsed = !_collapsed;
-                          _userToggled = true;
-                        }),
+                        onPressed: () =>
+                            setState(() => _collapsed = !_collapsed),
                       ),
                     ),
                   if (!selectMode && isCopyableType(item.type))
@@ -313,10 +312,12 @@ class _ItemCardState extends State<ItemCard> {
                 ],
               ),
               _tagsRow(context, scheme),
-              const SizedBox(height: 10),
-              Divider(height: 1, color: scheme.outlineVariant),
-              const SizedBox(height: 10),
-              _buildBody(scheme),
+              if (!_collapsed) ...[
+                const SizedBox(height: 10),
+                Divider(height: 1, color: scheme.outlineVariant),
+                const SizedBox(height: 10),
+                _buildBody(),
+              ],
             ],
           ),
         ),
@@ -324,57 +325,47 @@ class _ItemCardState extends State<ItemCard> {
     );
   }
 
-  /// The body preview. When collapsed-and-long it is clamped to a fixed height
-  /// and clipped (with a bottom fade) rather than hidden; otherwise it shows at
-  /// its natural height. The body is keyed so its natural height can be measured
-  /// even while clamped (a disabled scroll view gives it unbounded height).
-  Widget _buildBody(ColorScheme scheme) {
-    final clamp = _collapsed && _overflowing;
-    final body = KeyedSubtree(key: _bodyKey, child: _ItemBody(item: widget.item));
-    if (!clamp) return body;
-    return Stack(
-      children: [
-        SizedBox(
-          height: _kCollapsedMaxHeight,
-          width: double.infinity,
-          child: SingleChildScrollView(
-            physics: const NeverScrollableScrollPhysics(),
-            child: body,
-          ),
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: IgnorePointer(
-            child: Container(
-              height: 44,
-              alignment: Alignment.bottomCenter,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    scheme.surfaceContainerLow.withValues(alpha: 0),
-                    scheme.surfaceContainerLow,
-                  ],
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 2),
-                child: Text(
-                  'Show more',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
+  /// The body preview. A long body is clamped to a fixed height and clipped,
+  /// with a soft fade at the bottom to signal there is more; tapping the card
+  /// reveals it in full. Short or already-expanded bodies show at their natural
+  /// height. The body is keyed and laid out unclamped inside an OverflowBox so
+  /// its true height can always be measured.
+  ///
+  /// The clamped preview is wrapped in IgnorePointer: it needs no interaction
+  /// (the card's InkWell handles the tap-to-expand), and this keeps the
+  /// overflowing region - which paints clipped but is not hit-test clipped -
+  /// from trapping the list's scroll gestures.
+  Widget _buildBody() {
+    final body = KeyedSubtree(
+      key: _bodyKey,
+      child: _ItemBody(item: widget.item),
+    );
+    if (!_overflowing || _expanded) return body;
+    return ClipRect(
+      child: ShaderMask(
+        // dstIn keeps the body where the gradient is opaque and fades it to
+        // transparent over the last stretch, so the card background shows
+        // through - a "more below" cue without any label.
+        blendMode: BlendMode.dstIn,
+        shaderCallback: (rect) => const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          stops: [0.0, 0.82, 1.0],
+          colors: [Colors.black, Colors.black, Colors.transparent],
+        ).createShader(rect),
+        child: IgnorePointer(
+          child: SizedBox(
+            height: _kCollapsedMaxHeight,
+            width: double.infinity,
+            child: OverflowBox(
+              alignment: Alignment.topLeft,
+              minHeight: 0,
+              maxHeight: double.infinity,
+              child: body,
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 
