@@ -9,6 +9,7 @@ class ItemTypeDef {
     required this.label,
     required this.description,
     required this.icon,
+    required this.color,
     this.editable = false,
   });
 
@@ -16,6 +17,10 @@ class ItemTypeDef {
   final String label;
   final String description;
   final IconData icon;
+
+  /// Accent colour for this type (badge + add-menu icon), matching the web's
+  /// per-type palette.
+  final Color color;
   final bool editable;
 }
 
@@ -25,6 +30,7 @@ const List<ItemTypeDef> kItemTypes = [
     label: 'Note',
     description: 'Free-form plain text',
     icon: Icons.notes,
+    color: Color(0xFF60A5FA), // blue
     editable: true,
   ),
   ItemTypeDef(
@@ -32,6 +38,7 @@ const List<ItemTypeDef> kItemTypes = [
     label: 'Rich Text',
     description: 'Formatted text - bold, italic, underline, font size',
     icon: Icons.text_fields,
+    color: Color(0xFFFB7185), // rose
     editable: true,
   ),
   ItemTypeDef(
@@ -39,6 +46,7 @@ const List<ItemTypeDef> kItemTypes = [
     label: 'Markdown',
     description: 'Rich text with markdown',
     icon: Icons.code,
+    color: Color(0xFF2DD4BF), // teal
     editable: true,
   ),
   ItemTypeDef(
@@ -46,6 +54,7 @@ const List<ItemTypeDef> kItemTypes = [
     label: 'List',
     description: 'Simple bullet list',
     icon: Icons.list,
+    color: Color(0xFFC084FC), // purple
     editable: true,
   ),
   ItemTypeDef(
@@ -53,6 +62,7 @@ const List<ItemTypeDef> kItemTypes = [
     label: 'Numbered list',
     description: 'Ordered list',
     icon: Icons.format_list_numbered,
+    color: Color(0xFFF472B6), // pink
     editable: true,
   ),
   ItemTypeDef(
@@ -60,6 +70,7 @@ const List<ItemTypeDef> kItemTypes = [
     label: 'Checklist',
     description: 'Items with checkboxes',
     icon: Icons.checklist,
+    color: Color(0xFF4ADE80), // green
     editable: true,
   ),
   ItemTypeDef(
@@ -67,6 +78,7 @@ const List<ItemTypeDef> kItemTypes = [
     label: 'Cards',
     description: 'Title and description pairs',
     icon: Icons.view_agenda_outlined,
+    color: Color(0xFFFBBF24), // amber
     editable: true,
   ),
   ItemTypeDef(
@@ -74,6 +86,7 @@ const List<ItemTypeDef> kItemTypes = [
     label: 'Table',
     description: 'Rows and columns of text',
     icon: Icons.table_chart_outlined,
+    color: Color(0xFF38BDF8), // sky
     editable: true,
   ),
   ItemTypeDef(
@@ -81,6 +94,7 @@ const List<ItemTypeDef> kItemTypes = [
     label: 'Secret',
     description: 'PIN-protected hidden text',
     icon: Icons.lock_outline,
+    color: Color(0xFF818CF8), // indigo
     editable: true,
   ),
   ItemTypeDef(
@@ -88,6 +102,7 @@ const List<ItemTypeDef> kItemTypes = [
     label: 'Drawing',
     description: 'Freehand sketch',
     icon: Icons.brush_outlined,
+    color: Color(0xFFE879F9), // fuchsia
     editable: true,
   ),
   ItemTypeDef(
@@ -95,6 +110,7 @@ const List<ItemTypeDef> kItemTypes = [
     label: 'Code',
     description: 'Code snippet with syntax highlighting',
     icon: Icons.data_object,
+    color: Color(0xFFFB923C), // orange
     editable: true,
   ),
   ItemTypeDef(
@@ -102,6 +118,7 @@ const List<ItemTypeDef> kItemTypes = [
     label: 'Authenticator',
     description: 'Two-factor (TOTP) codes for your accounts',
     icon: Icons.shield_outlined,
+    color: Color(0xFF34D399), // emerald
     editable: true,
   ),
 ];

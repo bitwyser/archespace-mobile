@@ -518,10 +518,24 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
             children: [
               for (final def in kItemTypes.where((d) => d.editable))
                 ListTile(
-                  dense: true,
                   visualDensity: VisualDensity.compact,
-                  leading: Icon(def.icon),
-                  title: Text(def.label),
+                  leading: Container(
+                    width: 38,
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: def.color.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(def.icon, color: def.color, size: 20),
+                  ),
+                  title: Text(
+                    def.label,
+                    style: const TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   subtitle: Text(def.description),
                   onTap: () {
                     Navigator.pop(sheetContext);

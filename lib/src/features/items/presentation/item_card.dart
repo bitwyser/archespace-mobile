@@ -171,29 +171,34 @@ class _ItemCardState extends State<ItemCard> {
                       ),
                     ),
                   if (!widget.grid && itemTypeDef(item.type) != null)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: scheme.primary.withValues(alpha: 0.10),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: scheme.primary.withValues(alpha: 0.25),
+                    Builder(
+                      builder: (context) {
+                        final def = itemTypeDef(item.type)!;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: def.color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: def.color.withValues(alpha: 0.28),
+                              ),
+                            ),
+                            child: Text(
+                              def.label,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: def.color,
+                              ),
+                            ),
                           ),
-                        ),
-                        child: Text(
-                          itemTypeDef(item.type)!.label,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: scheme.primary,
-                          ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   Expanded(
                     child: Text(
