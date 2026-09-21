@@ -12,29 +12,28 @@ Widget compactTagFilterBar({
 }) {
   final scheme = Theme.of(context).colorScheme;
 
-  Widget chip(String tag) {
-    final active = activeTags.contains(tag);
+  Widget pill(String label, {required bool active, required VoidCallback onTap}) {
     return InkWell(
-      borderRadius: BorderRadius.circular(6),
-      onTap: () {
-        if (!activeTags.remove(tag)) activeTags.add(tag);
-        onChanged();
-      },
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: active
-              ? scheme.primary.withValues(alpha: 0.15)
-              : scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(6),
-          border: active
-              ? Border.all(color: scheme.primary.withValues(alpha: 0.4))
-              : null,
+              ? scheme.primary.withValues(alpha: 0.14)
+              : scheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active
+                ? scheme.primary.withValues(alpha: 0.45)
+                : scheme.outlineVariant.withValues(alpha: 0.5),
+          ),
         ),
         child: Text(
-          tag,
+          label,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 13,
+            fontWeight: active ? FontWeight.w600 : FontWeight.w500,
             color: active ? scheme.primary : scheme.onSurfaceVariant,
           ),
         ),
@@ -48,28 +47,26 @@ Widget compactTagFilterBar({
       alignment: Alignment.centerLeft,
       child: Wrap(
         alignment: WrapAlignment.start,
-        spacing: 6,
-        runSpacing: 6,
+        spacing: 8,
+        runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          for (final tag in allTags) chip(tag),
-          if (activeTags.isNotEmpty)
-            InkWell(
-              borderRadius: BorderRadius.circular(6),
+          pill(
+            'All',
+            active: activeTags.isEmpty,
+            onTap: () {
+              activeTags.clear();
+              onChanged();
+            },
+          ),
+          for (final tag in allTags)
+            pill(
+              tag,
+              active: activeTags.contains(tag),
               onTap: () {
-                activeTags.clear();
+                if (!activeTags.remove(tag)) activeTags.add(tag);
                 onChanged();
               },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                child: Text(
-                  'Clear',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
             ),
         ],
       ),

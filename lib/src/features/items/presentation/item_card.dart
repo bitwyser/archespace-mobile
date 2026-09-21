@@ -143,7 +143,9 @@ class _ItemCardState extends State<ItemCard> {
           widget.margin ??
           const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       clipBehavior: Clip.antiAlias,
-      color: scheme.surfaceContainerLowest,
+      // A step lighter than the page so the card reads as gently elevated
+      // (matching the web and the space cards).
+      color: scheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: borderColor, width: accent ? 2 : 1.5),
@@ -351,8 +353,8 @@ class _ItemCardState extends State<ItemCard> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    scheme.surfaceContainerLowest.withValues(alpha: 0),
-                    scheme.surfaceContainerLowest,
+                    scheme.surfaceContainerLow.withValues(alpha: 0),
+                    scheme.surfaceContainerLow,
                   ],
                 ),
               ),

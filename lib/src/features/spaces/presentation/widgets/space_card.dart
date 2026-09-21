@@ -4,10 +4,10 @@ import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/spaces/domain/space_colors.dart';
 import 'package:archespace_mobile/src/shared/widgets/select_box.dart';
 
-/// A space rendered as a content card (matching the web): a subtle border that
-/// turns accent when pinned or selected, the space colour as a top border only,
-/// tag chips, pin indicator, name + chevron, and a footer with the item count
-/// and an edit/delete menu.
+/// A space rendered as a content card: a subtle border that turns accent when
+/// pinned or selected, the space colour as a top border only, and a single
+/// content block with the pin indicator, name, and actions menu on one row,
+/// followed by the description, tag chips, and a subtle item-count caption.
 class SpaceCard extends StatelessWidget {
   const SpaceCard({
     super.key,
@@ -45,24 +45,38 @@ class SpaceCard extends StatelessWidget {
   String get _countLabel =>
       '${space.itemCount} ${space.itemCount == 1 ? 'item' : 'items'}';
 
-  Widget _tagChip(BuildContext context, ColorScheme scheme, String tag) {
+  /// The space's identity colour, used to tint its tag chips: the space's own
+  /// colour when set, otherwise a deterministic pick from the palette by name so
+  /// each space keeps a stable, distinct colour.
+  Color _identityColor(ColorScheme scheme) {
+    final explicit = spaceColor(space.color);
+    if (explicit != null) return explicit;
+    final name = space.name.trim();
+    if (name.isEmpty) return scheme.primary;
+    final palette = kSpaceColors.values.toList();
+    final sum = name.codeUnits.fold<int>(0, (a, c) => a + c);
+    return palette[sum % palette.length];
+  }
+
+  /// A tag chip tinted with the space's identity [color]; brighter with a
+  /// border when it's an active filter.
+  Widget _tagChip(Color color, String tag) {
     final active = activeTags.contains(tag);
     final chip = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: active
-            ? scheme.primary.withValues(alpha: 0.15)
-            : scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(6),
+        color: color.withValues(alpha: active ? 0.26 : 0.16),
+        borderRadius: BorderRadius.circular(7),
         border: active
-            ? Border.all(color: scheme.primary.withValues(alpha: 0.4))
+            ? Border.all(color: color.withValues(alpha: 0.55))
             : null,
       ),
       child: Text(
         tag,
         style: TextStyle(
-          fontSize: 10,
-          color: active ? scheme.primary : scheme.onSurfaceVariant,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: color,
         ),
       ),
     );
@@ -70,7 +84,7 @@ class SpaceCard extends StatelessWidget {
     // the space. Null onTagClick (or select mode) leaves it a plain chip.
     if (onTagClick == null || selectMode) return chip;
     return InkWell(
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(7),
       onTap: () => onTagClick!(tag),
       child: chip,
     );
@@ -79,16 +93,14 @@ class SpaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    // In select mode only selection drives the accent border - a pinned card
-    // keeps its default border so it isn't confused with a selected one.
-    final accent = selected || (space.pinned && !selectMode);
-    // The full border tracks pinned/selected (a softened accent, matching the
-    // web) or a subtle default; the space colour is shown only as a top border,
-    // also softened so it reads calmer on the card.
-    final border = accent
-        ? scheme.primary.withValues(alpha: 0.5)
-        : scheme.outlineVariant;
+    // Cards are borderless except a selected card in select mode, which keeps a
+    // soft accent border alongside its checkbox. Pinned is shown by the pin
+    // marker; normal and pinned cards have no border.
+    final borderSide = selected
+        ? BorderSide(color: scheme.primary.withValues(alpha: 0.4), width: 1.5)
+        : BorderSide.none;
     final topColor = spaceColor(space.color)?.withValues(alpha: 0.65);
+    final idColor = _identityColor(scheme);
 
     return Stack(
       children: [
@@ -96,157 +108,145 @@ class SpaceCard extends StatelessWidget {
           margin:
               margin ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
           clipBehavior: Clip.antiAlias,
-          color: scheme.surfaceContainerLowest,
+          // Borderless: the card is set off from the page by a lighter surface
+          // (a couple of tones up from colorScheme.surface) plus a soft shadow.
+          // surfaceContainer keeps it distinct without being washed-out light.
+          color: scheme.surfaceContainer,
+          elevation: 2,
+          shadowColor: Colors.black,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: border, width: accent ? 2 : 1.5),
+            side: borderSide,
           ),
           child: InkWell(
             onTap: selectMode ? onSelectToggle : onTap,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 12, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          if (space.pinned)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: Icon(
-                                Icons.push_pin,
-                                size: 18,
-                                color: scheme.primary,
-                                semanticLabel: 'Pinned',
-                              ),
-                            ),
-                          Expanded(
-                            child: Text(
-                              space.name.isEmpty ? 'Untitled' : space.name,
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (!selectMode)
-                            Icon(
-                              Icons.chevron_right,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          if (selectMode)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 8),
-                              child: SelectBox(selected: selected),
-                            ),
-                        ],
-                      ),
-                      if (space.description.isNotEmpty)
+                      if (space.pinned)
                         Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            space.description,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: scheme.onSurfaceVariant),
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Icon(
+                            Icons.push_pin,
+                            size: 18,
+                            color: scheme.primary,
+                            semanticLabel: 'Pinned',
                           ),
                         ),
-                      if (space.tags.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: [
-                              for (final tag in space.tags.take(4))
-                                _tagChip(context, scheme, tag),
+                      Expanded(
+                        child: Text(
+                          space.name.isEmpty ? 'Untitled' : space.name,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (!selectMode)
+                        SizedBox(
+                          height: 32,
+                          width: 32,
+                          child: PopupMenuButton<String>(
+                            icon: Icon(
+                              Icons.more_vert,
+                              size: 18,
+                              color: scheme.onSurfaceVariant.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                            padding: EdgeInsets.zero,
+                            tooltip: 'Space actions',
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            menuPadding: const EdgeInsets.symmetric(vertical: 4),
+                            onSelected: (value) {
+                              if (value == 'pin') onTogglePin();
+                              if (value == 'edit') onEdit();
+                              if (value == 'duplicate') onDuplicate();
+                              if (value == 'archive') onArchive();
+                              if (value == 'delete') onDelete();
+                            },
+                            itemBuilder: (context) => [
+                              PopupMenuItem(
+                                height: 40,
+                                value: 'pin',
+                                child: Text(space.pinned ? 'Unpin' : 'Pin'),
+                              ),
+                              const PopupMenuItem(
+                                height: 40,
+                                value: 'edit',
+                                child: Text('Edit'),
+                              ),
+                              const PopupMenuItem(
+                                height: 40,
+                                value: 'duplicate',
+                                child: Text('Duplicate'),
+                              ),
+                              const PopupMenuItem(
+                                height: 40,
+                                value: 'archive',
+                                child: Text('Archive'),
+                              ),
+                              const PopupMenuItem(
+                                height: 40,
+                                value: 'delete',
+                                child: Text('Delete'),
+                              ),
                             ],
                           ),
                         ),
+                      if (selectMode)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: SelectBox(selected: selected),
+                        ),
                     ],
                   ),
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: scheme.outlineVariant,
-                  indent: 16,
-                  endIndent: 12,
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 6, 10, 6),
-                  child: SizedBox(
-                    height: 36,
-                    child: Row(
+                  if (space.description.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        space.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium
+                            ?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Expanded(
-                          child: Text(
-                            _countLabel,
+                        for (final tag in space.tags.take(4))
+                          _tagChip(idColor, tag),
+                        if (space.tags.isNotEmpty)
+                          Text(
+                            '·',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 14,
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
-                        ),
-                        if (!selectMode)
-                          SizedBox(
-                            height: 32,
-                            width: 32,
-                            child: PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert, size: 18),
-                              padding: EdgeInsets.zero,
-                              tooltip: 'Space actions',
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              menuPadding: const EdgeInsets.symmetric(
-                                vertical: 4,
-                              ),
-                              onSelected: (value) {
-                                if (value == 'pin') onTogglePin();
-                                if (value == 'edit') onEdit();
-                                if (value == 'duplicate') onDuplicate();
-                                if (value == 'archive') onArchive();
-                                if (value == 'delete') onDelete();
-                              },
-                              itemBuilder: (context) => [
-                                PopupMenuItem(
-                                  height: 40,
-                                  value: 'pin',
-                                  child: Text(space.pinned ? 'Unpin' : 'Pin'),
-                                ),
-                                const PopupMenuItem(
-                                  height: 40,
-                                  value: 'edit',
-                                  child: Text('Edit'),
-                                ),
-                                const PopupMenuItem(
-                                  height: 40,
-                                  value: 'duplicate',
-                                  child: Text('Duplicate'),
-                                ),
-                                const PopupMenuItem(
-                                  height: 40,
-                                  value: 'archive',
-                                  child: Text('Archive'),
-                                ),
-                                const PopupMenuItem(
-                                  height: 40,
-                                  value: 'delete',
-                                  child: Text('Delete'),
-                                ),
-                              ],
-                            ),
+                        Text(
+                          _countLabel,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
                           ),
+                        ),
                       ],
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

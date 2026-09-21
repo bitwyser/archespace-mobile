@@ -414,7 +414,7 @@ class _SpacesScreenState extends State<SpacesScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 2),
       child: Material(
-        color: scheme.surfaceContainerHighest,
+        color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(28),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -457,7 +457,7 @@ class _SpacesScreenState extends State<SpacesScreen> {
               children: [
                 const TextSpan(text: 'Spaces'),
                 TextSpan(
-                  text: '  ·  $count',
+                  text: ' · $count',
                   style: TextStyle(
                     fontWeight: FontWeight.w400,
                     color: theme.colorScheme.onSurfaceVariant,
