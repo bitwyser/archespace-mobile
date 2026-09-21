@@ -58,6 +58,17 @@ class ArcheApp extends StatelessWidget {
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
       ),
+      // Pop-up (card action) menus float above the cards: a lighter surface
+      // than the cards' surfaceContainer, a real shadow, and a hairline border
+      // so the menu is clearly distinguishable from the content behind it.
+      popupMenuTheme: PopupMenuThemeData(
+        color: scheme.surfaceContainerHighest,
+        elevation: 8,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
+        ),
+      ),
       // Standard rounded input boxes app-wide: a smooth-cornered outline with
       // the label sitting inside as a placeholder (never floating into the
       // border as a "legend"), plus compact padding. The item editor keeps the

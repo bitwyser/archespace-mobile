@@ -160,9 +160,6 @@ class SpaceCard extends StatelessWidget {
                             ),
                             padding: EdgeInsets.zero,
                             tooltip: 'Space actions',
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
                             menuPadding: const EdgeInsets.symmetric(vertical: 4),
                             onSelected: (value) {
                               if (value == 'pin') onTogglePin();

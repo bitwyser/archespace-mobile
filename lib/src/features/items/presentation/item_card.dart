@@ -251,9 +251,6 @@ class _ItemCardState extends State<ItemCard> {
                         icon: const Icon(Icons.more_vert, size: 18),
                         padding: EdgeInsets.zero,
                         tooltip: 'Item actions',
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
                         menuPadding: const EdgeInsets.symmetric(vertical: 4),
                         onSelected: (value) {
                           if (value == 'pin') onTogglePin?.call();
