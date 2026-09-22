@@ -12,6 +12,7 @@ import 'package:archespace_mobile/src/shared/offline/write_queue.dart';
 import 'package:archespace_mobile/src/shared/realtime/table_watcher.dart';
 import 'package:archespace_mobile/src/shared/sort/sort.dart';
 import 'package:archespace_mobile/src/shared/widgets/action_icon_button.dart';
+import 'package:archespace_mobile/src/shared/widgets/add_glyph.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/widgets/bulk_action_bar.dart';
 import 'package:archespace_mobile/src/shared/widgets/offline_banner.dart';
@@ -305,7 +306,7 @@ class _SpacesScreenState extends State<SpacesScreen> {
           : FloatingActionButton(
               onPressed: _createSpace,
               tooltip: 'New space',
-              child: const Icon(Icons.add),
+              child: const AddGlyph(),
             ),
       bottomNavigationBar: _selectMode
           ? BulkActionBar(

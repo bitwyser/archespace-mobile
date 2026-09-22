@@ -18,6 +18,7 @@ import 'package:archespace_mobile/src/shared/export/pdf_exporter.dart';
 import 'package:archespace_mobile/src/shared/realtime/table_watcher.dart';
 import 'package:archespace_mobile/src/shared/sort/sort.dart';
 import 'package:archespace_mobile/src/shared/widgets/action_icon_button.dart';
+import 'package:archespace_mobile/src/shared/widgets/add_glyph.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/widgets/bulk_action_bar.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
@@ -615,7 +616,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
           : FloatingActionButton(
               onPressed: _openAddSheet,
               tooltip: 'Add item',
-              child: const Icon(Icons.add),
+              child: const AddGlyph(),
             ),
       bottomNavigationBar: _selectMode
           ? BulkActionBar(

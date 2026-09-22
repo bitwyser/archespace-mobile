@@ -57,6 +57,9 @@ class ArcheApp extends StatelessWidget {
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
+        // A slightly smaller rounded square than the M3 default (56 / r16).
+        sizeConstraints: const BoxConstraints.tightFor(width: 50, height: 50),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       ),
       // Pop-up (card action) menus float above the cards: a lighter surface
       // than the cards' surfaceContainer, a real shadow, and a hairline border
