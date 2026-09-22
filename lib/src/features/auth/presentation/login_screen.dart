@@ -299,7 +299,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Center(child: BrandGlyph(size: 56)),
+                    const Center(child: BrandGlyph(size: 64, framed: true)),
                     const SizedBox(height: 44),
                     Center(
                       child: Text(
