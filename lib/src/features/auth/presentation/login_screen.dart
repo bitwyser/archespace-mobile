@@ -475,7 +475,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextButton(
                         style: TextButton.styleFrom(
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          minimumSize: Size.zero,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
                         ),
                         onPressed: (_loading || _resetLoading)
                             ? null
@@ -514,9 +515,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             TextButton(
                               style: TextButton.styleFrom(
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                minimumSize: Size.zero,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
-                                  vertical: 8,
+                                  vertical: 6,
                                 ),
                               ),
                               onPressed: _loading
