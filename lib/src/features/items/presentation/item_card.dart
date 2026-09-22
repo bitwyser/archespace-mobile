@@ -256,6 +256,9 @@ class _ItemCardState extends State<ItemCard> {
                         padding: EdgeInsets.zero,
                         tooltip: 'Item actions',
                         menuPadding: const EdgeInsets.symmetric(vertical: 4),
+                        // Clip the item hover highlight to the menu's rounded
+                        // corners so it doesn't poke past them.
+                        clipBehavior: Clip.antiAlias,
                         onSelected: (value) {
                           if (value == 'pin') onTogglePin?.call();
                           if (value == 'duplicate') onDuplicate?.call();

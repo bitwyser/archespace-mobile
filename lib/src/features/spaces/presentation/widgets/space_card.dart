@@ -147,6 +147,10 @@ class SpaceCard extends StatelessWidget {
                             padding: EdgeInsets.zero,
                             tooltip: 'Space actions',
                             menuPadding: const EdgeInsets.symmetric(vertical: 4),
+                            // Clip the item hover highlight to the menu's
+                            // rounded corners (otherwise its square corners
+                            // poke past them).
+                            clipBehavior: Clip.antiAlias,
                             onSelected: (value) {
                               if (value == 'pin') onTogglePin();
                               if (value == 'edit') onEdit();

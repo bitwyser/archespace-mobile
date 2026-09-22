@@ -78,6 +78,7 @@ class SortMenu extends StatelessWidget {
     final selected = await showMenu<String>(
       context: context,
       position: position,
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       items: [
         _sortItem(kSortDefault, 'Default'),
