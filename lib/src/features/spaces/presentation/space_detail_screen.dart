@@ -550,8 +550,66 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
   }
 
   /// A compact app-bar icon action with a consistent circular tap splash.
-  Widget _barAction(IconData icon, String tooltip, VoidCallback onPressed) =>
-      ActionIconButton(icon: icon, tooltip: tooltip, onPressed: onPressed);
+  Widget _barAction(
+    IconData icon,
+    String tooltip,
+    VoidCallback onPressed, {
+    double size = 40,
+  }) => ActionIconButton(
+    icon: icon,
+    tooltip: tooltip,
+    onPressed: onPressed,
+    size: size,
+  );
+
+  /// The normal-mode app-bar actions. The primary list controls (view, sort,
+  /// select) stay inline and compact; the contextual ones (new sub-space,
+  /// export) fold into an overflow menu so the space name keeps its room.
+  List<Widget> _buildBarActions(bool hasItems) {
+    // Sub-spaces are one level deep, so only a top-level space can create them.
+    final canCreateSubSpace =
+        _items != null && widget.space.parentId == null;
+    final overflow = <PopupMenuEntry<String>>[
+      if (canCreateSubSpace)
+        const PopupMenuItem(
+          height: 40,
+          value: 'new_space',
+          child: Text('New space'),
+        ),
+      if (hasItems)
+        const PopupMenuItem(
+          height: 40,
+          value: 'export',
+          child: Text('Export PDF'),
+        ),
+    ];
+    return [
+      if (hasItems)
+        _barAction(
+          _view == 'grid'
+              ? Icons.view_agenda_outlined
+              : Icons.grid_view_outlined,
+          _view == 'grid' ? 'List view' : 'Grid view',
+          () => _setView(_view == 'grid' ? 'list' : 'grid'),
+          size: 36,
+        ),
+      if (hasItems) SortMenu(value: _sort, onChanged: _setSort, size: 36),
+      if (hasItems) _barAction(Icons.checklist, 'Select', _enterSelect, size: 36),
+      if (overflow.isNotEmpty)
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert, size: 20),
+          tooltip: 'More',
+          menuPadding: const EdgeInsets.symmetric(vertical: 4),
+          clipBehavior: Clip.antiAlias,
+          onSelected: (value) {
+            if (value == 'new_space') _createSubSpace();
+            if (value == 'export') _exportSpace();
+          },
+          itemBuilder: (context) => overflow,
+        ),
+      const SizedBox(width: 4),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -578,37 +636,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
               title: Text(
                 widget.space.name.isEmpty ? 'Untitled' : widget.space.name,
               ),
-              actions: [
-                // Wait until items have loaded so the actions all appear at
-                // once, rather than this one showing during the load.
-                // Sub-spaces (one-level): only a top-level space can create them.
-                if (_items != null &&
-                    !_selectMode &&
-                    widget.space.parentId == null)
-                  _barAction(
-                    Icons.create_new_folder_outlined,
-                    'New space',
-                    _createSubSpace,
-                  ),
-                if (hasItems)
-                  _barAction(
-                    _view == 'grid'
-                        ? Icons.view_agenda_outlined
-                        : Icons.grid_view_outlined,
-                    _view == 'grid' ? 'List view' : 'Grid view',
-                    () => _setView(_view == 'grid' ? 'list' : 'grid'),
-                  ),
-                if (hasItems)
-                  _barAction(Icons.checklist, 'Select', _enterSelect),
-                if (hasItems) SortMenu(value: _sort, onChanged: _setSort),
-                if (hasItems)
-                  _barAction(
-                    Icons.picture_as_pdf_outlined,
-                    'Export PDF',
-                    _exportSpace,
-                  ),
-                const SizedBox(width: 4),
-              ],
+              actions: _buildBarActions(hasItems),
             ),
       floatingActionButton: _selectMode
           ? null
