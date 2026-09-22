@@ -16,7 +16,6 @@ import 'package:archespace_mobile/src/features/backup/data/backup_repository.dar
 import 'package:archespace_mobile/src/features/settings/application/appearance_controller.dart';
 import 'package:archespace_mobile/src/features/vault/application/auto_lock_controller.dart';
 import 'package:archespace_mobile/src/features/settings/presentation/account_security_screens.dart';
-import 'package:archespace_mobile/src/features/storage/presentation/storage_screen.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/features/vault/data/biometric_service.dart';
 import 'package:archespace_mobile/src/features/vault/data/secure_key_store.dart';
@@ -274,26 +273,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 'Restore spaces and items from a backup file',
               ),
               onTap: _importBackup,
-            ),
-            const _SectionHeader('Storage'),
-            ListTile(
-              leading: const Icon(Icons.archive_outlined),
-              title: const Text('Archive'),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      const StorageScreen(mode: StorageMode.archive),
-                ),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline),
-              title: const Text('Recycle bin'),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const StorageScreen(mode: StorageMode.bin),
-                ),
-              ),
             ),
             const _SectionHeader('Security'),
             ListTile(

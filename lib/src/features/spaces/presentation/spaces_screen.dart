@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 
 import 'package:archespace_mobile/src/features/search/presentation/search_screen.dart';
-import 'package:archespace_mobile/src/features/settings/presentation/settings_screen.dart';
 import 'package:archespace_mobile/src/features/spaces/data/space_repository.dart';
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_detail_screen.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_editor_screen.dart';
+import 'package:archespace_mobile/src/features/spaces/presentation/widgets/app_drawer.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/widgets/space_card.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/shared/offline/write_queue.dart';
 import 'package:archespace_mobile/src/shared/realtime/table_watcher.dart';
 import 'package:archespace_mobile/src/shared/sort/sort.dart';
 import 'package:archespace_mobile/src/shared/widgets/action_icon_button.dart';
-import 'package:archespace_mobile/src/shared/widgets/brand_glyph.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/widgets/bulk_action_bar.dart';
 import 'package:archespace_mobile/src/shared/widgets/offline_banner.dart';
@@ -282,8 +281,8 @@ class _SpacesScreenState extends State<SpacesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hasSpaces = (_spaces ?? const <Space>[]).isNotEmpty;
     return Scaffold(
+      drawer: _selectMode ? null : const AppDrawer(),
       appBar: _selectMode
           ? AppBar(
               leading: IconButton(
@@ -300,42 +299,7 @@ class _SpacesScreenState extends State<SpacesScreen> {
                 ),
               ],
             )
-          : AppBar(
-              title: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const BrandGlyph(size: 30, framed: true),
-                  const SizedBox(width: 10),
-                  Text(
-                    'ArcheSpace',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                ActionIconButton(
-                  icon: Icons.lock_outline,
-                  tooltip: 'Lock vault',
-                  onPressed: VaultSession.instance.lock,
-                  iconSize: 24,
-                  size: 48,
-                ),
-                ActionIconButton(
-                  icon: Icons.settings_outlined,
-                  tooltip: 'Settings',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const SettingsScreen(),
-                    ),
-                  ),
-                  iconSize: 24,
-                  size: 48,
-                ),
-              ],
-            ),
+          : null,
       floatingActionButton: _selectMode
           ? null
           : FloatingActionButton(
@@ -382,12 +346,15 @@ class _SpacesScreenState extends State<SpacesScreen> {
       body: _spaces == null && _error == null
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
-              top: false,
+              // No AppBar in normal mode, so this must take the top inset;
+              // select mode still has an AppBar handling it.
+              top: !_selectMode,
               child: Column(
                 children: [
-                  // Only the search bar is fixed; the "Spaces" count/actions
-                  // header and tag filter scroll with the list (see _body).
-                  if (!_selectMode && hasSpaces) _buildSearchBar(context),
+                  // The search bar is the fixed top bar (with the drawer
+                  // toggle); the "Spaces" count/actions header and tag filter
+                  // scroll with the list (see _body).
+                  if (!_selectMode) _buildSearchBar(context),
                   if (_offline) const OfflineBanner(),
                   ValueListenableBuilder<int>(
                     valueListenable: WriteQueue.instance.pending,
@@ -425,32 +392,43 @@ class _SpacesScreenState extends State<SpacesScreen> {
   Widget _buildSearchBar(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 2),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
       child: Material(
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(28),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(28),
-          onTap: () => Navigator.of(
-            context,
-          ).push(MaterialPageRoute<void>(builder: (_) => const SearchScreen())),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            child: Row(
-              children: [
-                Icon(Icons.search, size: 20, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 10),
-                Text(
-                  'Search spaces and items',
-                  style: TextStyle(
-                    color: scheme.onSurfaceVariant,
-                    fontSize: 15,
+        child: Row(
+          children: [
+            // The drawer toggle lives inside the search bar; Builder gives it
+            // a context under this Scaffold so openDrawer() can find it.
+            Builder(
+              builder: (context) => IconButton(
+                icon: Icon(Icons.menu, color: scheme.onSurfaceVariant),
+                tooltip: 'Menu',
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+            Expanded(
+              child: InkWell(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const SearchScreen()),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Text(
+                    'Search spaces and items',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 15,
+                    ),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+            // Balances the leading menu button so the placeholder reads centred.
+            const SizedBox(width: 48),
+          ],
         ),
       ),
     );
