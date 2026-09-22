@@ -45,20 +45,7 @@ class SpaceCard extends StatelessWidget {
   String get _countLabel =>
       '${space.itemCount} ${space.itemCount == 1 ? 'item' : 'items'}';
 
-  /// The space's identity colour, used to tint its tag chips: the space's own
-  /// colour when set, otherwise a deterministic pick from the palette by name so
-  /// each space keeps a stable, distinct colour.
-  Color _identityColor(ColorScheme scheme) {
-    final explicit = spaceColor(space.color);
-    if (explicit != null) return explicit;
-    final name = space.name.trim();
-    if (name.isEmpty) return scheme.primary;
-    final palette = kSpaceColors.values.toList();
-    final sum = name.codeUnits.fold<int>(0, (a, c) => a + c);
-    return palette[sum % palette.length];
-  }
-
-  /// A tag chip tinted with the space's identity [color]; brighter with a
+  /// A tag chip tinted with the tag's own stable [color]; brighter with a
   /// border when it's an active filter.
   Widget _tagChip(Color color, String tag) {
     final active = activeTags.contains(tag);
@@ -100,7 +87,6 @@ class SpaceCard extends StatelessWidget {
         ? BorderSide(color: scheme.primary.withValues(alpha: 0.4), width: 1.5)
         : BorderSide.none;
     final topColor = spaceColor(space.color)?.withValues(alpha: 0.65);
-    final idColor = _identityColor(scheme);
 
     return Stack(
       children: [
@@ -223,7 +209,7 @@ class SpaceCard extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         for (final tag in space.tags.take(4))
-                          _tagChip(idColor, tag),
+                          _tagChip(tagColor(tag), tag),
                         if (space.tags.isNotEmpty)
                           Text(
                             '·',
