@@ -78,7 +78,7 @@ class ArcheApp extends StatelessWidget {
       // same rounded look but with roomy padding for note/content entry.
       inputDecorationTheme: const InputDecorationTheme(
         isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         floatingLabelBehavior: FloatingLabelBehavior.never,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(12)),
