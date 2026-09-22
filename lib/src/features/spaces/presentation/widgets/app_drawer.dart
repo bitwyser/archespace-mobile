@@ -80,7 +80,7 @@ class AppDrawer extends StatelessWidget {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.casino_outlined),
+                        icon: const Icon(Icons.palette_outlined),
                         tooltip: 'Shuffle accent and theme',
                         onPressed: () => AppearanceController.instance.randomize(
                           Theme.of(context).brightness,
@@ -157,15 +157,15 @@ class AppDrawer extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       child: ListTile(
         dense: true,
-        visualDensity: const VisualDensity(vertical: -2),
+        visualDensity: const VisualDensity(vertical: -1),
         minLeadingWidth: 0,
         horizontalTitleGap: 10,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-        leading: Icon(icon, size: 20, color: tint),
+        leading: Icon(icon, size: 22, color: tint),
         title: Text(
           label,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 15,
             color: color ?? (selected ? scheme.primary : null),
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),

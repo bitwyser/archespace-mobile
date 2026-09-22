@@ -37,16 +37,23 @@ List<T> applySort<T>(
 
 /// App-bar sort dropdown with a check on the active option.
 class SortMenu extends StatelessWidget {
-  const SortMenu({super.key, required this.value, required this.onChanged});
+  const SortMenu({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.size = 40,
+  });
 
   final String value;
   final ValueChanged<String> onChanged;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return ActionIconButton(
       icon: Icons.sort,
       tooltip: 'Sort',
+      size: size,
       onPressed: () => _open(context),
     );
   }

@@ -464,13 +464,15 @@ class _SpacesScreenState extends State<SpacesScreen> {
                 : Icons.grid_view_outlined,
             tooltip: _view == 'grid' ? 'List view' : 'Grid view',
             onPressed: () => _setView(_view == 'grid' ? 'list' : 'grid'),
+            size: 36,
           ),
+          SortMenu(value: _sort, onChanged: _setSort, size: 36),
           ActionIconButton(
             icon: Icons.checklist,
             tooltip: 'Select',
             onPressed: _enterSelect,
+            size: 36,
           ),
-          SortMenu(value: _sort, onChanged: _setSort),
         ],
       ),
     );
