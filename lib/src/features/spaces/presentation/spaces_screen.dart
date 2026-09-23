@@ -36,6 +36,8 @@ class _SpacesScreenState extends State<SpacesScreen> {
   String _sort = kSortDefault;
   String _view = 'list';
   final Set<String> _activeTags = {};
+  // Bumped whenever the drawer opens, so it re-fetches its archive/bin counts.
+  int _drawerOpens = 0;
 
   @override
   void initState() {
@@ -282,7 +284,17 @@ class _SpacesScreenState extends State<SpacesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: _selectMode ? null : const AppDrawer(),
+      onDrawerChanged: (isOpen) {
+        if (isOpen) setState(() => _drawerOpens++);
+      },
+      drawer: _selectMode
+          ? null
+          : AppDrawer(
+              refreshToken: _drawerOpens,
+              spacesCount: (_spaces ?? const <Space>[])
+                  .where((s) => s.parentId == null)
+                  .length,
+            ),
       appBar: _selectMode
           ? AppBar(
               leading: IconButton(
@@ -434,27 +446,16 @@ class _SpacesScreenState extends State<SpacesScreen> {
     );
   }
 
-  Widget _buildSpacesHeader(BuildContext context, int count) {
+  Widget _buildSpacesHeader(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(left: 16, right: 4, top: 2, bottom: 4),
       child: Row(
         children: [
-          Text.rich(
-            TextSpan(
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              children: [
-                const TextSpan(text: 'Spaces'),
-                TextSpan(
-                  text: ' · $count',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w400,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+          Text(
+            'Spaces',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w600,
             ),
           ),
           const Spacer(),
@@ -520,9 +521,7 @@ class _SpacesScreenState extends State<SpacesScreen> {
     // hidden while selecting (the app bar shows the selection state instead).
     final headerChildren = <Widget>[];
     if (!_selectMode) {
-      headerChildren.add(
-        _buildSpacesHeader(context, (_spaces ?? const <Space>[]).length),
-      );
+      headerChildren.add(_buildSpacesHeader(context));
       if (allTags.isNotEmpty) headerChildren.add(_tagFilterBar(allTags));
     }
     final header = headerChildren.isEmpty

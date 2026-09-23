@@ -3,16 +3,68 @@ import 'package:flutter/material.dart';
 import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
 import 'package:archespace_mobile/src/features/settings/application/appearance_controller.dart';
 import 'package:archespace_mobile/src/features/settings/presentation/settings_screen.dart';
+import 'package:archespace_mobile/src/features/storage/data/storage_repository.dart';
 import 'package:archespace_mobile/src/features/storage/presentation/storage_screen.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/shared/widgets/brand_glyph.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
 
 /// The app's navigation drawer: the brand mark plus a theme "shuffle" at the
-/// top, the primary destinations (Spaces, Archive, Recycle bin), and the
-/// session actions (Lock, Sign out, Settings) pinned to the bottom.
-class AppDrawer extends StatelessWidget {
-  const AppDrawer({super.key});
+/// top, the primary destinations (Spaces, Archive, Recycle bin) with their
+/// counts, and the session actions (Lock, Sign out, Settings) pinned to the
+/// bottom.
+class AppDrawer extends StatefulWidget {
+  const AppDrawer({
+    super.key,
+    required this.spacesCount,
+    this.refreshToken = 0,
+  });
+
+  /// Number of top-level spaces, shown next to the Spaces destination.
+  final int spacesCount;
+
+  /// Bumped by the host each time the drawer opens; a change re-fetches the
+  /// archive and bin counts so they stay fresh.
+  final int refreshToken;
+
+  @override
+  State<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends State<AppDrawer> {
+  // Null until loaded; the archive and bin counts are fetched once when the
+  // drawer first builds.
+  int? _archiveCount;
+  int? _binCount;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCounts();
+  }
+
+  @override
+  void didUpdateWidget(covariant AppDrawer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The host bumps refreshToken when the drawer opens - re-fetch the counts.
+    if (oldWidget.refreshToken != widget.refreshToken) _loadCounts();
+  }
+
+  Future<void> _loadCounts() async {
+    try {
+      final repo = StorageRepository(VaultSession.instance.masterKey);
+      final archived = await repo.loadArchived();
+      final deleted = await repo.loadDeleted();
+      if (mounted) {
+        setState(() {
+          _archiveCount = archived.length;
+          _binCount = deleted.length;
+        });
+      }
+    } catch (_) {
+      // Leave counts null (hidden) if they can't be loaded.
+    }
+  }
 
   Future<void> _open(BuildContext context, Widget screen) async {
     final navigator = Navigator.of(context);
@@ -98,12 +150,14 @@ class AppDrawer extends StatelessWidget {
               icon: Icons.grid_view_rounded,
               label: 'Spaces',
               selected: true,
+              count: widget.spacesCount,
               onTap: () => Navigator.of(context).pop(),
             ),
             _tile(
               context,
               icon: Icons.archive_outlined,
               label: 'Archive',
+              count: _archiveCount,
               onTap: () =>
                   _open(context, const StorageScreen(mode: StorageMode.archive)),
             ),
@@ -111,6 +165,7 @@ class AppDrawer extends StatelessWidget {
               context,
               icon: Icons.delete_outline,
               label: 'Recycle bin',
+              count: _binCount,
               onTap: () =>
                   _open(context, const StorageScreen(mode: StorageMode.bin)),
             ),
@@ -150,6 +205,7 @@ class AppDrawer extends StatelessWidget {
     required VoidCallback onTap,
     bool selected = false,
     Color? color,
+    int? count,
   }) {
     final scheme = Theme.of(context).colorScheme;
     final tint = color ?? (selected ? scheme.primary : scheme.onSurfaceVariant);
@@ -170,6 +226,15 @@ class AppDrawer extends StatelessWidget {
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),
         ),
+        trailing: count == null
+            ? null
+            : Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                ),
+              ),
         selected: selected,
         selectedTileColor: scheme.primary.withValues(alpha: 0.10),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
