@@ -786,8 +786,10 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       if (_activeTags.isNotEmpty && !i.tags.any(_activeTags.contains)) {
         return false;
       }
-      if (query.isNotEmpty && !i.title.toLowerCase().contains(query)) {
-        return false;
+      if (query.isNotEmpty) {
+        final inTitle = i.title.toLowerCase().contains(query);
+        final inTags = i.tags.any((t) => t.toLowerCase().contains(query));
+        if (!inTitle && !inTags) return false;
       }
       return true;
     }).toList();
