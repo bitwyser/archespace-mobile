@@ -546,7 +546,7 @@ class _ListEditorState extends State<_ListEditor> {
                           hintText: 'Item…',
                           border: InputBorder.none,
                           isDense: true,
-                          contentPadding: EdgeInsets.symmetric(vertical: 4),
+                          contentPadding: EdgeInsets.symmetric(vertical: 1),
                         ),
                       ),
                     ),
@@ -557,14 +557,14 @@ class _ListEditorState extends State<_ListEditor> {
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(
-                        minWidth: 28,
-                        minHeight: 28,
+                        minWidth: 26,
+                        minHeight: 26,
                       ),
                     ),
                     ReorderableDragStartListener(
                       index: index,
                       child: const Padding(
-                        padding: EdgeInsets.all(4),
+                        padding: EdgeInsets.all(2),
                         child: Icon(
                           Icons.drag_handle,
                           size: 18,
