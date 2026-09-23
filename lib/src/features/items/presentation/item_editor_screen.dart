@@ -1597,7 +1597,9 @@ class _AuthenticatorEditorState extends State<_AuthenticatorEditor> {
     final scheme = Theme.of(context).colorScheme;
     final entries = _entries;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      // Horizontal padding comes from the editor body; only pad vertically so
+      // the account cards and add button span the full width like other types.
+      padding: const EdgeInsets.only(top: 4, bottom: 16),
       children: [
         for (final entry in entries) _entryTile(entry, scheme),
         const SizedBox(height: 8),
