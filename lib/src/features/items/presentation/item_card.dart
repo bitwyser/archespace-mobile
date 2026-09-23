@@ -642,34 +642,49 @@ class _Cards extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) return const _Empty();
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final raw in items)
           if (raw is Map)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                border: Border.all(color: Theme.of(context).dividerColor),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if ((raw['title'] ?? '').toString().isNotEmpty)
-                    Text(
-                      raw['title'].toString(),
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+            Builder(
+              builder: (context) {
+                final title = (raw['title'] ?? '').toString();
+                final desc = (raw['description'] ?? '').toString();
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.5),
                     ),
-                  if ((raw['description'] ?? '').toString().isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(raw['description'].toString()),
-                    ),
-                ],
-              ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (title.isNotEmpty)
+                        Text(
+                          title,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      // A divider separates the heading from the content when
+                      // both are present.
+                      if (title.isNotEmpty && desc.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Divider(
+                            height: 1,
+                            color: scheme.outlineVariant.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      if (desc.isNotEmpty) Text(desc),
+                    ],
+                  ),
+                );
+              },
             ),
       ],
     );

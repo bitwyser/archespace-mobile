@@ -681,13 +681,15 @@ class _CardsEditorState extends State<_CardsEditor> {
             onReorderItem: _reorder,
             itemBuilder: (context, index) {
               final item = _items[index];
+              final scheme = Theme.of(context).colorScheme;
+              final border = scheme.outlineVariant.withValues(alpha: 0.5);
               return Padding(
                 key: ValueKey(item['id']),
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(12, 4, 4, 10),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Theme.of(context).dividerColor),
+                    border: Border.all(color: border),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Column(
@@ -726,6 +728,11 @@ class _CardsEditorState extends State<_CardsEditor> {
                             ),
                           ),
                         ],
+                      ),
+                      // Separator between the card's heading and its content.
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4, bottom: 4),
+                        child: Divider(height: 1, color: border),
                       ),
                       TextField(
                         controller: _descFor(item),
