@@ -815,26 +815,41 @@ class _TableView extends StatelessWidget {
         : (rows.isNotEmpty ? rows.first.length : 0);
     if (colCount == 0) return const _Empty();
 
+    final scheme = Theme.of(context).colorScheme;
+    final soft = scheme.outlineVariant.withValues(alpha: 0.5);
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: [
-          for (var i = 0; i < colCount; i++)
-            DataColumn(
-              label: Text(
-                i < columns.length && columns[i].isNotEmpty ? columns[i] : ' ',
-              ),
-            ),
-        ],
-        rows: [
-          for (final r in rows)
-            DataRow(
-              cells: [
-                for (var i = 0; i < colCount; i++)
-                  DataCell(Text(i < r.length ? r[i] : '')),
-              ],
-            ),
-        ],
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: soft),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        clipBehavior: Clip.antiAlias,
+        // Soften the DataTable's built-in row dividers to match the border.
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: soft),
+          child: DataTable(
+            columns: [
+              for (var i = 0; i < colCount; i++)
+                DataColumn(
+                  label: Text(
+                    i < columns.length && columns[i].isNotEmpty
+                        ? columns[i]
+                        : ' ',
+                  ),
+                ),
+            ],
+            rows: [
+              for (final r in rows)
+                DataRow(
+                  cells: [
+                    for (var i = 0; i < colCount; i++)
+                      DataCell(Text(i < r.length ? r[i] : '')),
+                  ],
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
