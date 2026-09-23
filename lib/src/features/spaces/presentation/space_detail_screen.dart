@@ -52,6 +52,9 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
   String _sort = kSortDefault;
   String _view = 'list';
   final Set<String> _activeTags = {};
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+  String _query = '';
 
   @override
   void initState() {
@@ -78,6 +81,8 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
   @override
   void dispose() {
     _watcher?.dispose();
+    _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -583,21 +588,64 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
     ];
   }
 
-  /// The list controls shown as a scrolling body header (matching the Spaces
-  /// dashboard): an "Items" label with view, sort, and select on the right.
+  /// A fixed row (not scrolling) with a compact in-space search field and the
+  /// list controls (view, sort, select) inline, in place of an "Items" label.
   Widget _buildItemsHeader(BuildContext context) {
-    final theme = Theme.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.only(left: 16, right: 4, top: 2, bottom: 0),
+      padding: const EdgeInsets.fromLTRB(12, 4, 4, 2),
       child: Row(
         children: [
-          Text(
-            'Items',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w600,
+          Expanded(
+            child: Container(
+              height: 34,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(17),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 12),
+                  Icon(Icons.search, size: 17, color: scheme.onSurfaceVariant),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      focusNode: _searchFocus,
+                      onChanged: (v) => setState(() => _query = v),
+                      style: const TextStyle(fontSize: 13.5),
+                      textInputAction: TextInputAction.search,
+                      decoration: InputDecoration.collapsed(
+                        hintText: 'Search items',
+                        hintStyle: TextStyle(
+                          fontSize: 13.5,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_query.isNotEmpty)
+                    InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () {
+                        _searchController.clear();
+                        setState(() => _query = '');
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Icon(
+                          Icons.close,
+                          size: 16,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 6),
+                ],
+              ),
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 4),
           _barAction(
             _view == 'grid'
                 ? Icons.view_agenda_outlined
@@ -733,9 +781,16 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       );
     }
     final allTags = <String>{for (final i in all) ...i.tags}.toList()..sort();
-    final filtered = _activeTags.isEmpty
-        ? all
-        : all.where((i) => i.tags.any(_activeTags.contains)).toList();
+    final query = _query.trim().toLowerCase();
+    final filtered = all.where((i) {
+      if (_activeTags.isNotEmpty && !i.tags.any(_activeTags.contains)) {
+        return false;
+      }
+      if (query.isNotEmpty && !i.title.toLowerCase().contains(query)) {
+        return false;
+      }
+      return true;
+    }).toList();
     final items = applySort(
       filtered,
       _sort,
@@ -743,11 +798,15 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       createdAt: (i) => i.createdAt,
       pinned: (i) => i.pinned,
     );
-    // The list controls sit in a scrolling header (like the dashboard), above
-    // any sub-spaces section; hidden while selecting.
+    // Everything except the app bar scrolls: the search/controls bar, the tag
+    // filter, any sub-spaces, and a no-match note all ride in the list header.
+    final noMatch =
+        items.isEmpty && (query.isNotEmpty || _activeTags.isNotEmpty);
     final headerChildren = <Widget>[
-      if (!_selectMode && items.isNotEmpty) _buildItemsHeader(context),
+      if (!_selectMode && all.isNotEmpty) _buildItemsHeader(context),
+      if (!_selectMode && allTags.isNotEmpty) _tagFilterBar(allTags),
       ?subSection,
+      if (noMatch) _noMatchNote(query),
     ];
     final header = headerChildren.isEmpty
         ? null
@@ -756,17 +815,18 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: headerChildren,
           );
-    final Widget list = _view == 'grid'
+    return _view == 'grid'
         ? _grid(items, header: header)
         : ReorderableListView.builder(
             header: header,
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(top: 0, bottom: 88),
+            padding: const EdgeInsets.only(top: 4, bottom: 88),
             buildDefaultDragHandles:
                 !_selectMode &&
                 !_offline &&
                 _sort == kSortDefault &&
-                _activeTags.isEmpty,
+                _activeTags.isEmpty &&
+                query.isEmpty,
             onReorderItem: _onReorder,
             itemCount: items.length,
             itemBuilder: (context, index) {
@@ -791,13 +851,34 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
               );
             },
           );
-    // Hide the tag filter bar while selecting items.
-    if (allTags.isEmpty || _selectMode) return list;
-    return Column(
-      children: [
-        _tagFilterBar(allTags),
-        Expanded(child: list),
-      ],
+  }
+
+  /// A compact inline note shown in the scrolling header when a search or tag
+  /// filter matches nothing (keeps the search bar above it accessible).
+  Widget _noMatchNote(String query) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
+      child: Column(
+        children: [
+          Icon(Icons.search_off, size: 40, color: scheme.onSurfaceVariant),
+          const SizedBox(height: 12),
+          Text(
+            'No matching items',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            query.isNotEmpty
+                ? 'No items match "${_query.trim()}".'
+                : 'No items have the selected tags.',
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
     );
   }
 
