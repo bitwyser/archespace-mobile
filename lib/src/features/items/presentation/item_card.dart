@@ -53,8 +53,7 @@ class ItemCard extends StatefulWidget {
   final VoidCallback? onSelectToggle;
   final EdgeInsetsGeometry? margin;
 
-  /// In grid view the type badge is hidden to keep the compact cards clean;
-  /// the list view still shows it.
+  /// Whether the card is rendered in the two-column grid view.
   final bool grid;
 
   @override
@@ -171,17 +170,27 @@ class _ItemCardState extends State<ItemCard> {
                         semanticLabel: 'Pinned',
                       ),
                     ),
-                  if (!widget.grid && itemTypeDef(item.type) != null)
+                  if (itemTypeDef(item.type) != null)
                     Builder(
                       builder: (context) {
                         final def = itemTypeDef(item.type)!;
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
-                          child: Icon(
-                            def.icon,
-                            size: 20,
-                            color: def.color,
-                            semanticLabel: def.label,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: def.color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: def.color.withValues(alpha: 0.28),
+                              ),
+                            ),
+                            child: Icon(
+                              def.icon,
+                              size: 16,
+                              color: def.color,
+                              semanticLabel: def.label,
+                            ),
                           ),
                         );
                       },
