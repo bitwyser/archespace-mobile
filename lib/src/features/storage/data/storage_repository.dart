@@ -43,6 +43,37 @@ class StorageRepository {
     return _decode(spaceRows, itemRows);
   }
 
+  /// Number of archived entries (spaces + items). Selects only ids so nothing
+  /// is decrypted - much faster than [loadArchived] when only the count is
+  /// needed (e.g. the drawer badge).
+  Future<int> archivedCount() async {
+    final spaces = await _client
+        .from('spaces')
+        .select('id')
+        .not('archived_at', 'is', null)
+        .isFilter('deleted_at', null);
+    final items = await _client
+        .from('space_items')
+        .select('id')
+        .not('archived_at', 'is', null)
+        .isFilter('deleted_at', null);
+    return spaces.length + items.length;
+  }
+
+  /// Number of entries in the recycle bin (spaces + items); ids only, so
+  /// nothing is decrypted.
+  Future<int> deletedCount() async {
+    final spaces = await _client
+        .from('spaces')
+        .select('id')
+        .not('deleted_at', 'is', null);
+    final items = await _client
+        .from('space_items')
+        .select('id')
+        .not('deleted_at', 'is', null);
+    return spaces.length + items.length;
+  }
+
   Future<List<StoredEntry>> loadDeleted() async {
     final spaceRows = await _client
         .from('spaces')

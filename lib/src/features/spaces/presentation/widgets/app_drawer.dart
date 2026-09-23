@@ -32,10 +32,13 @@ class AppDrawer extends StatefulWidget {
 }
 
 class _AppDrawerState extends State<AppDrawer> {
-  // Null until loaded; the archive and bin counts are fetched once when the
-  // drawer first builds.
-  int? _archiveCount;
-  int? _binCount;
+  // Cached across drawer instances so the last known counts show instantly on
+  // reopen while a fresh fetch runs in the background.
+  static int? _cachedArchive;
+  static int? _cachedBin;
+
+  late int? _archiveCount = _cachedArchive;
+  late int? _binCount = _cachedBin;
 
   @override
   void initState() {
@@ -53,16 +56,19 @@ class _AppDrawerState extends State<AppDrawer> {
   Future<void> _loadCounts() async {
     try {
       final repo = StorageRepository(VaultSession.instance.masterKey);
-      final archived = await repo.loadArchived();
-      final deleted = await repo.loadDeleted();
+      // ids-only counts: no decryption, so these return quickly.
+      final archived = await repo.archivedCount();
+      final deleted = await repo.deletedCount();
+      _cachedArchive = archived;
+      _cachedBin = deleted;
       if (mounted) {
         setState(() {
-          _archiveCount = archived.length;
-          _binCount = deleted.length;
+          _archiveCount = archived;
+          _binCount = deleted;
         });
       }
     } catch (_) {
-      // Leave counts null (hidden) if they can't be loaded.
+      // Keep the last cached counts if a refresh fails.
     }
   }
 
