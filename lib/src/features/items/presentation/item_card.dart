@@ -174,20 +174,22 @@ class _ItemCardState extends State<ItemCard> {
                     Builder(
                       builder: (context) {
                         final def = itemTypeDef(item.type)!;
+                        // A smaller badge in the compact grid cards.
+                        final grid = widget.grid;
                         return Padding(
-                          padding: const EdgeInsets.only(right: 8),
+                          padding: EdgeInsets.only(right: grid ? 6 : 8),
                           child: Container(
-                            padding: const EdgeInsets.all(6),
+                            padding: EdgeInsets.all(grid ? 4 : 6),
                             decoration: BoxDecoration(
                               color: def.color.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(grid ? 6 : 8),
                               border: Border.all(
                                 color: def.color.withValues(alpha: 0.28),
                               ),
                             ),
                             child: Icon(
                               def.icon,
-                              size: 16,
+                              size: grid ? 13 : 16,
                               color: def.color,
                               semanticLabel: def.label,
                             ),
@@ -217,7 +219,9 @@ class _ItemCardState extends State<ItemCard> {
                             setState(() => _collapsed = !_collapsed),
                       ),
                     ),
-                  if (!selectMode && isCopyableType(item.type))
+                  // In the compact grid the copy action moves into the 3-dot
+                  // menu; the list keeps the quick copy button.
+                  if (!selectMode && !widget.grid && isCopyableType(item.type))
                     SizedBox(
                       height: 32,
                       width: 32,
@@ -241,7 +245,8 @@ class _ItemCardState extends State<ItemCard> {
                           onMove != null ||
                           onArchive != null ||
                           onExport != null ||
-                          onDelete != null))
+                          onDelete != null ||
+                          (widget.grid && isCopyableType(item.type))))
                     SizedBox(
                       height: 32,
                       width: 32,
@@ -253,7 +258,15 @@ class _ItemCardState extends State<ItemCard> {
                         // Clip the item hover highlight to the menu's rounded
                         // corners so it doesn't poke past them.
                         clipBehavior: Clip.antiAlias,
-                        onSelected: (value) {
+                        onSelected: (value) async {
+                          if (value == 'copy') {
+                            await Clipboard.setData(
+                              ClipboardData(text: itemClipboardText(item)),
+                            );
+                            if (context.mounted) {
+                              showSuccessSnack(context, 'Copied to clipboard');
+                            }
+                          }
                           if (value == 'pin') onTogglePin?.call();
                           if (value == 'duplicate') onDuplicate?.call();
                           if (value == 'move') onMove?.call();
@@ -262,6 +275,12 @@ class _ItemCardState extends State<ItemCard> {
                           if (value == 'delete') onDelete?.call();
                         },
                         itemBuilder: (context) => [
+                          if (widget.grid && isCopyableType(item.type))
+                            const PopupMenuItem(
+                              height: 40,
+                              value: 'copy',
+                              child: Text('Copy'),
+                            ),
                           if (onTogglePin != null)
                             PopupMenuItem(
                               height: 40,
