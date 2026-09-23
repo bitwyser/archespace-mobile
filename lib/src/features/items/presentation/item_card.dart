@@ -330,12 +330,24 @@ class _ItemCardState extends State<ItemCard> {
                 ],
               ),
               _tagsRow(context, scheme),
-              if (!_collapsed) ...[
-                const SizedBox(height: 10),
-                Divider(height: 1, color: scheme.outlineVariant),
-                const SizedBox(height: 10),
-                _buildBody(),
-              ],
+              // Animate the body in/out so the header chevron collapse reads as
+              // a smooth change rather than an instant pop.
+              AnimatedSize(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeInOut,
+                alignment: Alignment.topCenter,
+                child: _collapsed
+                    ? const SizedBox(width: double.infinity)
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 10),
+                          Divider(height: 1, color: scheme.outlineVariant),
+                          const SizedBox(height: 10),
+                          _buildBody(),
+                        ],
+                      ),
+              ),
             ],
           ),
         ),
