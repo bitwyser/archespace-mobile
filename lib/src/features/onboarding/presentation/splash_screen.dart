@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:archespace_mobile/src/features/settings/application/appearance_controller.dart';
+import 'package:archespace_mobile/src/shared/widgets/brand_glyph.dart';
 
-/// The app-open landing screen: a circular accent button that continues to the
-/// login / create-account screen. A fuller introduction can replace the middle
-/// of this screen later.
+/// The app-open landing screen: the brand mark, name, and a one-line value
+/// prop, with a single clear "Get started" action that continues to the
+/// sign-in / create-account screen.
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key, required this.onContinue});
 
@@ -12,75 +12,55 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = AppearanceController.instance.accent;
-    // Pick a foreground that stays legible on whatever accent is selected.
-    final onAccent =
-        ThemeData.estimateBrightnessForColor(accent) == Brightness.dark
-        ? Colors.white
-        : const Color(0xFF0B1512);
-
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Scaffold(
       body: SafeArea(
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Semantics(
-                button: true,
-                label: 'Continue',
-                child: SizedBox(
-                  width: 72,
-                  height: 72,
-                  child: FilledButton(
-                    onPressed: onContinue,
-                    style: FilledButton.styleFrom(
-                      shape: const CircleBorder(),
-                      padding: EdgeInsets.zero,
-                      backgroundColor: accent,
-                      foregroundColor: onAccent,
-                    ),
-                    child: CustomPaint(
-                      size: const Size(36, 36),
-                      painter: _ArrowPainter(color: onAccent),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const BrandGlyph(size: 76, framed: true),
+                  const SizedBox(height: 24),
+                  Text(
+                    'ArcheSpace',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.4,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'End-to-end encrypted notes and spaces. '
+                    'Only you can open them.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: onContinue,
+                      icon: const Icon(Icons.arrow_forward, size: 20),
+                      label: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Text('Get started'),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
-}
-
-/// A thick, rounded right-pointing arrow drawn to fit its box.
-class _ArrowPainter extends CustomPainter {
-  const _ArrowPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.13
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final w = size.width;
-    final h = size.height;
-    final midY = h * 0.5;
-    // Shaft.
-    canvas.drawLine(Offset(w * 0.16, midY), Offset(w * 0.82, midY), paint);
-    // Arrow head.
-    final head = Path()
-      ..moveTo(w * 0.55, h * 0.27)
-      ..lineTo(w * 0.83, midY)
-      ..lineTo(w * 0.55, h * 0.73);
-    canvas.drawPath(head, paint);
-  }
-
-  @override
-  bool shouldRepaint(_ArrowPainter oldDelegate) => oldDelegate.color != color;
 }
