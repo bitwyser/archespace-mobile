@@ -86,7 +86,7 @@ class SpaceCard extends StatelessWidget {
     final borderSide = selected
         ? BorderSide(color: scheme.primary.withValues(alpha: 0.4), width: 1.5)
         : BorderSide.none;
-    final topColor = spaceColor(space.color)?.withValues(alpha: 0.65);
+    final topColor = spaceColor(space.color)?.withValues(alpha: 0.5);
 
     return Stack(
       children: [
@@ -243,9 +243,11 @@ class SpaceCard extends StatelessWidget {
           Positioned.fill(
             child: IgnorePointer(
               child: Padding(
+                // Must match the Card's margin exactly so the colour strip sits
+                // flush on the card's top edge (mismatched insets leave a gap).
                 padding:
                     margin ??
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
                 child: CustomPaint(
                   painter: _TopBorderPainter(color: topColor, radius: 16),
                 ),
@@ -266,7 +268,7 @@ class _TopBorderPainter extends CustomPainter {
   final Color color;
   final double radius;
 
-  static const double _thickness = 3;
+  static const double _thickness = 2;
 
   @override
   void paint(Canvas canvas, Size size) {
