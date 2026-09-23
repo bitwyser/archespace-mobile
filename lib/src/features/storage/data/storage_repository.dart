@@ -47,31 +47,29 @@ class StorageRepository {
   /// is decrypted - much faster than [loadArchived] when only the count is
   /// needed (e.g. the drawer badge).
   Future<int> archivedCount() async {
-    final spaces = await _client
-        .from('spaces')
-        .select('id')
-        .not('archived_at', 'is', null)
-        .isFilter('deleted_at', null);
-    final items = await _client
-        .from('space_items')
-        .select('id')
-        .not('archived_at', 'is', null)
-        .isFilter('deleted_at', null);
-    return spaces.length + items.length;
+    final results = await Future.wait([
+      _client
+          .from('spaces')
+          .select('id')
+          .not('archived_at', 'is', null)
+          .isFilter('deleted_at', null),
+      _client
+          .from('space_items')
+          .select('id')
+          .not('archived_at', 'is', null)
+          .isFilter('deleted_at', null),
+    ]);
+    return results[0].length + results[1].length;
   }
 
   /// Number of entries in the recycle bin (spaces + items); ids only, so
   /// nothing is decrypted.
   Future<int> deletedCount() async {
-    final spaces = await _client
-        .from('spaces')
-        .select('id')
-        .not('deleted_at', 'is', null);
-    final items = await _client
-        .from('space_items')
-        .select('id')
-        .not('deleted_at', 'is', null);
-    return spaces.length + items.length;
+    final results = await Future.wait([
+      _client.from('spaces').select('id').not('deleted_at', 'is', null),
+      _client.from('space_items').select('id').not('deleted_at', 'is', null),
+    ]);
+    return results[0].length + results[1].length;
   }
 
   Future<List<StoredEntry>> loadDeleted() async {

@@ -19,10 +19,12 @@ class StorageCounts extends ChangeNotifier {
     _loading = true;
     try {
       final repo = StorageRepository(VaultSession.instance.masterKey);
-      final a = await repo.archivedCount();
-      final b = await repo.deletedCount();
-      archive = a;
-      bin = b;
+      final counts = await Future.wait([
+        repo.archivedCount(),
+        repo.deletedCount(),
+      ]);
+      archive = counts[0];
+      bin = counts[1];
       notifyListeners();
     } catch (_) {
       // Keep the last known values on failure.

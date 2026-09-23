@@ -48,19 +48,6 @@ class ArcheApp extends StatelessWidget {
     return ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
-      // One shared page transition on every platform so pushes (editors,
-      // settings, search) feel uniform rather than falling back to differing
-      // platform defaults.
-      pageTransitionsTheme: const PageTransitionsTheme(
-        builders: {
-          TargetPlatform.android: ZoomPageTransitionsBuilder(),
-          TargetPlatform.iOS: ZoomPageTransitionsBuilder(),
-          TargetPlatform.macOS: ZoomPageTransitionsBuilder(),
-          TargetPlatform.windows: ZoomPageTransitionsBuilder(),
-          TargetPlatform.linux: ZoomPageTransitionsBuilder(),
-          TargetPlatform.fuchsia: ZoomPageTransitionsBuilder(),
-        },
-      ),
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(shape: const CircleBorder()),
       ),
