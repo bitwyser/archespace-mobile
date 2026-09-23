@@ -22,11 +22,37 @@ void showErrorSnack(BuildContext context, String message) =>
 void showInfoSnack(BuildContext context, String message) =>
     showAppSnack(context, message, SnackKind.info);
 
-void showAppSnack(BuildContext context, String message, SnackKind kind) {
+void showAppSnack(
+  BuildContext context,
+  String message,
+  SnackKind kind, {
+  String? actionLabel,
+  VoidCallback? onAction,
+}) {
   final messenger = ScaffoldMessenger.maybeOf(context);
   if (messenger == null) return;
-  showAppSnackVia(messenger, Theme.of(context).colorScheme, message, kind);
+  showAppSnackVia(
+    messenger,
+    Theme.of(context).colorScheme,
+    message,
+    kind,
+    actionLabel: actionLabel,
+    onAction: onAction,
+  );
 }
+
+/// Show a success snackbar with an Undo action (e.g. after archive/delete).
+void showUndoSnack(
+  BuildContext context,
+  String message,
+  VoidCallback onUndo,
+) => showAppSnack(
+  context,
+  message,
+  SnackKind.success,
+  actionLabel: 'Undo',
+  onAction: onUndo,
+);
 
 /// Success variant for a captured messenger (see [showAppSnackVia]).
 void showSuccessVia(
@@ -57,8 +83,10 @@ void showAppSnackVia(
   ScaffoldMessengerState messenger,
   ColorScheme scheme,
   String message,
-  SnackKind kind,
-) {
+  SnackKind kind, {
+  String? actionLabel,
+  VoidCallback? onAction,
+}) {
   final (Color background, Color foreground, IconData icon) = switch (kind) {
     SnackKind.success => (
       scheme.primaryContainer,
@@ -77,6 +105,7 @@ void showAppSnackVia(
     ),
   };
 
+  final hasAction = actionLabel != null && onAction != null;
   messenger
     ..hideCurrentSnackBar()
     ..showSnackBar(
@@ -85,6 +114,15 @@ void showAppSnackVia(
         backgroundColor: background,
         showCloseIcon: true,
         closeIconColor: foreground,
+        // Give a bit longer to act when there's an Undo.
+        duration: Duration(seconds: hasAction ? 6 : 4),
+        action: hasAction
+            ? SnackBarAction(
+                label: actionLabel,
+                textColor: foreground,
+                onPressed: onAction,
+              )
+            : null,
         content: Row(
           children: [
             Icon(icon, size: 20, color: foreground),

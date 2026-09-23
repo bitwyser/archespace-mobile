@@ -16,6 +16,7 @@ import 'package:archespace_mobile/src/shared/widgets/action_icon_button.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/widgets/bulk_action_bar.dart';
 import 'package:archespace_mobile/src/shared/widgets/offline_banner.dart';
+import 'package:archespace_mobile/src/shared/widgets/status_banner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:archespace_mobile/src/shared/widgets/scrollable_message.dart';
 import 'package:archespace_mobile/src/shared/widgets/tag_filter_bar.dart';
@@ -180,17 +181,44 @@ class _SpacesScreenState extends State<SpacesScreen> {
     _persistOrder(list);
   }
 
-  Future<void> _runBulk(Future<void> Function(SpaceRepository) op) async {
+  Future<bool> _runBulk(Future<void> Function(SpaceRepository) op) async {
     final ids = _selected.toList();
-    if (ids.isEmpty) return;
+    if (ids.isEmpty) return false;
     try {
       await op(SpaceRepository(VaultSession.instance.masterKey));
       if (mounted) {
         _exitSelect();
         _load();
       }
+      return true;
     } catch (_) {
       _snack("Couldn't complete that action.");
+      return false;
+    }
+  }
+
+  /// Undo an archive or move-to-bin for the given spaces.
+  Future<void> _restoreSpaces(List<String> ids) async {
+    try {
+      await SpaceRepository(VaultSession.instance.masterKey).restoreSpaces(ids);
+      StorageCounts.instance.refresh();
+      if (mounted) _load();
+    } catch (_) {
+      if (mounted) showErrorSnack(context, "Couldn't undo that.");
+    }
+  }
+
+  Future<void> _bulkArchive() async {
+    final ids = _selected.toList();
+    if (ids.isEmpty) return;
+    final ok = await _runBulk((r) => r.bulkArchive(ids));
+    StorageCounts.instance.refresh();
+    if (ok && mounted) {
+      showUndoSnack(
+        context,
+        '${ids.length} ${ids.length == 1 ? 'space' : 'spaces'} archived',
+        () => _restoreSpaces(ids),
+      );
     }
   }
 
@@ -215,7 +243,15 @@ class _SpacesScreenState extends State<SpacesScreen> {
     );
     if (confirmed != true) return;
     final ids = _selected.toList();
-    await _runBulk((r) => r.bulkDelete(ids));
+    final ok = await _runBulk((r) => r.bulkDelete(ids));
+    StorageCounts.instance.refresh();
+    if (ok && mounted) {
+      showUndoSnack(
+        context,
+        '${ids.length} ${ids.length == 1 ? 'space' : 'spaces'} moved to bin',
+        () => _restoreSpaces(ids),
+      );
+    }
   }
 
   Future<void> _duplicateSpace(Space space) async {
@@ -237,9 +273,14 @@ class _SpacesScreenState extends State<SpacesScreen> {
       await SpaceRepository(
         VaultSession.instance.masterKey,
       ).archiveSpace(space.id);
+      StorageCounts.instance.refresh();
       if (mounted) {
         _load();
-        showSuccessSnack(context, 'Space archived');
+        showUndoSnack(
+          context,
+          'Space archived',
+          () => _restoreSpaces([space.id]),
+        );
       }
     } catch (_) {
       if (mounted) showErrorSnack(context, "Couldn't archive the space.");
@@ -279,7 +320,15 @@ class _SpacesScreenState extends State<SpacesScreen> {
       await SpaceRepository(
         VaultSession.instance.masterKey,
       ).deleteSpace(space.id);
-      if (mounted) _load();
+      StorageCounts.instance.refresh();
+      if (mounted) {
+        _load();
+        showUndoSnack(
+          context,
+          'Space moved to bin',
+          () => _restoreSpaces([space.id]),
+        );
+      }
     } catch (_) {
       if (mounted) showErrorSnack(context, "Couldn't delete the space.");
     }
@@ -346,10 +395,7 @@ class _SpacesScreenState extends State<SpacesScreen> {
                 BulkAction(
                   icon: Icons.archive_outlined,
                   label: 'Archive',
-                  onPressed: () {
-                    final ids = _selected.toList();
-                    _runBulk((r) => r.bulkArchive(ids));
-                  },
+                  onPressed: _bulkArchive,
                 ),
                 BulkAction(
                   icon: Icons.delete_outline,
@@ -376,24 +422,11 @@ class _SpacesScreenState extends State<SpacesScreen> {
                     valueListenable: WriteQueue.instance.pending,
                     builder: (context, count, _) => count == 0
                         ? const SizedBox.shrink()
-                        : Container(
-                            width: double.infinity,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.tertiaryContainer,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            child: Text(
-                              '$count change${count == 1 ? '' : 's'} waiting to sync',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onTertiaryContainer,
-                              ),
-                            ),
+                        : StatusBanner(
+                            icon: Icons.sync,
+                            tone: StatusTone.pending,
+                            message:
+                                '$count change${count == 1 ? '' : 's'} waiting to sync',
                           ),
                   ),
                   Expanded(
@@ -402,6 +435,32 @@ class _SpacesScreenState extends State<SpacesScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  /// Shown in the scrolling header when a tag filter matches no spaces.
+  Widget _noMatchNote(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
+      child: Column(
+        children: [
+          Icon(Icons.search_off, size: 40, color: scheme.onSurfaceVariant),
+          const SizedBox(height: 12),
+          Text(
+            'No matching spaces',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'No spaces have the selected tags.',
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
     );
   }
 
@@ -527,6 +586,11 @@ class _SpacesScreenState extends State<SpacesScreen> {
     if (!_selectMode) {
       headerChildren.add(_buildSpacesHeader(context));
       if (allTags.isNotEmpty) headerChildren.add(_tagFilterBar(allTags));
+      // A tag filter that matches nothing gets a clear note (keeping the tag
+      // bar above it reachable), matching the space detail screen.
+      if (_activeTags.isNotEmpty && spaces.isEmpty) {
+        headerChildren.add(_noMatchNote(context));
+      }
     }
     final header = headerChildren.isEmpty
         ? null

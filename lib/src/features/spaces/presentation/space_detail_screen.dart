@@ -13,6 +13,7 @@ import 'package:archespace_mobile/src/features/spaces/data/space_repository.dart
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_editor_screen.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/widgets/space_card.dart';
+import 'package:archespace_mobile/src/features/storage/application/storage_counts.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/shared/export/pdf_exporter.dart';
 import 'package:archespace_mobile/src/shared/realtime/table_watcher.dart';
@@ -274,22 +275,57 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
     }
   }
 
-  Future<void> _runBulk(Future<void> Function(ItemRepository) op) async {
-    if (_selected.isEmpty) return;
+  Future<bool> _runBulk(Future<void> Function(ItemRepository) op) async {
+    if (_selected.isEmpty) return false;
     try {
       await op(ItemRepository(VaultSession.instance.masterKey));
       if (mounted) {
         _exitSelect();
         _load();
       }
+      return true;
     } catch (_) {
       _showError("Couldn't complete that action.");
+      return false;
+    }
+  }
+
+  /// Undo an archive or move-to-bin for the given items.
+  Future<void> _restoreItems(List<String> ids) async {
+    try {
+      await ItemRepository(VaultSession.instance.masterKey).restoreItems(ids);
+      StorageCounts.instance.refresh();
+      if (mounted) _load();
+    } catch (_) {
+      if (mounted) showErrorSnack(context, "Couldn't undo that.");
+    }
+  }
+
+  Future<void> _bulkArchiveItems() async {
+    final ids = _selected.toList();
+    if (ids.isEmpty) return;
+    final ok = await _runBulk((r) => r.bulkArchive(ids));
+    StorageCounts.instance.refresh();
+    if (ok && mounted) {
+      showUndoSnack(
+        context,
+        '${ids.length} ${ids.length == 1 ? 'item' : 'items'} archived',
+        () => _restoreItems(ids),
+      );
     }
   }
 
   Future<void> _bulkDeleteItems() async {
     final ids = _selected.toList();
-    await _runBulk((r) => r.bulkDelete(ids));
+    final ok = await _runBulk((r) => r.bulkDelete(ids));
+    StorageCounts.instance.refresh();
+    if (ok && mounted) {
+      showUndoSnack(
+        context,
+        '${ids.length} ${ids.length == 1 ? 'item' : 'items'} moved to bin',
+        () => _restoreItems(ids),
+      );
+    }
   }
 
   Future<void> _bulkMoveItems() async {
@@ -423,9 +459,14 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       await ItemRepository(
         VaultSession.instance.masterKey,
       ).archiveItem(item.id);
+      StorageCounts.instance.refresh();
       if (mounted) {
         _load();
-        showSuccessSnack(context, 'Item archived');
+        showUndoSnack(
+          context,
+          'Item archived',
+          () => _restoreItems([item.id]),
+        );
       }
     } catch (_) {
       _showError("Couldn't archive the item.");
@@ -443,9 +484,14 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
     if (!ok) return;
     try {
       await ItemRepository(VaultSession.instance.masterKey).deleteItem(item.id);
+      StorageCounts.instance.refresh();
       if (mounted) {
         _load();
-        showSuccessSnack(context, 'Item moved to recycle bin');
+        showUndoSnack(
+          context,
+          'Item moved to bin',
+          () => _restoreItems([item.id]),
+        );
       }
     } catch (_) {
       _showError("Couldn't delete the item.");
@@ -723,10 +769,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
                 BulkAction(
                   icon: Icons.archive_outlined,
                   label: 'Archive',
-                  onPressed: () {
-                    final ids = _selected.toList();
-                    _runBulk((r) => r.bulkArchive(ids));
-                  },
+                  onPressed: _bulkArchiveItems,
                 ),
                 BulkAction(
                   icon: Icons.delete_outline,

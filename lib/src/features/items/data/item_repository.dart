@@ -231,6 +231,15 @@ class ItemRepository {
         .inFilter('id', ids);
   }
 
+  /// Undo an archive or move-to-bin: clears both timestamps for the items.
+  Future<void> restoreItems(List<String> ids) async {
+    if (ids.isEmpty) return;
+    await _client
+        .from('space_items')
+        .update({'archived_at': null, 'deleted_at': null})
+        .inFilter('id', ids);
+  }
+
   Future<void> bulkMove(List<String> ids, String targetSpaceId) async {
     var position = await _endPosition(targetSpaceId);
     for (final id in ids) {

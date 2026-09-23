@@ -291,4 +291,13 @@ class SpaceRepository {
         .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})
         .or('id.eq.$id,parent_id.eq.$id');
   }
+
+  /// Undo an archive or move-to-bin: clears both timestamps for the spaces and
+  /// their child spaces (one-level nesting).
+  Future<void> restoreSpaces(List<String> ids) async {
+    if (ids.isEmpty) return;
+    const cleared = {'archived_at': null, 'deleted_at': null};
+    await _client.from('spaces').update(cleared).inFilter('id', ids);
+    await _client.from('spaces').update(cleared).inFilter('parent_id', ids);
+  }
 }
