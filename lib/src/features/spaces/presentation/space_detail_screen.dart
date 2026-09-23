@@ -562,53 +562,55 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
     size: size,
   );
 
-  /// The normal-mode app-bar actions. The primary list controls (view, sort,
-  /// select) stay inline and compact; the contextual ones (new sub-space,
-  /// export) fold into an overflow menu so the space name keeps its room.
+  /// The normal-mode app-bar actions: the space-level actions (new sub-space,
+  /// export) shown directly. The list controls (view, sort, select) live in the
+  /// body header instead (see [_buildItemsHeader]), so these two fit alongside
+  /// the space name.
   List<Widget> _buildBarActions(bool hasItems) {
     // Sub-spaces are one level deep, so only a top-level space can create them.
     final canCreateSubSpace =
         _items != null && widget.space.parentId == null;
-    final overflow = <PopupMenuEntry<String>>[
-      if (canCreateSubSpace)
-        const PopupMenuItem(
-          height: 40,
-          value: 'new_space',
-          child: Text('New space'),
-        ),
-      if (hasItems)
-        const PopupMenuItem(
-          height: 40,
-          value: 'export',
-          child: Text('Export PDF'),
-        ),
-    ];
     return [
-      if (hasItems)
+      if (canCreateSubSpace)
         _barAction(
-          _view == 'grid'
-              ? Icons.view_agenda_outlined
-              : Icons.grid_view_outlined,
-          _view == 'grid' ? 'List view' : 'Grid view',
-          () => _setView(_view == 'grid' ? 'list' : 'grid'),
-          size: 36,
+          Icons.create_new_folder_outlined,
+          'New space',
+          _createSubSpace,
         ),
-      if (hasItems) SortMenu(value: _sort, onChanged: _setSort, size: 36),
-      if (hasItems) _barAction(Icons.checklist, 'Select', _enterSelect, size: 36),
-      if (overflow.isNotEmpty)
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, size: 20),
-          tooltip: 'More',
-          menuPadding: const EdgeInsets.symmetric(vertical: 4),
-          clipBehavior: Clip.antiAlias,
-          onSelected: (value) {
-            if (value == 'new_space') _createSubSpace();
-            if (value == 'export') _exportSpace();
-          },
-          itemBuilder: (context) => overflow,
-        ),
+      if (hasItems)
+        _barAction(Icons.picture_as_pdf_outlined, 'Export PDF', _exportSpace),
       const SizedBox(width: 4),
     ];
+  }
+
+  /// The list controls shown as a scrolling body header (matching the Spaces
+  /// dashboard): an "Items" label with view, sort, and select on the right.
+  Widget _buildItemsHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, right: 4, top: 2, bottom: 0),
+      child: Row(
+        children: [
+          Text(
+            'Items',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          _barAction(
+            _view == 'grid'
+                ? Icons.view_agenda_outlined
+                : Icons.grid_view_outlined,
+            _view == 'grid' ? 'List view' : 'Grid view',
+            () => _setView(_view == 'grid' ? 'list' : 'grid'),
+            size: 36,
+          ),
+          SortMenu(value: _sort, onChanged: _setSort, size: 36),
+          _barAction(Icons.checklist, 'Select', _enterSelect, size: 36),
+        ],
+      ),
+    );
   }
 
   @override
@@ -741,12 +743,25 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       createdAt: (i) => i.createdAt,
       pinned: (i) => i.pinned,
     );
+    // The list controls sit in a scrolling header (like the dashboard), above
+    // any sub-spaces section; hidden while selecting.
+    final headerChildren = <Widget>[
+      if (!_selectMode && items.isNotEmpty) _buildItemsHeader(context),
+      ?subSection,
+    ];
+    final header = headerChildren.isEmpty
+        ? null
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: headerChildren,
+          );
     final Widget list = _view == 'grid'
-        ? _grid(items, header: subSection)
+        ? _grid(items, header: header)
         : ReorderableListView.builder(
-            header: subSection,
+            header: header,
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(top: 4, bottom: 88),
+            padding: const EdgeInsets.only(top: 0, bottom: 88),
             buildDefaultDragHandles:
                 !_selectMode &&
                 !_offline &&
@@ -760,7 +775,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
               return AnimatedContainer(
                 key: ValueKey(item.id),
                 duration: const Duration(milliseconds: 300),
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   color: _flashId == item.id
