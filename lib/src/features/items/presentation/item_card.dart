@@ -861,6 +861,9 @@ class _TableView extends StatelessWidget {
         child: Theme(
           data: Theme.of(context).copyWith(dividerColor: soft),
           child: DataTable(
+            // Row dividers come from the theme above; add soft vertical
+            // dividers so there are borders between columns too.
+            border: TableBorder(verticalInside: BorderSide(color: soft)),
             columns: [
               for (var i = 0; i < colCount; i++)
                 DataColumn(
