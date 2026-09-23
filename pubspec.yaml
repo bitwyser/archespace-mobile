@@ -45,19 +45,18 @@ dev_dependencies:
   # Generates the app launcher icons from the ArcheSpace mark.
   flutter_launcher_icons: ^0.14.1
 
-# App launcher icon: the mint box with the dark A mark, matching the web icon.
+# App launcher icon: a dark background with the mint A mark.
 flutter_launcher_icons:
   image_path: "assets/icon/app_icon.png"
   android: true
   ios: true
   remove_alpha_ios: true
-  adaptive_icon_background: "#32d3aa"
+  adaptive_icon_background: "#0d1117"
   adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/archespace-logo.svg
     - assets/fonts/DejaVuSans.ttf
     - assets/fonts/DejaVuSans-Bold.ttf
     - assets/fonts/DejaVuSansMono.ttf

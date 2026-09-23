@@ -6,7 +6,7 @@ import 'package:archespace_mobile/src/features/settings/presentation/settings_sc
 import 'package:archespace_mobile/src/features/storage/application/storage_counts.dart';
 import 'package:archespace_mobile/src/features/storage/presentation/storage_screen.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
-import 'package:archespace_mobile/src/shared/widgets/brand_glyph.dart';
+import 'package:archespace_mobile/src/shared/widgets/brand_wordmark.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
 
 /// The app's navigation drawer: the brand mark plus a theme "shuffle" at the
@@ -78,31 +78,17 @@ class _AppDrawerState extends State<AppDrawer> {
             ListenableBuilder(
               listenable: AppearanceController.instance,
               builder: (context, _) {
-                final accent = AppearanceController.instance.accent;
                 return Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
                   child: Row(
                     children: [
-                      const BrandGlyph(size: 24, framed: true),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text.rich(
-                          TextSpan(
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.2,
-                            ),
-                            children: [
-                              TextSpan(
-                                text: 'Arche',
-                                style: TextStyle(color: accent),
-                              ),
-                              TextSpan(
-                                text: 'Space',
-                                style: TextStyle(color: scheme.onSurface),
-                              ),
-                            ],
+                      const Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: BrandWordmark(height: 21),
                           ),
                         ),
                       ),

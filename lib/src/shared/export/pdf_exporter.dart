@@ -9,6 +9,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:archespace_mobile/src/features/items/domain/draw.dart';
 import 'package:archespace_mobile/src/features/items/domain/rich_text_html.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
+import 'package:archespace_mobile/src/shared/brand/brand_paths.dart';
 
 /// Builds a PDF for a whole space or a single item, per item type. Mirrors the
 /// web PDF export's content structure.
@@ -19,7 +20,7 @@ class PdfExporter {
     String name,
     List<SpaceItem> items,
   ) async {
-    final logo = await _logoSvg();
+    final logo = _logoSvg();
     final stamp = _timestamp();
     final theme = await _theme();
     final doc = pw.Document(theme: theme);
@@ -43,7 +44,7 @@ class PdfExporter {
   }
 
   static Future<Uint8List> buildItem(SpaceItem item) async {
-    final logo = await _logoSvg();
+    final logo = _logoSvg();
     final stamp = _timestamp();
     final theme = await _theme();
     final doc = pw.Document(theme: theme);
@@ -69,12 +70,13 @@ class PdfExporter {
     return pw.ThemeData.withFont(base: base, bold: bold);
   }
 
-  /// The ArcheSpace wordmark for the page corner. The bundled asset targets a
-  /// dark UI (white "Space"); ink it so it reads on the white PDF page.
-  static Future<String> _logoSvg() async {
-    final svg = await rootBundle.loadString('assets/archespace-logo.svg');
-    return svg.replaceAll('#ffffff', '#0f1115');
-  }
+  /// The ArcheSpace wordmark for the page corner: "Arche" in the mint accent,
+  /// "Space" inked dark so it reads on the white PDF page.
+  static String _logoSvg() =>
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="$kBrandWordmarkViewBox">'
+      '<path d="$kBrandArchePath" fill="#32d3aa" fill-rule="evenodd"/>'
+      '<path d="$kBrandSpacePath" fill="#0f1115" fill-rule="evenodd"/>'
+      '</svg>';
 
   /// The export time, e.g. "9/19/26, 8:36 PM".
   static String _timestamp() {
@@ -99,7 +101,7 @@ class PdfExporter {
       children: [
         pw.Text(stamp, style: _chromeStyle),
         pw.Spacer(),
-        pw.SizedBox(width: 96, height: 15, child: pw.SvgImage(svg: logoSvg)),
+        pw.SizedBox(width: 100, height: 15, child: pw.SvgImage(svg: logoSvg)),
       ],
     ),
   );
