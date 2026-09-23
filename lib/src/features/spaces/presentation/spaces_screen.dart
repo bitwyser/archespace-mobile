@@ -7,6 +7,7 @@ import 'package:archespace_mobile/src/features/spaces/presentation/space_detail_
 import 'package:archespace_mobile/src/features/spaces/presentation/space_editor_screen.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/widgets/app_drawer.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/widgets/space_card.dart';
+import 'package:archespace_mobile/src/features/storage/application/storage_counts.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/shared/offline/write_queue.dart';
 import 'package:archespace_mobile/src/shared/realtime/table_watcher.dart';
@@ -43,6 +44,9 @@ class _SpacesScreenState extends State<SpacesScreen> {
   void initState() {
     super.initState();
     _load();
+    // Warm the drawer's archive/bin counts at launch so they're ready before
+    // the drawer is opened (mirrors the always-in-memory spaces count).
+    StorageCounts.instance.refresh();
     SharedPreferences.getInstance().then((prefs) {
       final sort = prefs.getString('sort_spaces');
       final view = prefs.getString('spaces_view');

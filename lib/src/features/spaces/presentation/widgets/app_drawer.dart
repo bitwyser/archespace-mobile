@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
 import 'package:archespace_mobile/src/features/settings/application/appearance_controller.dart';
 import 'package:archespace_mobile/src/features/settings/presentation/settings_screen.dart';
-import 'package:archespace_mobile/src/features/storage/data/storage_repository.dart';
+import 'package:archespace_mobile/src/features/storage/application/storage_counts.dart';
 import 'package:archespace_mobile/src/features/storage/presentation/storage_screen.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/shared/widgets/brand_glyph.dart';
@@ -32,43 +32,12 @@ class AppDrawer extends StatefulWidget {
 }
 
 class _AppDrawerState extends State<AppDrawer> {
-  // Cached across drawer instances so the last known counts show instantly on
-  // reopen while a fresh fetch runs in the background.
-  static int? _cachedArchive;
-  static int? _cachedBin;
-
-  late int? _archiveCount = _cachedArchive;
-  late int? _binCount = _cachedBin;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCounts();
-  }
-
   @override
   void didUpdateWidget(covariant AppDrawer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // The host bumps refreshToken when the drawer opens - re-fetch the counts.
-    if (oldWidget.refreshToken != widget.refreshToken) _loadCounts();
-  }
-
-  Future<void> _loadCounts() async {
-    try {
-      final repo = StorageRepository(VaultSession.instance.masterKey);
-      // ids-only counts: no decryption, so these return quickly.
-      final archived = await repo.archivedCount();
-      final deleted = await repo.deletedCount();
-      _cachedArchive = archived;
-      _cachedBin = deleted;
-      if (mounted) {
-        setState(() {
-          _archiveCount = archived;
-          _binCount = deleted;
-        });
-      }
-    } catch (_) {
-      // Keep the last cached counts if a refresh fails.
+    // The host bumps refreshToken when the drawer opens - refresh the counts.
+    if (oldWidget.refreshToken != widget.refreshToken) {
+      StorageCounts.instance.refresh();
     }
   }
 
@@ -159,21 +128,33 @@ class _AppDrawerState extends State<AppDrawer> {
               count: widget.spacesCount,
               onTap: () => Navigator.of(context).pop(),
             ),
-            _tile(
-              context,
-              icon: Icons.archive_outlined,
-              label: 'Archive',
-              count: _archiveCount,
-              onTap: () =>
-                  _open(context, const StorageScreen(mode: StorageMode.archive)),
-            ),
-            _tile(
-              context,
-              icon: Icons.delete_outline,
-              label: 'Recycle bin',
-              count: _binCount,
-              onTap: () =>
-                  _open(context, const StorageScreen(mode: StorageMode.bin)),
+            ListenableBuilder(
+              listenable: StorageCounts.instance,
+              builder: (context, _) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _tile(
+                    context,
+                    icon: Icons.archive_outlined,
+                    label: 'Archive',
+                    count: StorageCounts.instance.archive,
+                    onTap: () => _open(
+                      context,
+                      const StorageScreen(mode: StorageMode.archive),
+                    ),
+                  ),
+                  _tile(
+                    context,
+                    icon: Icons.delete_outline,
+                    label: 'Recycle bin',
+                    count: StorageCounts.instance.bin,
+                    onTap: () => _open(
+                      context,
+                      const StorageScreen(mode: StorageMode.bin),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const Spacer(),
             const Divider(height: 1),
