@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
 import 'package:archespace_mobile/src/features/items/data/item_repository.dart';
+import 'package:archespace_mobile/src/features/items/domain/code_highlight.dart';
 import 'package:archespace_mobile/src/features/items/domain/draw.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/features/items/domain/totp.dart';
@@ -333,8 +334,12 @@ class _CodeEditor extends StatefulWidget {
 }
 
 class _CodeEditorState extends State<_CodeEditor> {
-  late final TextEditingController _code = TextEditingController(
+  late final CodeHighlightController _code = CodeHighlightController(
     text: (widget.content['code'] ?? '').toString(),
+    theme: codeHighlightTheme(
+      // Placeholder; the real base colour is set per-build from the theme.
+      const Color(0xFF000000),
+    ),
   );
 
   @override
@@ -345,31 +350,24 @@ class _CodeEditorState extends State<_CodeEditor> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.outlineVariant),
+    // Plain field (no box) like the other editors; text is live-highlighted.
+    return TextField(
+      controller: _code,
+      onChanged: (value) => widget.content['code'] = value,
+      maxLines: null,
+      expands: true,
+      textAlignVertical: TextAlignVertical.top,
+      keyboardType: TextInputType.multiline,
+      style: TextStyle(
+        fontFamily: 'monospace',
+        fontSize: 13,
+        height: 1.5,
+        color: Theme.of(context).colorScheme.onSurface,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: TextField(
-        controller: _code,
-        onChanged: (value) => widget.content['code'] = value,
-        maxLines: null,
-        expands: true,
-        textAlignVertical: TextAlignVertical.top,
-        keyboardType: TextInputType.multiline,
-        style: const TextStyle(
-          fontFamily: 'monospace',
-          fontSize: 13,
-          height: 1.5,
-        ),
-        decoration: const InputDecoration(
-          hintText: 'Paste or write code…',
-          border: InputBorder.none,
-          isCollapsed: true,
-        ),
+      decoration: const InputDecoration(
+        hintText: 'Paste or write code…',
+        border: InputBorder.none,
+        isCollapsed: true,
       ),
     );
   }
