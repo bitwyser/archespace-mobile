@@ -35,7 +35,7 @@ class PdfExporter {
           ),
           pw.SizedBox(height: 12),
           if (items.isEmpty) pw.Text('This space has no items.'),
-          for (final item in items) _section(item),
+          for (final item in items) ..._section(item),
         ],
       ),
     );
@@ -51,7 +51,7 @@ class PdfExporter {
       pw.MultiPage(
         header: (context) => _pageHeader(logo, stamp),
         footer: (context) => _pageFooter(context),
-        build: (context) => [_section(item)],
+        build: (context) => _section(item),
       ),
     );
     return doc.save();
@@ -119,42 +119,42 @@ class PdfExporter {
     ),
   );
 
-  static pw.Widget _section(SpaceItem item) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.SizedBox(height: 8),
-        pw.Text(
-          item.title.isEmpty ? 'Untitled' : item.title,
-          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-        ),
-        pw.SizedBox(height: 4),
-        _body(item),
-        pw.Divider(),
-      ],
-    );
-  }
+  // Each item contributes a FLAT list of top-level widgets to the MultiPage
+  // build (never a single pw.Column). MultiPage can only page-break between
+  // top-level widgets and inside splittable ones (Text, Table); a Column is
+  // atomic, so wrapping big content in one made MultiPage loop forever.
+  static List<pw.Widget> _section(SpaceItem item) => [
+    pw.SizedBox(height: 8),
+    pw.Text(
+      item.title.isEmpty ? 'Untitled' : item.title,
+      style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+    ),
+    pw.SizedBox(height: 4),
+    ..._body(item),
+    pw.Divider(),
+  ];
 
-  static pw.Widget _body(SpaceItem item) {
+  static List<pw.Widget> _body(SpaceItem item) {
     final c = item.content;
     switch (item.type) {
       case 'textbox':
       case 'markdown':
         final text = (c['text'] ?? '').toString();
-        return pw.Text(text.isEmpty ? '(empty)' : text);
+        return [pw.Text(text.isEmpty ? '(empty)' : text)];
       case 'richtext':
         final text = richHtmlToPlainText((c['html'] ?? '').toString());
-        return pw.Text(text.isEmpty ? '(empty)' : text);
+        return [pw.Text(text.isEmpty ? '(empty)' : text)];
       case 'code':
         final code = (c['code'] ?? '').toString();
-        if (code.isEmpty) return pw.Text('(empty)');
-        // Plain monospace text (not wrapped in a decorated Container): a fixed
-        // Container cannot be split across pages, so a code block taller than
-        // one page would make pw.MultiPage loop forever (the export hang).
-        return pw.Text(
-          code,
-          style: pw.TextStyle(font: _mono, fontSize: 9, lineSpacing: 2),
-        );
+        if (code.isEmpty) return [pw.Text('(empty)')];
+        // Plain monospace Text splits across pages (a decorated Container
+        // cannot), so a long code block never hangs the export.
+        return [
+          pw.Text(
+            code,
+            style: pw.TextStyle(font: _mono, fontSize: 9, lineSpacing: 2),
+          ),
+        ];
       case 'menu_list':
         return _bullets(c, ordered: false);
       case 'numbered_list':
@@ -164,76 +164,72 @@ class PdfExporter {
       case 'card_list':
         return _cards(c);
       case 'table':
-        return _table(c);
+        return [_table(c)];
       case 'secret':
-        return pw.Text('•••••• (hidden secret)');
+        return [pw.Text('•••••• (hidden secret)')];
       case 'draw':
-        return _drawing(c);
+        return [_drawing(c)];
       default:
-        return pw.SizedBox();
+        return const [];
     }
   }
 
-  static pw.Widget _bullets(Map<String, dynamic> c, {required bool ordered}) {
+  static List<pw.Widget> _bullets(
+    Map<String, dynamic> c, {
+    required bool ordered,
+  }) {
     final rows = (c['items'] as List? ?? const [])
         .whereType<Map>()
         .map((e) => (e['text'] ?? '').toString())
         .where((t) => t.trim().isNotEmpty)
         .toList();
-    if (rows.isEmpty) return pw.Text('(empty)');
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < rows.length; i++)
-          pw.Padding(
-            padding: const pw.EdgeInsets.symmetric(vertical: 1),
-            child: pw.Text(ordered ? '${i + 1}. ${rows[i]}' : '• ${rows[i]}'),
-          ),
-      ],
-    );
+    if (rows.isEmpty) return [pw.Text('(empty)')];
+    // One widget per row so a long list page-breaks between rows.
+    return [
+      for (var i = 0; i < rows.length; i++)
+        pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(vertical: 1),
+          child: pw.Text(ordered ? '${i + 1}. ${rows[i]}' : '• ${rows[i]}'),
+        ),
+    ];
   }
 
-  static pw.Widget _checklist(Map<String, dynamic> c) {
+  static List<pw.Widget> _checklist(Map<String, dynamic> c) {
     final items = (c['items'] as List? ?? const []).whereType<Map>().toList();
-    if (items.isEmpty) return pw.Text('(empty)');
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        for (final it in items)
-          pw.Text(
-            '${(it['checked'] ?? false) == true ? '☑' : '☐'}  '
-            '${(it['text'] ?? '').toString()}',
-          ),
-      ],
-    );
+    if (items.isEmpty) return [pw.Text('(empty)')];
+    return [
+      for (final it in items)
+        pw.Text(
+          '${(it['checked'] ?? false) == true ? '☑' : '☐'}  '
+          '${(it['text'] ?? '').toString()}',
+        ),
+    ];
   }
 
-  static pw.Widget _cards(Map<String, dynamic> c) {
+  static List<pw.Widget> _cards(Map<String, dynamic> c) {
     final items = (c['items'] as List? ?? const []).whereType<Map>().toList();
-    if (items.isEmpty) return pw.Text('(empty)');
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        for (final it in items)
-          pw.Container(
-            margin: const pw.EdgeInsets.only(bottom: 6),
-            padding: const pw.EdgeInsets.all(6),
-            decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.5)),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                if ((it['title'] ?? '').toString().isNotEmpty)
-                  pw.Text(
-                    (it['title']).toString(),
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                  ),
-                if ((it['description'] ?? '').toString().isNotEmpty)
-                  pw.Text((it['description']).toString()),
-              ],
-            ),
+    if (items.isEmpty) return [pw.Text('(empty)')];
+    // One top-level widget per card so cards page-break between each other.
+    return [
+      for (final it in items)
+        pw.Container(
+          margin: const pw.EdgeInsets.only(bottom: 6),
+          padding: const pw.EdgeInsets.all(6),
+          decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.5)),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              if ((it['title'] ?? '').toString().isNotEmpty)
+                pw.Text(
+                  (it['title']).toString(),
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                ),
+              if ((it['description'] ?? '').toString().isNotEmpty)
+                pw.Text((it['description']).toString()),
+            ],
           ),
-      ],
-    );
+        ),
+    ];
   }
 
   static pw.Widget _table(Map<String, dynamic> c) {
