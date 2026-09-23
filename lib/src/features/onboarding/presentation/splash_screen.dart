@@ -35,8 +35,7 @@ class SplashScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'End-to-end encrypted notes and spaces. '
-                    'Only you can open them.',
+                    'Every shape a thought takes, in one encrypted space.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: scheme.onSurfaceVariant,
