@@ -750,7 +750,11 @@ class _Code extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Theme.of(context).dividerColor),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant.withValues(
+            alpha: 0.5,
+          ),
+        ),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
