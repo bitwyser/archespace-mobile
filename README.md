@@ -1,16 +1,19 @@
 <p>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/archespace-logo.svg">
-    <img alt="ArcheSpace" src="assets/archespace-logo-light.svg" width="360">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/archespace-wordmark.svg">
+    <img alt="ArcheSpace" src="assets/archespace-wordmark-light.svg" width="360">
   </picture>
 </p>
 
 [![Release APK](https://github.com/bitwyser/archespace-mobile/actions/workflows/release.yml/badge.svg)](https://github.com/bitwyser/archespace-mobile/actions/workflows/release.yml)
 [![Version](https://img.shields.io/github/v/release/bitwyser/archespace-mobile)](https://github.com/bitwyser/archespace-mobile/releases)
+[![License](https://img.shields.io/github/license/bitwyser/archespace-mobile)](LICENSE)
 
-The mobile app for [ArcheSpace](https://github.com/bitwyser/archespace) - an open source, private space for everything you're working on. Your data is encrypted on your device, so the server never sees it. Built with Flutter for Android and iOS.
+ArcheSpace is an open source, encrypted workspace for organising everything you're working on. Group your information, knowledge, projects, notes, secrets, code, checklists, and ideas into spaces, and fill each space with the content type that fits: notes, rich text and markdown, checklists and lists, tables, code snippets, drawings, PIN-protected secrets, and even two-factor (TOTP) codes. Everything is taggable, searchable, and kept in one place across your devices.
 
-It talks to the **same Supabase backend** as the web app and shares the same client-side `arc1` encryption format, so a vault created on one client opens on the other. It follows the same zero-knowledge architecture: your content is encrypted on-device and the backend only ever stores ciphertext, so the server, its operators, and the developers never see your data in readable form.
+Privacy is built in, not bolted on. It follows a zero-knowledge architecture: your content is encrypted on-device and the backend only ever stores ciphertext, so the server, its operators, and the developers never see your data in readable form.
+
+This is the Android and iOS app, built with Flutter. It talks to the **same Supabase backend** as the [web app](https://github.com/bitwyser/archespace) and shares the same client-side `arc1` encryption format, so a vault created on one client opens on the other.
 
 ## Table of contents
 
@@ -25,43 +28,37 @@ It talks to the **same Supabase backend** as the web app and shares the same cli
 - [Roadmap](#roadmap)
 - [Help and support](#help-and-support)
 - [Contributing and development](#contributing-and-development)
+- [Credits](#credits)
 - [License](#license)
 
 ## Features
 
-- Multiple spaces for separating ideas, projects, plans, references, and personal systems.
-- Multiple item types for different kinds of content (see [Item types](#item-types)).
-- Space tags and color, shown on the spaces list.
-- Pinning for important spaces and items.
-- Drag-and-drop reordering for spaces and page items.
-- Sort spaces and page items by default order, name, or newest, remembered per view.
-- Grid or list view for items inside a space, remembered (grid uses a two-column masonry so items keep their natural height).
-- Collapse or expand individual item cards to hide their body.
-- Unified search across spaces, tags, and item content, with jump-to-item.
-- One-tap copy of any item's content to the clipboard as clean plain text.
-- Bulk actions for spaces and items.
-- Duplicate, move, archive, restore, and delete workflows.
-- Archive area for hiding content without deleting it.
-- Recycle bin with restore and permanent delete.
-- Export a whole space or a single item to PDF via the native share/print sheet.
-- Backup import/export to JSON, in the same format as the web app.
-- Appearance settings with `System`, `Dark`, and `Light` theme modes and multiple accent colors, synced to your account.
-- Private, encrypted vault to keep your content secure (see [Security model](#security-model)).
-- Biometric unlock (fingerprint or face) with the wrapped key kept in the platform keystore.
-- Account management: create account, change email, change login password, forgot password, and permanent account deletion.
-- Optional two-factor authentication (TOTP) for sign-in, with a one-time backup code, enabled per account from Settings (see [Security model](#security-model)).
-- Vault management: change PIN with the current PIN, reset PIN with a recovery code, and generate a new recovery code.
-- Realtime sync and pull-to-refresh across spaces and items.
-- Works offline: an encrypted read cache plus a durable write queue that replays edits when you reconnect.
+- **Spaces** for separating projects and ideas, with one level of nesting (sub-spaces), tags, a space colour, pinning, and drag-and-drop reordering.
+- **Many item types** for different kinds of content, from notes to a built-in authenticator (see [Item types](#item-types)).
+- **Grid or list views**, per-view sort (default / name / newest), and search: a unified search across spaces, tags, and item content with jump-to-item, plus a compact in-space search that filters a space's items by title or tag.
+- **Navigation drawer** for Spaces, Archive, and Recycle bin (with live counts), plus quick Lock, Sign out, and Settings.
+- **Auto-save**, one-tap copy, bulk actions, and duplicate / move / archive / restore / delete workflows.
+- **Undo** for archive and move-to-bin, right from the confirmation snackbar.
+- **Archive** and a **recycle bin** (restore or permanently delete).
+- **PDF export** of a whole space or a single item via the native share/print sheet, with a branded header, footer URL, and page numbers.
+- **JSON backup** import and export, in the same format as the web app.
+- **Appearance**: System / Dark / Light modes and five accent colours (mint, lavender, amber, sky, rose), synced to your account, plus a one-tap theme shuffle in the drawer.
+- **Encrypted vault** with configurable auto-lock and optional biometric unlock (fingerprint or face) (see [Security model](#security-model)).
+- **Optional two-factor sign-in** (TOTP) with a one-time backup code.
+- **Vault management**: change PIN with the current PIN, reset PIN with a recovery code, and generate a new recovery code.
+- **Account management**: create account, change email, change login password, forgot password, and permanent account deletion.
+- **Realtime sync** and pull-to-refresh across spaces and items.
+- **Offline mode**: read and edit from an encrypted on-device cache; a durable write queue replays edits when you reconnect.
 - Single-user by default, with an optional multi-user (sign-up) mode.
-- Verifiable build hash shown in Settings, linking to the exact source commit on GitHub.
+- **Verifiable build**: the app version in Settings links to the exact source commit on GitHub.
 
 ## Item types
 
 | Type | Description |
 |------|-------------|
 | Note | Free-form plain text. |
-| Markdown | Rich text with markdown formatting and click-to-edit preview. |
+| Rich Text | Formatted text (bold, italic, underline, font size) stored as sanitised HTML. |
+| Markdown | Markdown formatting with click-to-edit preview. |
 | List | Simple bullet list. |
 | Numbered List | Ordered list with automatic numbering that updates as rows are added, removed, or reordered. |
 | Checklist | Items with checkboxes and progress tracking. |
@@ -70,6 +67,7 @@ It talks to the **same Supabase backend** as the web app and shares the same cli
 | Secret | PIN-protected text: the title stays visible, but the content is hidden and requires re-entering your vault PIN to view or edit. |
 | Drawing | Freehand vector sketch or diagram. |
 | Code | A code snippet in a monospace block with automatic syntax highlighting (language auto-detected). Copies as plain text. |
+| Authenticator | On-device TOTP codes with live countdowns; the secrets are encrypted in your vault. |
 
 ## Security model
 
@@ -117,6 +115,10 @@ ArcheSpace uses a device-side vault model. You sign in with Supabase Auth using 
 - If both the vault PIN and recovery code are lost, encrypted space data cannot be decrypted.
 - JSON exports are saved to your device and should be stored carefully; imported backups are encrypted before upload.
 - Client-side encryption is only as safe as the code your device runs. Settings shows the exact build commit (linked to GitHub) so you can verify the running code against a tagged release (see [Release verification](#release-verification)).
+
+**Privacy and legal**
+
+- Accepting the Terms of Service and Privacy Policy is required at sign-up, and the accepted version is recorded server-side. Both policies are linked from the sign-up screen and Settings.
 
 ## Setup
 
@@ -189,7 +191,7 @@ Commit your changes first so the stamped hash exists on GitHub. The release APK 
 
 ## Release verification
 
-Pushing a `v*` tag runs the **Release APK** workflow ([`.github/workflows/release.yml`](.github/workflows/release.yml)), which builds the APK on CI, stamps it with the exact commit, and publishes it to a GitHub Release with a SHA-256 checksum. The build hash shown in Settings links to that commit, so anyone can confirm the installed binary was built from the audited, open-source code.
+Pushing a `v*` tag runs the **Release APK** workflow ([`.github/workflows/release.yml`](.github/workflows/release.yml)), which builds the APK on CI, stamps it with the exact commit, and publishes it to a GitHub Release with a SHA-256 checksum. The app version shown in Settings links to that commit, so anyone can confirm the installed binary was built from the audited, open-source code.
 
 The workflow needs two repository secrets (the same values as `env.json`), set under **Settings → Secrets and variables → Actions**:
 
@@ -288,6 +290,15 @@ Contributions are welcome, including bug fixes, features, and docs.
 
 For development questions, contact **[bitwyser@archespace.app](mailto:bitwyser@archespace.app)**.
 
+## Credits
+
+- Built with Flutter and Dart (Material 3).
+- Backend, authentication, and realtime sync powered by Supabase.
+- Encryption via the `cryptography` package (AES-256-GCM, Argon2id / PBKDF2); the `arc1` format is shared with the web app.
+- Item rendering and editing with `flutter_markdown`, `flutter_highlight` + `highlight`, and a custom freehand drawing canvas; PDF export via `pdf` + `printing`.
+- Source hosted on GitHub.
+- Crafted and maintained by BitWyser.
+
 ## License
 
-See [LICENSE](LICENSE).
+ArcheSpace is released under the MIT License. See [LICENSE](LICENSE).
