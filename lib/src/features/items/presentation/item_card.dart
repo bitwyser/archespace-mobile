@@ -177,26 +177,11 @@ class _ItemCardState extends State<ItemCard> {
                         final def = itemTypeDef(item.type)!;
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: def.color.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: def.color.withValues(alpha: 0.28),
-                              ),
-                            ),
-                            child: Text(
-                              def.label,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: def.color,
-                              ),
-                            ),
+                          child: Icon(
+                            def.icon,
+                            size: 20,
+                            color: def.color,
+                            semanticLabel: def.label,
                           ),
                         );
                       },
