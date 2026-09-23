@@ -124,14 +124,15 @@ class _ItemCardState extends State<ItemCard> {
     final onDelete = widget.onDelete;
     final onExport = widget.onExport;
     final scheme = Theme.of(context).colorScheme;
-    // Border tracks pinned/selected with a softened accent (matching the web)
-    // or a subtle default; the card sits on a darker recessed surface, with no
-    // full-card accent wash (the web dropped that).
-    // In select mode only selection drives the accent border, so a pinned item
-    // is not confused with a selected one.
-    final accent = selected || (item.pinned && !selectMode);
-    final borderColor = accent
+    // Border: a clear accent for a selected card (selection feedback), a
+    // softer accent for a pinned card, and a subtle default otherwise. In
+    // select mode only selection drives the accent, so a pinned item is not
+    // confused with a selected one.
+    final pinnedAccent = item.pinned && !selectMode && !selected;
+    final borderColor = selected
         ? scheme.primary.withValues(alpha: 0.5)
+        : pinnedAccent
+        ? scheme.primary.withValues(alpha: 0.3)
         : scheme.outlineVariant;
     return Card(
       margin:
@@ -143,7 +144,7 @@ class _ItemCardState extends State<ItemCard> {
       color: scheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: borderColor, width: accent ? 2 : 1.5),
+        side: BorderSide(color: borderColor, width: selected ? 2 : 1.5),
       ),
       child: InkWell(
         // A clamped (long, not yet expanded) body reveals itself in full on
