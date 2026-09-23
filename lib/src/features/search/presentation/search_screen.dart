@@ -98,7 +98,7 @@ class _SearchScreenState extends State<SearchScreen> {
       return const StateMessage(
         icon: Icons.search,
         title: 'Search your vault',
-        message: 'Find spaces and items by name or content.',
+        message: 'Find spaces and items by name, tag, or content.',
       );
     }
     final matches = _all!.where((h) => h.haystack.contains(q)).toList();

@@ -29,7 +29,8 @@ class SearchHit {
 
 /// Loads and decrypts every space + item into a flat search index. Mirrors the
 /// web global search: spaces match on name/description/tags; items match on
-/// title + type-specific content text. Secret content stays sealed (title only).
+/// title, tags, and type-specific content text. Secret content stays sealed
+/// (title only).
 class SearchRepository {
   SearchRepository(this._masterKey);
 
@@ -74,7 +75,7 @@ class SearchRepository {
 
     final itemRows = await _client
         .from('space_items')
-        .select('id, space_id, type, title, content')
+        .select('id, space_id, type, title, content, tags')
         .isFilter('deleted_at', null)
         .isFilter('archived_at', null);
 
@@ -85,6 +86,7 @@ class SearchRepository {
         _masterKey,
       );
       final content = await _decodeContent(row['content']);
+      final tags = await _decodeTags(row['tags']);
       final spaceId = row['space_id'] as String;
       hits.add(
         SearchHit(
@@ -94,7 +96,8 @@ class SearchRepository {
           spaceName: spaceNameById[spaceId] ?? '',
           title: title,
           type: type,
-          haystack: _itemText(type, title, content).toLowerCase(),
+          haystack: '${_itemText(type, title, content)} ${tags.join(' ')}'
+              .toLowerCase(),
         ),
       );
     }
