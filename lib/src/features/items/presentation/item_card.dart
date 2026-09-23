@@ -180,10 +180,10 @@ class _ItemCardState extends State<ItemCard> {
                         return Padding(
                           padding: EdgeInsets.only(right: grid ? 6 : 8),
                           child: Container(
-                            padding: EdgeInsets.all(grid ? 4 : 6),
+                            padding: EdgeInsets.all(grid ? 2 : 3),
                             decoration: BoxDecoration(
                               color: def.color.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(grid ? 6 : 8),
+                              borderRadius: BorderRadius.circular(grid ? 5 : 6),
                               border: Border.all(
                                 color: def.color.withValues(alpha: 0.28),
                               ),
