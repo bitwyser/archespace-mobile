@@ -18,6 +18,7 @@ import 'package:archespace_mobile/src/shared/sort/sort.dart';
 import 'package:archespace_mobile/src/shared/widgets/action_icon_button.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/widgets/bulk_action_bar.dart';
+import 'package:archespace_mobile/src/shared/widgets/create_fabs.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
 import 'package:archespace_mobile/src/shared/widgets/offline_banner.dart';
 import 'package:archespace_mobile/src/shared/widgets/scrollable_message.dart';
@@ -336,20 +337,12 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
     size: size,
   );
 
-  /// The normal-mode app-bar actions: the space-level actions (new sub-space,
-  /// export) shown directly. The list controls (view, sort, select) live in the
-  /// body header instead (see [_buildItemsHeader]), so these two fit alongside
-  /// the space name.
+  /// The normal-mode app-bar actions: the space-level export, shown directly.
+  /// The list controls (view, sort, select) live in the body header instead
+  /// (see [_buildItemsHeader]).
   List<Widget> _buildBarActions(bool hasItems) {
-    // Sub-spaces are one level deep, so only a top-level space can create them.
-    final canCreateSubSpace = _items != null && widget.space.parentId == null;
+    // New sub-space is a floating button beside Add item (see CreateFabs).
     return [
-      if (canCreateSubSpace)
-        _barAction(
-          Icons.create_new_folder_outlined,
-          'New space',
-          _createSubSpace,
-        ),
       if (hasItems)
         _barAction(Icons.picture_as_pdf_outlined, 'Export PDF', _exportSpace),
       const SizedBox(width: 4),
@@ -458,10 +451,13 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
             ),
       floatingActionButton: _selectMode
           ? null
-          : FloatingActionButton(
-              onPressed: openAddItemSheet,
-              tooltip: 'Add item',
-              child: const Icon(Icons.add),
+          : CreateFabs(
+              onAddItem: openAddItemSheet,
+              // Sub-spaces are one level deep, so only a top-level space can
+              // create them.
+              onNewSpace: _items != null && widget.space.parentId == null
+                  ? _createSubSpace
+                  : null,
             ),
       bottomNavigationBar: _selectMode
           ? BulkActionBar(

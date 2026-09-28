@@ -21,6 +21,7 @@ import 'package:archespace_mobile/src/shared/sort/sort.dart';
 import 'package:archespace_mobile/src/shared/widgets/action_icon_button.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/widgets/bulk_action_bar.dart';
+import 'package:archespace_mobile/src/shared/widgets/create_fabs.dart';
 import 'package:archespace_mobile/src/shared/widgets/offline_banner.dart';
 import 'package:archespace_mobile/src/shared/widgets/status_banner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -194,9 +195,6 @@ class _SpacesScreenState extends State<SpacesScreen>
     ).push<bool>(MaterialPageRoute(builder: (_) => const SpaceEditorScreen()));
     if (saved == true && mounted) _load();
   }
-
-  /// One button adds either: a "Space" entry leads the item-type sheet.
-  void _openAddSheet() => openAddItemSheet(onNewSpace: _createSpace);
 
   Future<void> _togglePinSpace(Space space) async {
     try {
@@ -520,11 +518,7 @@ class _SpacesScreenState extends State<SpacesScreen>
           : null,
       floatingActionButton: _selectMode
           ? null
-          : FloatingActionButton(
-              onPressed: _openAddSheet,
-              tooltip: 'Add',
-              child: const Icon(Icons.add),
-            ),
+          : CreateFabs(onNewSpace: _createSpace, onAddItem: openAddItemSheet),
       bottomNavigationBar: _selectMode
           ? BulkActionBar(
               count: _selectedCount,
@@ -719,9 +713,9 @@ class _SpacesScreenState extends State<SpacesScreen>
         message:
             'Create a space to group related items, or add an item '
             'right here.',
-        actionLabel: 'Add',
+        actionLabel: 'Add item',
         actionIcon: Icons.add,
-        onAction: _openAddSheet,
+        onAction: openAddItemSheet,
       );
     }
     final allTags = <String>{

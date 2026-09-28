@@ -60,38 +60,11 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
     if (saved == true && mounted) reloadItems();
   }
 
-  /// The add sheet: every editable item type. When [onNewSpace] is given (the
-  /// dashboard), a "Space" entry leads the list so one button creates either.
-  void openAddItemSheet({VoidCallback? onNewSpace}) {
+  /// The add sheet: every editable item type.
+  void openAddItemSheet() {
     // Scroll-controlled with a fixed ~70% height so it opens taller than the
     // default half sheet but not full screen; the list scrolls within it. The
     // tiles are dense to keep the menu compact.
-    Widget tile({
-      required IconData icon,
-      required Color color,
-      required String label,
-      required String description,
-      required VoidCallback onTap,
-    }) => ListTile(
-      visualDensity: VisualDensity.compact,
-      leading: Container(
-        width: 38,
-        height: 38,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: color, size: 20),
-      ),
-      title: Text(
-        label,
-        style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
-      ),
-      subtitle: Text(description),
-      onTap: onTap,
-    );
-
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -102,25 +75,27 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
           child: ListView(
             padding: const EdgeInsets.only(bottom: 8),
             children: [
-              if (onNewSpace != null) ...[
-                tile(
-                  icon: Icons.create_new_folder_outlined,
-                  color: Theme.of(sheetContext).colorScheme.primary,
-                  label: 'Space',
-                  description: 'A container to group related items',
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    onNewSpace();
-                  },
-                ),
-                const Divider(indent: 16, endIndent: 16),
-              ],
               for (final def in kItemTypes.where((d) => d.editable))
-                tile(
-                  icon: def.icon,
-                  color: def.color,
-                  label: def.label,
-                  description: def.description,
+                ListTile(
+                  visualDensity: VisualDensity.compact,
+                  leading: Container(
+                    width: 38,
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: def.color.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(def.icon, color: def.color, size: 20),
+                  ),
+                  title: Text(
+                    def.label,
+                    style: const TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  subtitle: Text(def.description),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     addItem(def.type);
