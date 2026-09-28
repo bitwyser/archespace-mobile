@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../shared/config/app_config.dart';
+
 /// Thin wrapper over Supabase Auth. The client is resolved lazily so the app
 /// only touches `Supabase.instance` after `Supabase.initialize` has run.
 class AuthService {
@@ -42,11 +44,13 @@ class AuthService {
     await _client.auth.signOut(scope: SignOutScope.global);
   }
 
-  /// Send a password reset email. The link opens the web app's reset page
-  /// (Supabase Site URL), where the user sets a new password, then signs in
-  /// again here.
+  /// Send a password reset email. The link opens the web app's reset page,
+  /// where the user sets a new password, then signs in again here.
   Future<void> requestPasswordReset(String email) async {
-    await _client.auth.resetPasswordForEmail(email);
+    await _client.auth.resetPasswordForEmail(
+      email,
+      redirectTo: '${AppConfig.webUrl}/reset-password',
+    );
   }
 
   /// Send a 6-digit reauthentication code to the user's current email. Required
@@ -57,9 +61,13 @@ class AuthService {
 
   /// Change the account email. [nonce] is the reauthentication code sent to the
   /// current address; a confirmation link then goes to the new address and the
-  /// change takes effect once the user opens it.
+  /// change takes effect once the user opens it (on the web app's sign-in
+  /// page, matching the web flow).
   Future<void> updateEmail(String email, String nonce) async {
-    await _client.auth.updateUser(UserAttributes(email: email, nonce: nonce));
+    await _client.auth.updateUser(
+      UserAttributes(email: email, nonce: nonce),
+      emailRedirectTo: '${AppConfig.webUrl}/login?email_change=verified',
+    );
   }
 
   /// Change the login password (separate from the vault PIN).
