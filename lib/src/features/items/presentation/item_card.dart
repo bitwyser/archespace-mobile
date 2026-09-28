@@ -124,27 +124,23 @@ class _ItemCardState extends State<ItemCard> {
     final onDelete = widget.onDelete;
     final onExport = widget.onExport;
     final scheme = Theme.of(context).colorScheme;
-    // Border: a clear accent for a selected card (selection feedback), a
-    // softer accent for a pinned card, and a subtle default otherwise. In
-    // select mode only selection drives the accent, so a pinned item is not
-    // confused with a selected one.
-    final pinnedAccent = item.pinned && !selectMode && !selected;
-    final borderColor = selected
-        ? scheme.primary.withValues(alpha: 0.5)
-        : pinnedAccent
-        ? scheme.primary.withValues(alpha: 0.3)
-        : scheme.outlineVariant;
+    // Styled like a space card: borderless on a lighter surface with a soft
+    // shadow, and a soft accent border only when selected. Pinned is shown by
+    // the pin marker, so a pinned card has no border.
+    final borderSide = selected
+        ? BorderSide(color: scheme.primary.withValues(alpha: 0.4), width: 1.5)
+        : BorderSide.none;
     return Card(
       margin:
           widget.margin ??
           const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       clipBehavior: Clip.antiAlias,
-      // A step lighter than the page so the card reads as gently elevated
-      // (matching the web and the space cards).
-      color: scheme.surfaceContainerLow,
+      color: scheme.surfaceContainer,
+      elevation: 2,
+      shadowColor: Colors.black,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: borderColor, width: selected ? 2 : 1.5),
+        side: borderSide,
       ),
       child: InkWell(
         // A clamped (long, not yet expanded) body reveals itself in full on
@@ -156,7 +152,8 @@ class _ItemCardState extends State<ItemCard> {
             : onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          // A slightly tighter top keeps the header row compact.
+          padding: const EdgeInsets.fromLTRB(14, 11, 14, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
