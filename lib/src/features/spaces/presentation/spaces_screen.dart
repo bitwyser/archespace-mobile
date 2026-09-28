@@ -283,19 +283,6 @@ class _SpacesScreenState extends State<SpacesScreen>
     }
   }
 
-  /// The list view holds spaces then items in one reorderable list; a drag
-  /// only reorders within its own group, and one across the boundary snaps
-  /// back. `newIndex` is already adjusted for the removed entry.
-  void _onReorderCombined(int oldIndex, int newIndex, int spaceCount) {
-    if (oldIndex < spaceCount && newIndex < spaceCount) {
-      _onReorder(oldIndex, newIndex);
-    } else if (oldIndex >= spaceCount && newIndex >= spaceCount) {
-      _onReorderItems(oldIndex - spaceCount, newIndex - spaceCount);
-    } else {
-      setState(() {});
-    }
-  }
-
   /// Reorder by space id (used by the grid's drag-and-drop): move [fromId] into
   /// [toId]'s slot and persist the new order.
   void _moveSpaceById(String fromId, String toId) {
@@ -674,14 +661,15 @@ class _SpacesScreenState extends State<SpacesScreen>
     );
   }
 
-  Widget _buildSpacesHeader(BuildContext context) {
+  /// The controls row, titled with the first section's name ([title]).
+  Widget _buildSpacesHeader(BuildContext context, String title) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(left: 16, right: 4, top: 2, bottom: 4),
       child: Row(
         children: [
           Text(
-            'Spaces',
+            title,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -766,8 +754,13 @@ class _SpacesScreenState extends State<SpacesScreen>
     // The count/actions header and tag filter scroll with the list, and are
     // hidden while selecting (the app bar shows the selection state instead).
     final headerChildren = <Widget>[];
+    // Spaces and items are separate sections under the shared controls: the
+    // header names the first section, and an "Items" label starts the second
+    // only when both show.
+    final bothSections = spaces.isNotEmpty && items.isNotEmpty;
+    final firstLabel = spaces.isNotEmpty || items.isEmpty ? 'Spaces' : 'Items';
     if (!_selectMode) {
-      headerChildren.add(_buildSpacesHeader(context));
+      headerChildren.add(_buildSpacesHeader(context, firstLabel));
       if (allTags.isNotEmpty) headerChildren.add(_tagFilterBar(allTags));
       // A tag filter that matches nothing gets a clear note (keeping the tag
       // bar above it reachable), matching the space detail screen.
@@ -783,40 +776,85 @@ class _SpacesScreenState extends State<SpacesScreen>
             children: headerChildren,
           );
 
-    // Spaces first, then dashboard items, in one list (as inside a space).
-    return _view == 'grid'
-        ? _grid(spaces, items, header: header)
-        : ReorderableListView.builder(
-            header: header,
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(top: 4, bottom: 88),
-            buildDefaultDragHandles: _canReorder,
-            onReorderItem: (oldIndex, newIndex) =>
-                _onReorderCombined(oldIndex, newIndex, spaces.length),
-            itemCount: spaces.length + items.length,
-            itemBuilder: (context, index) {
-              if (index < spaces.length) {
-                return KeyedSubtree(
-                  key: ValueKey('space-${spaces[index].id}'),
-                  child: _spaceCard(spaces[index]),
-                );
-              }
-              final item = items[index - spaces.length];
-              return _highlightable(
+    if (_view == 'grid') {
+      return _grid(spaces, items, header: header, labelItems: bothSections);
+    }
+    // List view: two reorderable lists (spaces, then items), each reordering
+    // within itself on long press, with the "Items" label between them.
+    final canReorder = _canReorder;
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        if (header != null) SliverToBoxAdapter(child: header),
+        const SliverToBoxAdapter(child: SizedBox(height: 4)),
+        SliverReorderableList(
+          itemCount: spaces.length,
+          onReorderItem: _onReorder,
+          proxyDecorator: _proxyDecorator,
+          itemBuilder: (context, index) => ReorderableDelayedDragStartListener(
+            key: ValueKey('space-${spaces[index].id}'),
+            index: index,
+            enabled: canReorder,
+            child: _spaceCard(spaces[index]),
+          ),
+        ),
+        if (bothSections)
+          SliverToBoxAdapter(child: _sectionLabel(context, 'Items')),
+        SliverReorderableList(
+          itemCount: items.length,
+          onReorderItem: _onReorderItems,
+          proxyDecorator: _proxyDecorator,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return ReorderableDelayedDragStartListener(
+              key: ValueKey('item-${item.id}'),
+              index: index,
+              enabled: canReorder,
+              child: _highlightable(
                 item,
-                key: ValueKey('item-${item.id}'),
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 child: _itemCard(item, margin: EdgeInsets.zero),
-              );
-            },
-          );
+              ),
+            );
+          },
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 88)),
+      ],
+    );
   }
+
+  /// A section title between spaces and items, styled like the header title.
+  Widget _sectionLabel(BuildContext context, String text) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
+    child: Text(
+      text,
+      style: Theme.of(
+        context,
+      ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+    ),
+  );
+
+  /// Lifts the card being dragged, as ReorderableListView does.
+  Widget _proxyDecorator(
+    Widget child,
+    int index,
+    Animation<double> animation,
+  ) => AnimatedBuilder(
+    animation: animation,
+    builder: (context, child) => Material(
+      elevation: 6 * Curves.easeInOut.transform(animation.value),
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: child,
+    ),
+    child: child,
+  );
 
   /// Wraps an item card so it can be scrolled to and briefly highlighted
   /// after being picked in search.
   Widget _highlightable(
     SpaceItem item, {
-    required Key key,
+    Key? key,
     required EdgeInsetsGeometry margin,
     required Widget child,
   }) {
@@ -846,26 +884,18 @@ class _SpacesScreenState extends State<SpacesScreen>
     );
   }
 
-  /// Two-column masonry grid of spaces then items. Cards keep their natural
-  /// height (round-robin distribution); when reordering is allowed each space
-  /// is a long-press draggable and a drop target, persisting the new order
-  /// like the list view. Items don't reorder here (as inside a space).
-  Widget _grid(List<Space> spaces, List<SpaceItem> items, {Widget? header}) {
+  /// Two-column masonry grid: a spaces section, then an items section (each
+  /// starts on its own row). Cards keep their natural height (round-robin
+  /// distribution); when reordering is allowed each space is a long-press
+  /// draggable and a drop target, persisting the new order like the list view.
+  /// Items don't reorder here (as inside a space).
+  Widget _grid(
+    List<Space> spaces,
+    List<SpaceItem> items, {
+    Widget? header,
+    bool labelItems = false,
+  }) {
     final canReorder = _canReorder;
-    final cards = <Widget>[
-      for (final s in spaces) _gridCard(s, canReorder),
-      for (final i in items)
-        _highlightable(
-          i,
-          key: ValueKey('item-${i.id}'),
-          margin: EdgeInsets.zero,
-          child: _itemCard(i, margin: const EdgeInsets.all(2), grid: true),
-        ),
-    ];
-    final columns = <List<Widget>>[<Widget>[], <Widget>[]];
-    for (var i = 0; i < cards.length; i++) {
-      columns[i % 2].add(cards[i]);
-    }
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(6, 6, 6, 88),
@@ -873,15 +903,40 @@ class _SpacesScreenState extends State<SpacesScreen>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ?header,
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: Column(children: columns[0])),
-              Expanded(child: Column(children: columns[1])),
-            ],
-          ),
+          if (spaces.isNotEmpty)
+            _masonry([for (final s in spaces) _gridCard(s, canReorder)]),
+          if (labelItems) _sectionLabel(context, 'Items'),
+          if (items.isNotEmpty)
+            _masonry([
+              for (final i in items)
+                _highlightable(
+                  i,
+                  key: ValueKey('item-${i.id}'),
+                  margin: EdgeInsets.zero,
+                  child: _itemCard(
+                    i,
+                    margin: const EdgeInsets.all(2),
+                    grid: true,
+                  ),
+                ),
+            ]),
         ],
       ),
+    );
+  }
+
+  /// Two columns, cards distributed round-robin.
+  Widget _masonry(List<Widget> cards) {
+    final columns = <List<Widget>>[<Widget>[], <Widget>[]];
+    for (var i = 0; i < cards.length; i++) {
+      columns[i % 2].add(cards[i]);
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: Column(children: columns[0])),
+        Expanded(child: Column(children: columns[1])),
+      ],
     );
   }
 

@@ -574,10 +574,14 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
     // filter, any sub-spaces, and a no-match note all ride in the list header.
     final noMatch =
         items.isEmpty && (query.isNotEmpty || _activeTags.isNotEmpty);
+    // Sub-spaces and items are separate sections, labelled only when both show.
+    final labelSections = subSection != null && items.isNotEmpty;
     final headerChildren = <Widget>[
       if (!_selectMode && all.isNotEmpty) _buildItemsHeader(context),
       if (!_selectMode && allTags.isNotEmpty) _tagFilterBar(allTags),
+      if (labelSections) _sectionLabel('Spaces'),
       ?subSection,
+      if (labelSections) _sectionLabel('Items'),
       if (noMatch) _noMatchNote(query),
     ];
     final header = headerChildren.isEmpty
@@ -624,6 +628,17 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
             },
           );
   }
+
+  /// A section title (sub-spaces / items) in the scrolling header.
+  Widget _sectionLabel(String text) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+    child: Text(
+      text,
+      style: Theme.of(
+        context,
+      ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+    ),
+  );
 
   /// A compact inline note shown in the scrolling header when a search or tag
   /// filter matches nothing (keeps the search bar above it accessible).
