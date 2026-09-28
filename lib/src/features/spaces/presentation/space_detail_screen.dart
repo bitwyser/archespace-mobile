@@ -824,6 +824,11 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       );
     }
     final allTags = <String>{for (final i in all) ...i.tags}.toList()..sort();
+    // Drop selected tags that no item carries any more (e.g. the tag was just
+    // removed, deleted or moved away with its item). Otherwise the filter
+    // would match nothing and the space would look empty, with no pill left
+    // to deselect.
+    _activeTags.removeWhere((t) => !allTags.contains(t));
     final query = _query.trim().toLowerCase();
     final filtered = all.where((i) {
       if (_activeTags.isNotEmpty && !i.tags.any(_activeTags.contains)) {
