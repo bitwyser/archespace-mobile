@@ -1,0 +1,333 @@
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
+
+import 'package:archespace_mobile/src/features/items/data/item_repository.dart';
+import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
+import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
+import 'package:archespace_mobile/src/features/items/presentation/item_editor_screen.dart';
+import 'package:archespace_mobile/src/features/spaces/data/space_repository.dart';
+import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
+import 'package:archespace_mobile/src/features/storage/application/storage_counts.dart';
+import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
+import 'package:archespace_mobile/src/shared/export/pdf_exporter.dart';
+import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
+import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
+
+/// Where items can be moved: a space, or the dashboard when [id] is null.
+typedef MoveTarget = ({String? id, String name});
+
+/// Item actions shared by a space's screen and the dashboard: open to edit,
+/// pin, duplicate, move (to another space or the dashboard), archive and
+/// move-to-bin with undo, tags, PDF export, and the add-item sheet.
+///
+/// The host says which items it shows ([itemsSpaceId]: a space, or null for
+/// the dashboard's items that belong to no space) and how to refresh after a
+/// change ([reloadItems]).
+mixin ItemActions<T extends StatefulWidget> on State<T> {
+  /// The space whose items this screen shows, or null for the dashboard.
+  String? get itemsSpaceId;
+
+  /// Reload the screen's data after an item changed.
+  Future<void> reloadItems();
+
+  ItemRepository get _repo => ItemRepository(VaultSession.instance.masterKey);
+
+  void showItemError(String message) {
+    if (mounted) showErrorSnack(context, message);
+  }
+
+  Future<void> editItem(SpaceItem item) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ItemEditorScreen(
+          spaceId: itemsSpaceId,
+          type: item.type,
+          existing: item,
+        ),
+      ),
+    );
+    if (saved == true && mounted) reloadItems();
+  }
+
+  Future<void> addItem(String type) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ItemEditorScreen(spaceId: itemsSpaceId, type: type),
+      ),
+    );
+    if (saved == true && mounted) reloadItems();
+  }
+
+  /// The add sheet: every editable item type. When [onNewSpace] is given (the
+  /// dashboard), a "Space" entry leads the list so one button creates either.
+  void openAddItemSheet({VoidCallback? onNewSpace}) {
+    // Scroll-controlled with a fixed ~70% height so it opens taller than the
+    // default half sheet but not full screen; the list scrolls within it. The
+    // tiles are dense to keep the menu compact.
+    Widget tile({
+      required IconData icon,
+      required Color color,
+      required String label,
+      required String description,
+      required VoidCallback onTap,
+    }) => ListTile(
+      visualDensity: VisualDensity.compact,
+      leading: Container(
+        width: 38,
+        height: 38,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
+      title: Text(
+        label,
+        style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
+      ),
+      subtitle: Text(description),
+      onTap: onTap,
+    );
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SizedBox(
+        height: MediaQuery.sizeOf(sheetContext).height * 0.7,
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 8),
+            children: [
+              if (onNewSpace != null) ...[
+                tile(
+                  icon: Icons.create_new_folder_outlined,
+                  color: Theme.of(sheetContext).colorScheme.primary,
+                  label: 'Space',
+                  description: 'A container to group related items',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    onNewSpace();
+                  },
+                ),
+                const Divider(indent: 16, endIndent: 16),
+              ],
+              for (final def in kItemTypes.where((d) => d.editable))
+                tile(
+                  icon: def.icon,
+                  color: def.color,
+                  label: def.label,
+                  description: def.description,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    addItem(def.type);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> togglePinItem(SpaceItem item) async {
+    try {
+      await _repo.setPinned(item.id, !item.pinned);
+      if (mounted) reloadItems();
+    } catch (_) {
+      showItemError("Couldn't update the item.");
+    }
+  }
+
+  Future<void> duplicateItem(SpaceItem item) async {
+    try {
+      await _repo.duplicateItem(itemsSpaceId, item);
+      if (mounted) {
+        reloadItems();
+        showSuccessSnack(context, 'Item duplicated');
+      }
+    } catch (_) {
+      showItemError("Couldn't duplicate the item.");
+    }
+  }
+
+  /// Ask where to move items: another space, or - from inside a space - the
+  /// dashboard. Null when cancelled or there's nowhere to go.
+  Future<MoveTarget?> pickMoveTarget() async {
+    List<Space> spaces;
+    try {
+      spaces = (await SpaceRepository(
+        VaultSession.instance.masterKey,
+      ).listSpaces()).spaces;
+    } catch (_) {
+      showItemError("Couldn't load spaces.");
+      return null;
+    }
+    final destinations = spaces.where((s) => s.id != itemsSpaceId).toList();
+    final canMoveToDashboard = itemsSpaceId != null;
+    if (!mounted) return null;
+    if (destinations.isEmpty && !canMoveToDashboard) {
+      showItemError('No space to move to.');
+      return null;
+    }
+    return showModalBottomSheet<MoveTarget>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Text(
+                'Move to',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            if (canMoveToDashboard)
+              ListTile(
+                leading: const Icon(Icons.dashboard_outlined),
+                title: const Text('Dashboard'),
+                subtitle: const Text('Outside any space'),
+                onTap: () =>
+                    Navigator.pop(sheetContext, (id: null, name: 'Dashboard')),
+              ),
+            for (final s in destinations)
+              ListTile(
+                leading: const Icon(Icons.folder_outlined),
+                title: Text(s.name.isEmpty ? 'Untitled' : s.name),
+                onTap: () => Navigator.pop(sheetContext, (
+                  id: s.id,
+                  name: s.name.isEmpty ? 'Untitled' : s.name,
+                )),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> moveItem(SpaceItem item) async {
+    final target = await pickMoveTarget();
+    if (target == null) return;
+    try {
+      await _repo.moveItem(item.id, target.id);
+      if (mounted) {
+        reloadItems();
+        showSuccessSnack(context, 'Moved to ${target.name}');
+      }
+    } catch (_) {
+      showItemError("Couldn't move the item.");
+    }
+  }
+
+  /// Undo an archive or move-to-bin for the given items.
+  Future<void> restoreItems(List<String> ids) async {
+    try {
+      await _repo.restoreItems(ids);
+      StorageCounts.instance.refresh();
+      if (mounted) reloadItems();
+    } catch (_) {
+      if (mounted) showErrorSnack(context, "Couldn't undo that.");
+    }
+  }
+
+  Future<void> archiveItem(SpaceItem item) async {
+    try {
+      await _repo.archiveItem(item.id);
+      StorageCounts.instance.refresh();
+      if (mounted) {
+        reloadItems();
+        showUndoSnack(context, 'Item archived', () => restoreItems([item.id]));
+      }
+    } catch (_) {
+      showItemError("Couldn't archive the item.");
+    }
+  }
+
+  Future<void> deleteItem(SpaceItem item) async {
+    final name = item.title.isEmpty ? 'this item' : '"${item.title}"';
+    final ok = await confirmAction(
+      context,
+      title: 'Move item to bin?',
+      message: '$name will be moved to the recycle bin.',
+      confirmLabel: 'Move to bin',
+    );
+    if (!ok) return;
+    try {
+      await _repo.deleteItem(item.id);
+      StorageCounts.instance.refresh();
+      if (mounted) {
+        reloadItems();
+        showUndoSnack(
+          context,
+          'Item moved to bin',
+          () => restoreItems([item.id]),
+        );
+      }
+    } catch (_) {
+      showItemError("Couldn't delete the item.");
+    }
+  }
+
+  /// Save an item's tags. The host updates its list optimistically first; on
+  /// failure this reloads to revert to the server's truth.
+  Future<void> persistItemTags(SpaceItem item, List<String> tags) async {
+    try {
+      await _repo.setTags(item.id, tags);
+    } catch (_) {
+      if (mounted) reloadItems();
+    }
+  }
+
+  /// A copy of [item] with new [tags] (for the optimistic tags update).
+  SpaceItem itemWithTags(SpaceItem item, List<String> tags) => SpaceItem(
+    id: item.id,
+    type: item.type,
+    title: item.title,
+    content: item.content,
+    pinned: item.pinned,
+    tags: tags,
+    createdAt: item.createdAt,
+  );
+
+  String pdfFileName(String name) {
+    final safe = name.trim().replaceAll(RegExp(r'[^A-Za-z0-9._ -]'), '_');
+    return '${safe.isEmpty ? 'export' : safe}.pdf';
+  }
+
+  Future<void> exportItem(SpaceItem item) => exportPdf(
+    build: () => PdfExporter.buildItem(item),
+    filename: pdfFileName(item.title),
+    label: 'item',
+  );
+
+  /// Build the PDF behind a progress spinner (so a large space doesn't look
+  /// like a frozen screen), then hand it to the share sheet. Any failure is
+  /// surfaced instead of silently doing nothing.
+  Future<void> exportPdf({
+    required Future<Uint8List> Function() build,
+    required String filename,
+    required String label,
+  }) async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      // Yield a frame so the spinner paints before the (synchronous) PDF build.
+      await Future<void>.delayed(Duration.zero);
+      final bytes = await build();
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+      await Printing.sharePdf(bytes: bytes, filename: filename);
+    } catch (e) {
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+      showItemError("Couldn't export the $label: $e");
+    }
+  }
+}

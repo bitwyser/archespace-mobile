@@ -6,9 +6,10 @@ import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/shared/crypto/arche_crypto.dart';
 
 /// JSON backup export/import, matching the web format: a versioned envelope
-/// `{ app, version, exportedAt, spaces: [...] }` where each space carries its
-/// decrypted fields and an `items` array of decrypted items ({ type, title,
-/// content, position, pinned }). Import also accepts the older bare-array format.
+/// `{ app, version, exportedAt, spaces: [...], items: [...] }` where each space
+/// carries its decrypted fields and an `items` array of decrypted items ({ type,
+/// title, content, position, pinned }), and the top-level `items` are the
+/// dashboard's (no space). Import also accepts the older bare-array format.
 class BackupRepository {
   BackupRepository(this._masterKey);
 
@@ -45,6 +46,33 @@ class BackupRepository {
     return {};
   }
 
+  /// Active items of one space, or the dashboard's items (no space) for `null`,
+  /// decrypted for the backup.
+  Future<List<Map<String, dynamic>>> _exportItems(String? spaceId) async {
+    final query = _client
+        .from('space_items')
+        .select('type, title, content, position, pinned');
+    final itemRows =
+        await (spaceId == null
+                ? query.isFilter('space_id', null)
+                : query.eq('space_id', spaceId))
+            .isFilter('deleted_at', null)
+            .isFilter('archived_at', null)
+            .order('position');
+
+    final items = <Map<String, dynamic>>[];
+    for (final it in itemRows) {
+      items.add({
+        'type': it['type'],
+        'title': await _dec(it['title']),
+        'content': await _decContent(it['content']),
+        'position': it['position'],
+        'pinned': it['pinned'] ?? false,
+      });
+    }
+    return items;
+  }
+
   /// Build the backup JSON (active spaces + items, decrypted).
   Future<String> exportJson() async {
     final spaceRows = await _client
@@ -56,25 +84,6 @@ class BackupRepository {
 
     final out = <Map<String, dynamic>>[];
     for (final s in spaceRows) {
-      final itemRows = await _client
-          .from('space_items')
-          .select('type, title, content, position, pinned')
-          .eq('space_id', s['id'] as String)
-          .isFilter('deleted_at', null)
-          .isFilter('archived_at', null)
-          .order('position');
-
-      final items = <Map<String, dynamic>>[];
-      for (final it in itemRows) {
-        items.add({
-          'type': it['type'],
-          'title': await _dec(it['title']),
-          'content': await _decContent(it['content']),
-          'position': it['position'],
-          'pinned': it['pinned'] ?? false,
-        });
-      }
-
       out.add({
         'name': await _dec(s['name']),
         'description': await _dec(s['description']),
@@ -82,7 +91,7 @@ class BackupRepository {
         'tags': await _decTags(s['tags']),
         'pinned': s['pinned'] ?? false,
         'position': s['position'],
-        'items': items,
+        'items': await _exportItems(s['id'] as String),
       });
     }
     final payload = {
@@ -90,8 +99,54 @@ class BackupRepository {
       'version': 2,
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
       'spaces': out,
+      // Items that live on the dashboard, outside any space. Optional: older
+      // backups don't have it, and older app versions ignore it.
+      'items': await _exportItems(null),
     };
     return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
+  /// Validate, encrypt and insert a backup's items into a space, or onto the
+  /// dashboard for a `null` [spaceId]. Items with an unknown type or malformed
+  /// content are skipped rather than failing the import.
+  Future<({int imported, int skipped})> _importItems(
+    List<dynamic> items,
+    String? spaceId,
+    String userId,
+    Set<String> knownTypes,
+  ) async {
+    var skipped = 0;
+    final rows = <Map<String, dynamic>>[];
+    for (final it in items) {
+      if (it is! Map) {
+        skipped++;
+        continue;
+      }
+      final type = it['type'];
+      if (type is! String || !knownTypes.contains(type)) {
+        skipped++;
+        continue;
+      }
+      final content = it['content'];
+      if (content is! Map) {
+        skipped++;
+        continue;
+      }
+      final title = it['title'] is String ? (it['title'] as String).trim() : '';
+      rows.add({
+        'space_id': spaceId,
+        'user_id': userId,
+        'type': type,
+        'title': await _enc(title),
+        'content': await _encJson(content),
+        'position': it['position'] is int ? it['position'] : rows.length,
+        'pinned': it['pinned'] == true,
+      });
+    }
+    if (rows.isNotEmpty) {
+      await _client.from('space_items').insert(rows);
+    }
+    return (imported: rows.length, skipped: skipped);
   }
 
   /// Import a backup: encrypt and insert new spaces + items. Accepts the current
@@ -158,39 +213,21 @@ class BackupRepository {
 
       final items = raw['items'];
       if (items is! List) continue;
+      final result = await _importItems(items, spaceId, userId, knownTypes);
+      itemsImported += result.imported;
+      itemsSkipped += result.skipped;
+    }
 
-      final rows = <Map<String, dynamic>>[];
-      for (final it in items) {
-        if (it is! Map) {
-          itemsSkipped++;
-          continue;
-        }
-        final type = it['type'];
-        if (type is! String || !knownTypes.contains(type)) {
-          itemsSkipped++;
-          continue;
-        }
-        final content = it['content'];
-        if (content is! Map) {
-          itemsSkipped++;
-          continue;
-        }
-        final title = it['title'] is String
-            ? (it['title'] as String).trim()
-            : '';
-        rows.add({
-          'space_id': spaceId,
-          'type': type,
-          'title': await _enc(title),
-          'content': await _encJson(content),
-          'position': it['position'] is int ? it['position'] : rows.length,
-          'pinned': it['pinned'] == true,
-        });
-      }
-      if (rows.isNotEmpty) {
-        await _client.from('space_items').insert(rows);
-        itemsImported += rows.length;
-      }
+    // Dashboard items (outside any space), present in newer backups only.
+    if (parsed is Map && parsed['items'] is List) {
+      final result = await _importItems(
+        parsed['items'] as List,
+        null,
+        userId,
+        knownTypes,
+      );
+      itemsImported += result.imported;
+      itemsSkipped += result.skipped;
     }
     return (
       spaces: spacesImported,

@@ -1,14 +1,11 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
-import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:archespace_mobile/src/features/items/data/item_repository.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
+import 'package:archespace_mobile/src/features/items/presentation/item_actions.dart';
 import 'package:archespace_mobile/src/features/items/presentation/item_card.dart';
-import 'package:archespace_mobile/src/features/items/presentation/item_editor_screen.dart';
 import 'package:archespace_mobile/src/features/spaces/data/space_repository.dart';
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_editor_screen.dart';
@@ -39,7 +36,14 @@ class SpaceDetailScreen extends StatefulWidget {
   State<SpaceDetailScreen> createState() => _SpaceDetailScreenState();
 }
 
-class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
+class _SpaceDetailScreenState extends State<SpaceDetailScreen>
+    with ItemActions<SpaceDetailScreen> {
+  @override
+  String? get itemsSpaceId => widget.space.id;
+
+  @override
+  Future<void> reloadItems() => _load();
+
   List<SpaceItem>? _items;
   List<Space> _subSpaces = const [];
   Object? _error;
@@ -211,19 +215,6 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
     onDelete: () => _deleteSubSpace(sub),
   );
 
-  Future<void> _editItem(SpaceItem item) async {
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => ItemEditorScreen(
-          spaceId: widget.space.id,
-          type: item.type,
-          existing: item,
-        ),
-      ),
-    );
-    if (saved == true && mounted) _load();
-  }
-
   // ── Selection mode ──
   void _enterSelect() => setState(() => _selectMode = true);
 
@@ -290,17 +281,6 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
     }
   }
 
-  /// Undo an archive or move-to-bin for the given items.
-  Future<void> _restoreItems(List<String> ids) async {
-    try {
-      await ItemRepository(VaultSession.instance.masterKey).restoreItems(ids);
-      StorageCounts.instance.refresh();
-      if (mounted) _load();
-    } catch (_) {
-      if (mounted) showErrorSnack(context, "Couldn't undo that.");
-    }
-  }
-
   Future<void> _bulkArchiveItems() async {
     final ids = _selected.toList();
     if (ids.isEmpty) return;
@@ -310,7 +290,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       showUndoSnack(
         context,
         '${ids.length} ${ids.length == 1 ? 'item' : 'items'} archived',
-        () => _restoreItems(ids),
+        () => restoreItems(ids),
       );
     }
   }
@@ -323,282 +303,25 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       showUndoSnack(
         context,
         '${ids.length} ${ids.length == 1 ? 'item' : 'items'} moved to bin',
-        () => _restoreItems(ids),
+        () => restoreItems(ids),
       );
     }
   }
 
   Future<void> _bulkMoveItems() async {
-    List<Space> spaces;
-    try {
-      spaces = (await SpaceRepository(
-        VaultSession.instance.masterKey,
-      ).listSpaces()).spaces;
-    } catch (_) {
-      _showError("Couldn't load spaces.");
-      return;
-    }
-    final destinations = spaces.where((s) => s.id != widget.space.id).toList();
-    if (!mounted) return;
-    if (destinations.isEmpty) {
-      _showError('No other space to move to.');
-      return;
-    }
-    final target = await showModalBottomSheet<Space>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Text(
-                'Move to space',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-            for (final s in destinations)
-              ListTile(
-                leading: const Icon(Icons.folder_outlined),
-                title: Text(s.name.isEmpty ? 'Untitled' : s.name),
-                onTap: () => Navigator.pop(sheetContext, s),
-              ),
-          ],
-        ),
-      ),
-    );
+    final target = await pickMoveTarget();
     if (target == null) return;
     final ids = _selected.toList();
     await _runBulk((r) => r.bulkMove(ids, target.id));
   }
 
-  Future<void> _togglePinItem(SpaceItem item) async {
-    try {
-      await ItemRepository(
-        VaultSession.instance.masterKey,
-      ).setPinned(item.id, !item.pinned);
-      if (mounted) _load();
-    } catch (_) {
-      _showError("Couldn't update the item.");
-    }
-  }
+  void _showError(String message) => showItemError(message);
 
-  Future<void> _duplicateItem(SpaceItem item) async {
-    try {
-      await ItemRepository(
-        VaultSession.instance.masterKey,
-      ).duplicateItem(widget.space.id, item);
-      if (mounted) {
-        _load();
-        showSuccessSnack(context, 'Item duplicated');
-      }
-    } catch (_) {
-      _showError("Couldn't duplicate the item.");
-    }
-  }
-
-  Future<void> _moveItem(SpaceItem item) async {
-    List<Space> spaces;
-    try {
-      spaces = (await SpaceRepository(
-        VaultSession.instance.masterKey,
-      ).listSpaces()).spaces;
-    } catch (_) {
-      _showError("Couldn't load spaces.");
-      return;
-    }
-    final destinations = spaces.where((s) => s.id != widget.space.id).toList();
-    if (!mounted) return;
-    if (destinations.isEmpty) {
-      _showError('No other space to move to.');
-      return;
-    }
-    final target = await showModalBottomSheet<Space>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Text(
-                'Move to space',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-            for (final s in destinations)
-              ListTile(
-                leading: const Icon(Icons.folder_outlined),
-                title: Text(s.name.isEmpty ? 'Untitled' : s.name),
-                onTap: () => Navigator.pop(sheetContext, s),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (target == null) return;
-    try {
-      await ItemRepository(
-        VaultSession.instance.masterKey,
-      ).moveItem(item.id, target.id);
-      if (mounted) {
-        _load();
-        showSuccessSnack(context, 'Moved to ${target.name}');
-      }
-    } catch (_) {
-      _showError("Couldn't move the item.");
-    }
-  }
-
-  Future<void> _archiveItem(SpaceItem item) async {
-    try {
-      await ItemRepository(
-        VaultSession.instance.masterKey,
-      ).archiveItem(item.id);
-      StorageCounts.instance.refresh();
-      if (mounted) {
-        _load();
-        showUndoSnack(
-          context,
-          'Item archived',
-          () => _restoreItems([item.id]),
-        );
-      }
-    } catch (_) {
-      _showError("Couldn't archive the item.");
-    }
-  }
-
-  Future<void> _deleteItem(SpaceItem item) async {
-    final name = item.title.isEmpty ? 'this item' : '"${item.title}"';
-    final ok = await confirmAction(
-      context,
-      title: 'Move item to bin?',
-      message: '$name will be moved to the recycle bin.',
-      confirmLabel: 'Move to bin',
-    );
-    if (!ok) return;
-    try {
-      await ItemRepository(VaultSession.instance.masterKey).deleteItem(item.id);
-      StorageCounts.instance.refresh();
-      if (mounted) {
-        _load();
-        showUndoSnack(
-          context,
-          'Item moved to bin',
-          () => _restoreItems([item.id]),
-        );
-      }
-    } catch (_) {
-      _showError("Couldn't delete the item.");
-    }
-  }
-
-  void _showError(String message) {
-    if (mounted) showErrorSnack(context, message);
-  }
-
-  String _fileName(String name) {
-    final safe = name.trim().replaceAll(RegExp(r'[^A-Za-z0-9._ -]'), '_');
-    return '${safe.isEmpty ? 'export' : safe}.pdf';
-  }
-
-  Future<void> _exportSpace() => _export(
+  Future<void> _exportSpace() => exportPdf(
     build: () => PdfExporter.buildSpace(widget.space.name, _items ?? const []),
-    filename: _fileName(widget.space.name),
+    filename: pdfFileName(widget.space.name),
     label: 'space',
   );
-
-  Future<void> _exportItem(SpaceItem item) => _export(
-    build: () => PdfExporter.buildItem(item),
-    filename: _fileName(item.title),
-    label: 'item',
-  );
-
-  /// Build the PDF behind a progress spinner (so a large space doesn't look
-  /// like a frozen screen), then hand it to the share sheet. Any failure is
-  /// surfaced instead of silently doing nothing.
-  Future<void> _export({
-    required Future<Uint8List> Function() build,
-    required String filename,
-    required String label,
-  }) async {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-    try {
-      // Yield a frame so the spinner paints before the (synchronous) PDF build.
-      await Future<void>.delayed(Duration.zero);
-      final bytes = await build();
-      if (mounted) Navigator.of(context, rootNavigator: true).pop();
-      await Printing.sharePdf(bytes: bytes, filename: filename);
-    } catch (e) {
-      if (mounted) Navigator.of(context, rootNavigator: true).pop();
-      _showError("Couldn't export the $label: $e");
-    }
-  }
-
-  Future<void> _addItem(String type) async {
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => ItemEditorScreen(spaceId: widget.space.id, type: type),
-      ),
-    );
-    if (saved == true && mounted) _load();
-  }
-
-  void _openAddSheet() {
-    // Scroll-controlled with a fixed ~70% height so it opens taller than the
-    // default half sheet but not full screen; the list scrolls within it. The
-    // tiles are dense to keep the menu compact.
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheetContext) => SizedBox(
-        height: MediaQuery.sizeOf(sheetContext).height * 0.7,
-        child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: 8),
-            children: [
-              for (final def in kItemTypes.where((d) => d.editable))
-                ListTile(
-                  visualDensity: VisualDensity.compact,
-                  leading: Container(
-                    width: 38,
-                    height: 38,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: def.color.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(def.icon, color: def.color, size: 20),
-                  ),
-                  title: Text(
-                    def.label,
-                    style: const TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: Text(def.description),
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _addItem(def.type);
-                  },
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   /// A compact app-bar icon action with a consistent circular tap splash.
   Widget _barAction(
@@ -619,8 +342,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
   /// the space name.
   List<Widget> _buildBarActions(bool hasItems) {
     // Sub-spaces are one level deep, so only a top-level space can create them.
-    final canCreateSubSpace =
-        _items != null && widget.space.parentId == null;
+    final canCreateSubSpace = _items != null && widget.space.parentId == null;
     return [
       if (canCreateSubSpace)
         _barAction(
@@ -737,7 +459,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       floatingActionButton: _selectMode
           ? null
           : FloatingActionButton(
-              onPressed: _openAddSheet,
+              onPressed: openAddItemSheet,
               tooltip: 'Add item',
               child: const Icon(Icons.add),
             ),
@@ -820,7 +542,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
         message: 'Add notes, lists, secrets, and more to this space.',
         actionLabel: 'Add item',
         actionIcon: Icons.add,
-        onAction: _openAddSheet,
+        onAction: openAddItemSheet,
       );
     }
     final allTags = <String>{for (final i in all) ...i.tags}.toList()..sort();
@@ -945,28 +667,10 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
     // Optimistic: reflect the change immediately, then persist.
     setState(() {
       _items = _items
-          ?.map(
-            (i) => i.id == item.id
-                ? SpaceItem(
-                    id: i.id,
-                    type: i.type,
-                    title: i.title,
-                    content: i.content,
-                    pinned: i.pinned,
-                    tags: tags,
-                    createdAt: i.createdAt,
-                  )
-                : i,
-          )
+          ?.map((i) => i.id == item.id ? itemWithTags(i, tags) : i)
           .toList();
     });
-    try {
-      await ItemRepository(
-        VaultSession.instance.masterKey,
-      ).setTags(item.id, tags);
-    } catch (_) {
-      if (mounted) _load(); // revert to server truth on failure
-    }
+    await persistItemTags(item, tags);
   }
 
   /// Two-column masonry grid: items are distributed round-robin so each keeps
@@ -1023,13 +727,13 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
     selectMode: _selectMode,
     selected: _selected.contains(item.id),
     onSelectToggle: () => _toggleSelect(item.id),
-    onTap: isEditableType(item.type) ? () => _editItem(item) : null,
-    onTogglePin: () => _togglePinItem(item),
-    onDuplicate: () => _duplicateItem(item),
-    onMove: () => _moveItem(item),
-    onArchive: () => _archiveItem(item),
-    onExport: () => _exportItem(item),
-    onDelete: () => _deleteItem(item),
+    onTap: isEditableType(item.type) ? () => editItem(item) : null,
+    onTogglePin: () => togglePinItem(item),
+    onDuplicate: () => duplicateItem(item),
+    onMove: () => moveItem(item),
+    onArchive: () => archiveItem(item),
+    onExport: () => exportItem(item),
+    onDelete: () => deleteItem(item),
     onSetTags: _offline ? null : (tags) => _setTags(item, tags),
   );
 }

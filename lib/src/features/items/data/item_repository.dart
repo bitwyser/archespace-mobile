@@ -8,7 +8,8 @@ import 'package:archespace_mobile/src/shared/data/cache_store.dart';
 import 'package:archespace_mobile/src/shared/offline/write_queue.dart';
 import 'package:archespace_mobile/src/shared/util/uuid.dart';
 
-/// Reads and decrypts the items in a space. The `title` column is an `arc1`
+/// Reads and decrypts the items in a space, or - for a `null` space id - the
+/// dashboard's items, which belong to no space. The `title` column is an `arc1`
 /// string and `content` is `arc1(JSON.stringify(obj))`; everything else is
 /// plain metadata. Mirrors the web `decryptItem` + default ordering.
 class ItemRepository {
@@ -18,25 +19,45 @@ class ItemRepository {
 
   SupabaseClient get _client => Supabase.instance.client;
 
-  /// Fetch a space's items, caching the encrypted rows; on a network error,
-  /// fall back to the cache. `fromCache` is true when the fallback was used.
+  /// Offline cache key for a space's items, or the dashboard's for `null`.
+  static String cacheKeyFor(String? spaceId) =>
+      'items_${spaceId ?? 'dashboard'}';
+
+  /// Restrict an items query to one space, or to the dashboard for `null`.
+  PostgrestFilterBuilder<T> _whereSpace<T>(
+    PostgrestFilterBuilder<T> query,
+    String? spaceId,
+  ) => spaceId == null
+      ? query.isFilter('space_id', null)
+      : query.eq('space_id', spaceId);
+
+  /// The owner, set explicitly on new rows: a dashboard item has no space for
+  /// the database trigger to derive it from.
+  String? get _userId => _client.auth.currentUser?.id;
+
+  /// Fetch a space's (or the dashboard's) items, caching the encrypted rows; on
+  /// a network error, fall back to the cache. `fromCache` is true when the
+  /// fallback was used.
   Future<({List<SpaceItem> items, bool fromCache})> listItems(
-    String spaceId,
+    String? spaceId,
   ) async {
-    final cacheKey = 'items_$spaceId';
+    final cacheKey = cacheKeyFor(spaceId);
     List<dynamic> rows;
     try {
-      rows = await _client
-          .from('space_items')
-          .select(
-            'id, type, title, content, tags, pinned, position, created_at',
-          )
-          .eq('space_id', spaceId)
-          .isFilter('deleted_at', null)
-          .isFilter('archived_at', null)
-          .order('pinned', ascending: false)
-          .order('position', ascending: true)
-          .timeout(const Duration(seconds: 8));
+      rows =
+          await _whereSpace(
+                _client
+                    .from('space_items')
+                    .select(
+                      'id, type, title, content, tags, pinned, position, created_at',
+                    ),
+                spaceId,
+              )
+              .isFilter('deleted_at', null)
+              .isFilter('archived_at', null)
+              .order('pinned', ascending: false)
+              .order('position', ascending: true)
+              .timeout(const Duration(seconds: 8));
       await CacheStore.write(cacheKey, rows);
       WriteQueue.instance.flush(); // network is up: drain any queued writes
     } catch (_) {
@@ -122,13 +143,13 @@ class ItemRepository {
   /// Re-encrypt and save an existing item's title + content. Queued offline.
   ///
   /// Goes through the write queue as an upsert, so the row must carry the
-  /// columns a fresh insert would need: `space_id` and `type` are NOT NULL with
-  /// no default (`user_id` is filled by a DB trigger from `space_id`). Without
+  /// columns a fresh insert would need: `type` and `user_id` are NOT NULL with
+  /// no default, plus the item's `space_id` (null for a dashboard item). Without
   /// them the upsert's insert path violates NOT NULL even when the row already
   /// exists, which surfaced as a misleading "could not save" error.
   Future<void> updateItem({
     required String id,
-    required String spaceId,
+    required String? spaceId,
     required String type,
     required String title,
     required Map<String, dynamic> content,
@@ -136,12 +157,13 @@ class ItemRepository {
     final row = {
       'id': id,
       'space_id': spaceId,
+      'user_id': ?_userId,
       'type': type,
       'title': await _encTitle(title),
       'content': await _encContent(content),
     };
     await WriteQueue.instance.upsert('space_items', row);
-    await CacheStore.upsertRow('items_$spaceId', row);
+    await CacheStore.upsertRow(cacheKeyFor(spaceId), row);
   }
 
   Future<void> setPinned(String id, bool pinned) async {
@@ -162,22 +184,21 @@ class ItemRepository {
         .eq('id', id);
   }
 
-  Future<int> _endPosition(String spaceId) async {
-    final existing = await _client
-        .from('space_items')
-        .select('id')
-        .eq('space_id', spaceId)
-        .isFilter('deleted_at', null)
-        .isFilter('archived_at', null);
+  Future<int> _endPosition(String? spaceId) async {
+    final existing = await _whereSpace(
+      _client.from('space_items').select('id'),
+      spaceId,
+    ).isFilter('deleted_at', null).isFilter('archived_at', null);
     return existing.length;
   }
 
-  Future<void> duplicateItem(String spaceId, SpaceItem item) async {
+  Future<void> duplicateItem(String? spaceId, SpaceItem item) async {
     final title = item.title.isEmpty
         ? 'Untitled (copy)'
         : '${item.title} (copy)';
     await _client.from('space_items').insert({
       'space_id': spaceId,
+      'user_id': ?_userId,
       'type': item.type,
       'title': await _encTitle(title),
       'content': await _encContent(item.content),
@@ -185,7 +206,8 @@ class ItemRepository {
     });
   }
 
-  Future<void> moveItem(String itemId, String targetSpaceId) async {
+  /// Move an item to another space, or to the dashboard for `null`.
+  Future<void> moveItem(String itemId, String? targetSpaceId) async {
     await _client
         .from('space_items')
         .update({
@@ -240,7 +262,8 @@ class ItemRepository {
         .inFilter('id', ids);
   }
 
-  Future<void> bulkMove(List<String> ids, String targetSpaceId) async {
+  /// Move items to another space, or to the dashboard for `null`.
+  Future<void> bulkMove(List<String> ids, String? targetSpaceId) async {
     var position = await _endPosition(targetSpaceId);
     for (final id in ids) {
       await _client
@@ -260,17 +283,18 @@ class ItemRepository {
   /// Creates an item and returns its new id (so callers can switch to update
   /// mode for subsequent saves, e.g. auto-save).
   Future<String> createItem({
-    required String spaceId,
+    required String? spaceId,
     required String type,
     String title = '',
     required Map<String, dynamic> content,
   }) async {
-    final cacheKey = 'items_$spaceId';
+    final cacheKey = cacheKeyFor(spaceId);
     final position = (await CacheStore.readRows(cacheKey)).length;
     final id = newUuid();
     final row = {
       'id': id,
       'space_id': spaceId,
+      'user_id': ?_userId,
       'type': type,
       'title': await _encTitle(title),
       'content': await _encContent(content),

@@ -20,7 +20,9 @@ class SearchHit {
 
   final bool isSpace;
   final String id;
-  final String spaceId;
+
+  /// The item's space, or null for a dashboard item (belongs to no space).
+  final String? spaceId;
   final String spaceName;
   final String title;
   final String type;
@@ -87,13 +89,15 @@ class SearchRepository {
       );
       final content = await _decodeContent(row['content']);
       final tags = await _decodeTags(row['tags']);
-      final spaceId = row['space_id'] as String;
+      final spaceId = row['space_id'] as String?;
       hits.add(
         SearchHit(
           isSpace: false,
           id: row['id'] as String,
           spaceId: spaceId,
-          spaceName: spaceNameById[spaceId] ?? '',
+          spaceName: spaceId == null
+              ? 'Dashboard'
+              : spaceNameById[spaceId] ?? '',
           title: title,
           type: type,
           haystack: '${_itemText(type, title, content)} ${tags.join(' ')}'

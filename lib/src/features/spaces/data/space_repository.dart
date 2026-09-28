@@ -45,7 +45,9 @@ class SpaceRepository {
       final total = <String, int>{};
       final pinned = <String, int>{};
       for (final r in itemRows) {
-        final sid = r['space_id'] as String;
+        // Dashboard items belong to no space, so they count toward none.
+        final sid = r['space_id'] as String?;
+        if (sid == null) continue;
         total[sid] = (total[sid] ?? 0) + 1;
         if (r['pinned'] == true) pinned[sid] = (pinned[sid] ?? 0) + 1;
       }

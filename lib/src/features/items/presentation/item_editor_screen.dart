@@ -30,7 +30,8 @@ class ItemEditorScreen extends StatefulWidget {
     this.existing,
   });
 
-  final String spaceId;
+  /// The item's space, or null for a dashboard item (belongs to no space).
+  final String? spaceId;
   final String type;
   final SpaceItem? existing;
 

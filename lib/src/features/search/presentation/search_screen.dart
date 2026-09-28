@@ -44,8 +44,15 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _open(SearchHit hit) {
+    final spaceId = hit.spaceId;
+    if (spaceId == null) {
+      // A dashboard item: return to the dashboard, which scrolls to and
+      // highlights it (search is opened from there).
+      Navigator.of(context).pop(hit.id);
+      return;
+    }
     final space = Space(
-      id: hit.spaceId,
+      id: spaceId,
       name: hit.spaceName.isEmpty ? hit.title : hit.spaceName,
       description: '',
       pinned: false,
