@@ -186,6 +186,9 @@ class _ItemCardState extends State<ItemCard> {
                     Builder(
                       builder: (context) {
                         final def = itemTypeDef(item.type)!;
+                        final color = def.colorFor(
+                          Theme.of(context).brightness,
+                        );
                         // A smaller badge in the compact grid cards.
                         final grid = widget.grid;
                         return Padding(
@@ -193,16 +196,16 @@ class _ItemCardState extends State<ItemCard> {
                           child: Container(
                             padding: EdgeInsets.all(grid ? 2 : 3),
                             decoration: BoxDecoration(
-                              color: def.color.withValues(alpha: 0.12),
+                              color: color.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(grid ? 5 : 6),
                               border: Border.all(
-                                color: def.color.withValues(alpha: 0.28),
+                                color: color.withValues(alpha: 0.28),
                               ),
                             ),
                             child: Icon(
                               def.icon,
                               size: grid ? 13 : 16,
-                              color: def.color,
+                              color: color,
                               semanticLabel: def.label,
                             ),
                           ),

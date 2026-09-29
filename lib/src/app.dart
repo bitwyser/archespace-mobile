@@ -41,10 +41,12 @@ class ArcheApp extends StatelessWidget {
   /// otherwise draws a stadium-shaped state layer), so all action buttons and
   /// the 3-dot menus look consistent.
   static ThemeData _theme(Color accent, Brightness brightness) {
-    final scheme = ColorScheme.fromSeed(
+    final seeded = ColorScheme.fromSeed(
       seedColor: accent,
       brightness: brightness,
     );
+    final light = brightness == Brightness.light;
+    final scheme = light ? _lightNeutrals(seeded, accent) : seeded;
     return ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
@@ -65,7 +67,8 @@ class ArcheApp extends StatelessWidget {
       // than the cards' surfaceContainer, a real shadow, and a hairline border
       // so the menu is clearly distinguishable from the content behind it.
       popupMenuTheme: PopupMenuThemeData(
-        color: scheme.surfaceContainerHighest,
+        // White on light (cards are white too; shadow + hairline set it off).
+        color: light ? Colors.white : scheme.surfaceContainerHighest,
         elevation: 8,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
@@ -84,6 +87,41 @@ class ArcheApp extends StatelessWidget {
           borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
       ),
+    );
+  }
+
+  /// Deeper light-mode shade of each accent (same hue, about 5:1 on white),
+  /// matching the web. The bright accents wash out on a light background.
+  static const Map<int, Color> _lightAccents = {
+    0xFF32D3AA: Color(0xFF0B7F64), // mint
+    0xFF7C6AF7: Color(0xFF5B45E0), // lavender
+    0xFFF6B84B: Color(0xFFA35F00), // amber
+    0xFF38A5F0: Color(0xFF0A6FB8), // sky
+    0xFFF56B8A: Color(0xFFCC2F57), // rose
+  };
+
+  /// Light mode on neutral cool greys instead of the seed-tinted surfaces
+  /// (which read yellowish / greyish): a grey page with white cards, sheets and
+  /// dialogs on it, slate text, and a deeper accent with white on it. Matches
+  /// the web's light tokens.
+  static ColorScheme _lightNeutrals(ColorScheme seeded, Color accent) {
+    const white = Color(0xFFFFFFFF);
+    return seeded.copyWith(
+      primary: _lightAccents[accent.toARGB32()] ?? seeded.primary,
+      onPrimary: white,
+      surface: const Color(0xFFEEF1F5),
+      onSurface: const Color(0xFF0F172A),
+      onSurfaceVariant: const Color(0xFF475569),
+      surfaceDim: const Color(0xFFE1E6EC),
+      surfaceBright: white,
+      surfaceContainerLowest: white,
+      surfaceContainerLow: white,
+      surfaceContainer: white,
+      surfaceContainerHigh: white,
+      surfaceContainerHighest: const Color(0xFFE6EAF0),
+      surfaceTint: Colors.transparent,
+      outline: const Color(0xFF8A94A6),
+      outlineVariant: const Color(0xFFD5DBE3),
     );
   }
 }

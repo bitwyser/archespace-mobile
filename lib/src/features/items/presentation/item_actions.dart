@@ -94,10 +94,16 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
                     height: 38,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: def.color.withValues(alpha: 0.14),
+                      color: def
+                          .colorFor(Theme.of(sheetContext).brightness)
+                          .withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(def.icon, color: def.color, size: 20),
+                    child: Icon(
+                      def.icon,
+                      color: def.colorFor(Theme.of(sheetContext).brightness),
+                      size: 20,
+                    ),
                   ),
                   title: Text(
                     def.label,

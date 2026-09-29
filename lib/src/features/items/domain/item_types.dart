@@ -22,7 +22,29 @@ class ItemTypeDef {
   /// per-type palette.
   final Color color;
   final bool editable;
+
+  /// [color] for a theme brightness: the pale shades fade on a light
+  /// background, so light mode uses a deeper shade of the same hue (as the
+  /// web's light theme does).
+  Color colorFor(Brightness brightness) => brightness == Brightness.light
+      ? _kLightTypeColors[color.toARGB32()] ?? color
+      : color;
 }
+
+const Map<int, Color> _kLightTypeColors = {
+  0xFF60A5FA: Color(0xFF2563EB), // blue
+  0xFFFB7185: Color(0xFFE11D48), // rose
+  0xFF2DD4BF: Color(0xFF0F766E), // teal
+  0xFFC084FC: Color(0xFF9333EA), // purple
+  0xFFF472B6: Color(0xFFDB2777), // pink
+  0xFF4ADE80: Color(0xFF15803D), // green
+  0xFFFBBF24: Color(0xFFB45309), // amber
+  0xFF38BDF8: Color(0xFF0369A1), // sky
+  0xFF818CF8: Color(0xFF4F46E5), // indigo
+  0xFFE879F9: Color(0xFFC026D3), // fuchsia
+  0xFFFB923C: Color(0xFFC2410C), // orange
+  0xFF34D399: Color(0xFF047857), // emerald
+};
 
 const List<ItemTypeDef> kItemTypes = [
   ItemTypeDef(
