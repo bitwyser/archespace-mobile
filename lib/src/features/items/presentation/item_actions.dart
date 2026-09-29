@@ -32,6 +32,12 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
   /// Reload the screen's data after an item changed.
   Future<void> reloadItems();
 
+  /// The space [item] belongs to, used when saving, duplicating or moving it.
+  /// Defaults to the screen's own space; a screen that lists items from many
+  /// spaces (Starred) overrides it to use each item's own `spaceId`. Saving
+  /// writes the space back, so getting this wrong would move the item.
+  String? spaceIdFor(SpaceItem item) => itemsSpaceId;
+
   ItemRepository get _repo => ItemRepository(VaultSession.instance.masterKey);
 
   void showItemError(String message) {
@@ -42,7 +48,7 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => ItemEditorScreen(
-          spaceId: itemsSpaceId,
+          spaceId: spaceIdFor(item),
           type: item.type,
           existing: item,
         ),
@@ -108,6 +114,23 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
     );
   }
 
+  /// Star / unstar. Starring never moves the item; it adds it to Starred.
+  Future<void> toggleStarItem(SpaceItem item) async {
+    try {
+      await _repo.setStarred(item.id, !item.starred);
+      StorageCounts.instance.refresh();
+      if (mounted) {
+        reloadItems();
+        showSuccessSnack(
+          context,
+          item.starred ? 'Removed from Starred' : 'Added to Starred',
+        );
+      }
+    } catch (_) {
+      showItemError("Couldn't update the star.");
+    }
+  }
+
   Future<void> togglePinItem(SpaceItem item) async {
     try {
       await _repo.setPinned(item.id, !item.pinned);
@@ -119,7 +142,7 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
 
   Future<void> duplicateItem(SpaceItem item) async {
     try {
-      await _repo.duplicateItem(itemsSpaceId, item);
+      await _repo.duplicateItem(spaceIdFor(item), item);
       if (mounted) {
         reloadItems();
         showSuccessSnack(context, 'Item duplicated');
@@ -129,9 +152,10 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
     }
   }
 
-  /// Ask where to move items: another space, or - from inside a space - the
-  /// dashboard. Null when cancelled or there's nowhere to go.
-  Future<MoveTarget?> pickMoveTarget() async {
+  /// Ask where to move items now in [fromSpaceId] (null = the dashboard):
+  /// another space, or - from inside a space - the dashboard. Null when
+  /// cancelled or there's nowhere to go.
+  Future<MoveTarget?> pickMoveTarget(String? fromSpaceId) async {
     List<Space> spaces;
     try {
       spaces = (await SpaceRepository(
@@ -141,8 +165,8 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
       showItemError("Couldn't load spaces.");
       return null;
     }
-    final destinations = spaces.where((s) => s.id != itemsSpaceId).toList();
-    final canMoveToDashboard = itemsSpaceId != null;
+    final destinations = spaces.where((s) => s.id != fromSpaceId).toList();
+    final canMoveToDashboard = fromSpaceId != null;
     if (!mounted) return null;
     if (destinations.isEmpty && !canMoveToDashboard) {
       showItemError('No space to move to.');
@@ -187,7 +211,7 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
   }
 
   Future<void> moveItem(SpaceItem item) async {
-    final target = await pickMoveTarget();
+    final target = await pickMoveTarget(spaceIdFor(item));
     if (target == null) return;
     try {
       await _repo.moveItem(item.id, target.id);
@@ -266,6 +290,8 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
     title: item.title,
     content: item.content,
     pinned: item.pinned,
+    starred: item.starred,
+    spaceId: item.spaceId,
     tags: tags,
     createdAt: item.createdAt,
   );

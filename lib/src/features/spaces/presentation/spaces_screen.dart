@@ -196,6 +196,23 @@ class _SpacesScreenState extends State<SpacesScreen>
     if (saved == true && mounted) _load();
   }
 
+  /// Star / unstar a space. It stays in place; Starred lists it.
+  Future<void> _toggleStarSpace(Space space) async {
+    try {
+      await _spaceRepo.setStarred(space.id, !space.starred);
+      StorageCounts.instance.refresh();
+      if (mounted) {
+        _load();
+        showSuccessSnack(
+          context,
+          space.starred ? 'Removed from Starred' : 'Added to Starred',
+        );
+      }
+    } catch (_) {
+      if (mounted) showErrorSnack(context, "Couldn't update the star.");
+    }
+  }
+
   Future<void> _togglePinSpace(Space space) async {
     try {
       await _spaceRepo.setPinned(space.id, !space.pinned);
@@ -396,7 +413,7 @@ class _SpacesScreenState extends State<SpacesScreen>
 
   /// Move the selected dashboard items into a space (items only).
   Future<void> _bulkMoveItems() async {
-    final target = await pickMoveTarget();
+    final target = await pickMoveTarget(null);
     if (target == null) return;
     await _runBulk((_, itemIds) => _itemRepo.bulkMove(itemIds, target.id));
   }
@@ -989,6 +1006,7 @@ class _SpacesScreenState extends State<SpacesScreen>
           if (mounted) _load();
         }),
     onTogglePin: () => _togglePinSpace(space),
+    onToggleStar: () => _toggleStarSpace(space),
     onEdit: () => _editSpace(space),
     onDuplicate: () => _duplicateSpace(space),
     onArchive: () => _archiveSpace(space),
@@ -1012,6 +1030,7 @@ class _SpacesScreenState extends State<SpacesScreen>
     onSelectToggle: () => _toggleSelectItem(item.id),
     onTap: isEditableType(item.type) ? () => editItem(item) : null,
     onTogglePin: () => togglePinItem(item),
+    onToggleStar: () => toggleStarItem(item),
     onDuplicate: () => duplicateItem(item),
     onMove: () => moveItem(item),
     onArchive: () => archiveItem(item),

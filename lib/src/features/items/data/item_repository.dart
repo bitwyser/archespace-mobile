@@ -40,24 +40,33 @@ class ItemRepository {
   /// fallback was used.
   Future<({List<SpaceItem> items, bool fromCache})> listItems(
     String? spaceId,
+  ) => _list(cacheKeyFor(spaceId), (q) => _whereSpace(q, spaceId));
+
+  /// Starred items from every space and the dashboard (the Starred view).
+  Future<({List<SpaceItem> items, bool fromCache})> listStarredItems() =>
+      _list('items_starred', (q) => q.eq('starred', true));
+
+  static const _columns =
+      'id, space_id, type, title, content, tags, pinned, starred, position, '
+      'created_at';
+
+  /// Fetch active items matching [where], caching the encrypted rows under
+  /// [cacheKey]; on a network error, fall back to that cache.
+  Future<({List<SpaceItem> items, bool fromCache})> _list(
+    String cacheKey,
+    PostgrestFilterBuilder<List<Map<String, dynamic>>> Function(
+      PostgrestFilterBuilder<List<Map<String, dynamic>>>,
+    )
+    where,
   ) async {
-    final cacheKey = cacheKeyFor(spaceId);
     List<dynamic> rows;
     try {
-      rows =
-          await _whereSpace(
-                _client
-                    .from('space_items')
-                    .select(
-                      'id, type, title, content, tags, pinned, position, created_at',
-                    ),
-                spaceId,
-              )
-              .isFilter('deleted_at', null)
-              .isFilter('archived_at', null)
-              .order('pinned', ascending: false)
-              .order('position', ascending: true)
-              .timeout(const Duration(seconds: 8));
+      rows = await where(_client.from('space_items').select(_columns))
+          .isFilter('deleted_at', null)
+          .isFilter('archived_at', null)
+          .order('pinned', ascending: false)
+          .order('position', ascending: true)
+          .timeout(const Duration(seconds: 8));
       await CacheStore.write(cacheKey, rows);
       WriteQueue.instance.flush(); // network is up: drain any queued writes
     } catch (_) {
@@ -86,6 +95,8 @@ class ItemRepository {
             content: await _decryptContent(m['content']),
             tags: await _decodeTags(m['tags']),
             pinned: (m['pinned'] ?? false) as bool,
+            starred: (m['starred'] ?? false) as bool,
+            spaceId: m['space_id'] as String?,
             createdAt: DateTime.tryParse((m['created_at'] ?? '').toString()),
           ),
         );
@@ -168,6 +179,11 @@ class ItemRepository {
 
   Future<void> setPinned(String id, bool pinned) async {
     await _client.from('space_items').update({'pinned': pinned}).eq('id', id);
+  }
+
+  /// Star / unstar. Never touches the item's position.
+  Future<void> setStarred(String id, bool starred) async {
+    await _client.from('space_items').update({'starred': starred}).eq('id', id);
   }
 
   Future<void> archiveItem(String id) async {

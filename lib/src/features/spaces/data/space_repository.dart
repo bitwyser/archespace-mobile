@@ -26,7 +26,7 @@ class SpaceRepository {
       rows = await _client
           .from('spaces')
           .select(
-            'id, name, description, tags, color, parent_id, pinned, position, created_at',
+            'id, name, description, tags, color, parent_id, pinned, starred, position, created_at',
           )
           .isFilter('deleted_at', null)
           .isFilter('archived_at', null)
@@ -85,6 +85,7 @@ class SpaceRepository {
               _masterKey,
             ),
             pinned: (m['pinned'] ?? false) as bool,
+            starred: (m['starred'] ?? false) as bool,
             tags: await _decodeTags(m['tags']),
             color: m['color'] as String?,
             parentId: m['parent_id'] as String?,
@@ -231,6 +232,11 @@ class SpaceRepository {
 
   Future<void> setPinned(String id, bool pinned) async {
     await _client.from('spaces').update({'pinned': pinned}).eq('id', id);
+  }
+
+  /// Star / unstar. Never touches the space's position.
+  Future<void> setStarred(String id, bool starred) async {
+    await _client.from('spaces').update({'starred': starred}).eq('id', id);
   }
 
   Future<void> archiveSpace(String id) async {

@@ -204,6 +204,10 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
       (r) => r.setPinned(sub.id, !sub.pinned),
       "Couldn't update the space.",
     ),
+    onToggleStar: () => _subSpaceOp((r) async {
+      await r.setStarred(sub.id, !sub.starred);
+      StorageCounts.instance.refresh();
+    }, "Couldn't update the star."),
     onEdit: () => _editSubSpace(sub),
     onDuplicate: () => _subSpaceOp(
       (r) => r.duplicateSpace(sub),
@@ -310,7 +314,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
   }
 
   Future<void> _bulkMoveItems() async {
-    final target = await pickMoveTarget();
+    final target = await pickMoveTarget(itemsSpaceId);
     if (target == null) return;
     final ids = _selected.toList();
     await _runBulk((r) => r.bulkMove(ids, target.id));
@@ -740,6 +744,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
     onSelectToggle: () => _toggleSelect(item.id),
     onTap: isEditableType(item.type) ? () => editItem(item) : null,
     onTogglePin: () => togglePinItem(item),
+    onToggleStar: () => toggleStarItem(item),
     onDuplicate: () => duplicateItem(item),
     onMove: () => moveItem(item),
     onArchive: () => archiveItem(item),

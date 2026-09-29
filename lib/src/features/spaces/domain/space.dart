@@ -5,6 +5,7 @@ class Space {
     required this.name,
     required this.description,
     required this.pinned,
+    this.starred = false,
     this.tags = const [],
     this.color,
     this.parentId,
@@ -17,6 +18,9 @@ class Space {
   final String name;
   final String description;
   final bool pinned;
+
+  /// In the Starred view. A quick-access flag only: it never affects order.
+  final bool starred;
   final List<String> tags;
 
   /// Parent space id for a sub-space (one-level nesting), or null for top-level.

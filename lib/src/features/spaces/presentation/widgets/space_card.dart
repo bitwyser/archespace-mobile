@@ -18,6 +18,7 @@ class SpaceCard extends StatelessWidget {
     required this.onDuplicate,
     required this.onArchive,
     required this.onDelete,
+    this.onToggleStar,
     this.selectMode = false,
     this.selected = false,
     this.onSelectToggle,
@@ -33,6 +34,9 @@ class SpaceCard extends StatelessWidget {
   final VoidCallback onDuplicate;
   final VoidCallback onArchive;
   final VoidCallback onDelete;
+
+  /// Star / unstar (adds it to Starred without moving it). Null hides it.
+  final VoidCallback? onToggleStar;
   final bool selectMode;
   final bool selected;
   final VoidCallback? onSelectToggle;
@@ -124,12 +128,30 @@ class SpaceCard extends StatelessWidget {
                           ),
                         ),
                       Expanded(
-                        child: Text(
-                          space.name.isEmpty ? 'Untitled' : space.name,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                space.name.isEmpty ? 'Untitled' : space.name,
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            // Starred, right after the name: gold, so it
+                            // never reads as the (accent) pin.
+                            if (space.starred)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 4),
+                                child: Icon(
+                                  Icons.star_rounded,
+                                  size: 19,
+                                  color: Colors.amber.shade400,
+                                  semanticLabel: 'Starred',
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       if (!selectMode)
@@ -153,6 +175,7 @@ class SpaceCard extends StatelessWidget {
                             clipBehavior: Clip.antiAlias,
                             onSelected: (value) {
                               if (value == 'pin') onTogglePin();
+                              if (value == 'star') onToggleStar?.call();
                               if (value == 'edit') onEdit();
                               if (value == 'duplicate') onDuplicate();
                               if (value == 'archive') onArchive();
@@ -164,6 +187,14 @@ class SpaceCard extends StatelessWidget {
                                 value: 'pin',
                                 child: Text(space.pinned ? 'Unpin' : 'Pin'),
                               ),
+                              if (onToggleStar != null)
+                                PopupMenuItem(
+                                  height: 40,
+                                  value: 'star',
+                                  child: Text(
+                                    space.starred ? 'Unstar' : 'Star',
+                                  ),
+                                ),
                               const PopupMenuItem(
                                 height: 40,
                                 value: 'edit',

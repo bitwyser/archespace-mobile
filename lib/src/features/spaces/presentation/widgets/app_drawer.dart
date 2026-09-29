@@ -5,6 +5,7 @@ import 'package:archespace_mobile/src/features/settings/application/appearance_c
 import 'package:archespace_mobile/src/features/settings/presentation/settings_screen.dart';
 import 'package:archespace_mobile/src/features/storage/application/storage_counts.dart';
 import 'package:archespace_mobile/src/features/storage/presentation/storage_screen.dart';
+import 'package:archespace_mobile/src/features/starred/presentation/starred_screen.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/shared/widgets/brand_wordmark.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
@@ -119,6 +120,13 @@ class _AppDrawerState extends State<AppDrawer> {
               builder: (context, _) => Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  _tile(
+                    context,
+                    icon: Icons.star_outline_rounded,
+                    label: 'Starred',
+                    count: StorageCounts.instance.starred,
+                    onTap: () => _open(context, const StarredScreen()),
+                  ),
                   _tile(
                     context,
                     icon: Icons.archive_outlined,

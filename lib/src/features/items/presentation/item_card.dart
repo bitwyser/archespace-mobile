@@ -25,6 +25,7 @@ class ItemCard extends StatefulWidget {
     required this.item,
     this.onTap,
     this.onTogglePin,
+    this.onToggleStar,
     this.onDuplicate,
     this.onMove,
     this.onArchive,
@@ -36,11 +37,17 @@ class ItemCard extends StatefulWidget {
     this.onSelectToggle,
     this.margin,
     this.grid = false,
+    this.contextLabel,
   });
 
   final SpaceItem item;
   final VoidCallback? onTap;
   final VoidCallback? onTogglePin;
+  final VoidCallback? onToggleStar;
+
+  /// Where the item lives, shown beside the title when it's listed outside its
+  /// space (the Starred view). Null shows just the title.
+  final String? contextLabel;
   final VoidCallback? onDuplicate;
   final VoidCallback? onMove;
   final VoidCallback? onArchive;
@@ -118,6 +125,7 @@ class _ItemCardState extends State<ItemCard> {
     final onTap = widget.onTap;
     final onSelectToggle = widget.onSelectToggle;
     final onTogglePin = widget.onTogglePin;
+    final onToggleStar = widget.onToggleStar;
     final onDuplicate = widget.onDuplicate;
     final onMove = widget.onMove;
     final onArchive = widget.onArchive;
@@ -197,10 +205,42 @@ class _ItemCardState extends State<ItemCard> {
                       },
                     ),
                   Expanded(
-                    child: Text(
-                      item.title.isEmpty ? 'Untitled' : item.title,
-                      style: Theme.of(context).textTheme.titleMedium,
-                      overflow: TextOverflow.ellipsis,
+                    child: Row(
+                      children: [
+                        Flexible(
+                          flex: 3,
+                          child: Text(
+                            item.title.isEmpty ? 'Untitled' : item.title,
+                            style: Theme.of(context).textTheme.titleMedium,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        // Starred, right after the name: gold, so it never
+                        // reads as the (accent) pin.
+                        if (item.starred)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: Icon(
+                              Icons.star_rounded,
+                              size: 17,
+                              color: Colors.amber.shade400,
+                              semanticLabel: 'Starred',
+                            ),
+                          ),
+                        if (widget.contextLabel != null) ...[
+                          const SizedBox(width: 6),
+                          Flexible(
+                            flex: 2,
+                            child: Text(
+                              widget.contextLabel!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   if (!selectMode)
@@ -240,6 +280,7 @@ class _ItemCardState extends State<ItemCard> {
                     ),
                   if (!selectMode &&
                       (onTogglePin != null ||
+                          onToggleStar != null ||
                           onDuplicate != null ||
                           onMove != null ||
                           onArchive != null ||
@@ -267,6 +308,7 @@ class _ItemCardState extends State<ItemCard> {
                             }
                           }
                           if (value == 'pin') onTogglePin?.call();
+                          if (value == 'star') onToggleStar?.call();
                           if (value == 'duplicate') onDuplicate?.call();
                           if (value == 'move') onMove?.call();
                           if (value == 'export') onExport?.call();
@@ -285,6 +327,12 @@ class _ItemCardState extends State<ItemCard> {
                               height: 40,
                               value: 'pin',
                               child: Text(item.pinned ? 'Unpin' : 'Pin'),
+                            ),
+                          if (onToggleStar != null)
+                            PopupMenuItem(
+                              height: 40,
+                              value: 'star',
+                              child: Text(item.starred ? 'Unstar' : 'Star'),
                             ),
                           if (onDuplicate != null)
                             const PopupMenuItem(

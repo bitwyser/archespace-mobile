@@ -62,6 +62,26 @@ class StorageRepository {
     return results[0].length + results[1].length;
   }
 
+  /// Number of starred active entries (spaces + items), for the drawer count;
+  /// ids only, so nothing is decrypted.
+  Future<int> starredCount() async {
+    final results = await Future.wait([
+      _client
+          .from('spaces')
+          .select('id')
+          .eq('starred', true)
+          .isFilter('deleted_at', null)
+          .isFilter('archived_at', null),
+      _client
+          .from('space_items')
+          .select('id')
+          .eq('starred', true)
+          .isFilter('deleted_at', null)
+          .isFilter('archived_at', null),
+    ]);
+    return results[0].length + results[1].length;
+  }
+
   /// Number of entries in the recycle bin (spaces + items); ids only, so
   /// nothing is decrypted.
   Future<int> deletedCount() async {
