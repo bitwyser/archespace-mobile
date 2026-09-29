@@ -78,7 +78,13 @@ class ItemCard extends StatefulWidget {
 // separate control that hides the body entirely (header only).
 const double _kCollapsedMaxHeight = 480;
 
-class _ItemCardState extends State<ItemCard> {
+// The clamped preview shows ~25 lines, so a very long note or markdown body is
+// cut to this many characters for it: laying out a huge string in every card
+// that scrolls into view would stutter the list. Expanding shows it all.
+const int _kPreviewChars = 4000;
+
+class _ItemCardState extends State<ItemCard>
+    with AutomaticKeepAliveClientMixin {
   // Header-only collapse (chevron): hides the body entirely.
   bool _collapsed = false;
   bool _addingTag = false;
@@ -104,7 +110,7 @@ class _ItemCardState extends State<ItemCard> {
     }
   }
 
-  /// Measure the body's natural height (the OverflowBox lays it out unclamped,
+  /// Measure the body's natural height (it's laid out unclamped,
   /// so this reads the true height) and flag whether the body is "long" - long
   /// bodies clamp to a fixed height until tapped.
   void _measureBody() {
@@ -112,7 +118,7 @@ class _ItemCardState extends State<ItemCard> {
     final box = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
     final height = box?.size.height;
     if (height == null) return;
-    final long = height > _kCollapsedMaxHeight + 16;
+    final long = height > _kCollapsedMaxHeight;
     if (long != _overflowing) setState(() => _overflowing = long);
   }
 
@@ -122,8 +128,24 @@ class _ItemCardState extends State<ItemCard> {
     super.dispose();
   }
 
+  // A card the user expanded or collapsed is kept alive off-screen: rebuilt
+  // fresh, it would come back at a different height and shift the list.
+  @override
+  bool get wantKeepAlive => _expanded || _collapsed;
+
+  void _setExpanded() {
+    setState(() => _expanded = true);
+    updateKeepAlive();
+  }
+
+  void _toggleCollapsed() {
+    setState(() => _collapsed = !_collapsed);
+    updateKeepAlive();
+  }
+
   @override
   Widget build(BuildContext context) {
+    super.build(context); // keep-alive bookkeeping
     final item = widget.item;
     final selectMode = widget.selectMode;
     final selected = widget.selected;
@@ -161,7 +183,7 @@ class _ItemCardState extends State<ItemCard> {
         onTap: selectMode
             ? onSelectToggle
             : (!_collapsed && _overflowing && !_expanded)
-            ? () => setState(() => _expanded = true)
+            ? _setExpanded
             : onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
@@ -271,8 +293,7 @@ class _ItemCardState extends State<ItemCard> {
                         ),
                         padding: EdgeInsets.zero,
                         tooltip: _collapsed ? 'Expand' : 'Collapse',
-                        onPressed: () =>
-                            setState(() => _collapsed = !_collapsed),
+                        onPressed: () => _toggleCollapsed(),
                       ),
                     ),
                   // In the compact grid the copy action moves into the 3-dot
@@ -407,22 +428,37 @@ class _ItemCardState extends State<ItemCard> {
 
   /// The body preview. A long body is clamped to a fixed height and clipped,
   /// with a soft fade at the bottom to signal there is more; tapping the card
-  /// reveals it in full. Short or already-expanded bodies show at their natural
-  /// height. The body is keyed and laid out unclamped inside an OverflowBox so
-  /// its true height can always be measured.
+  /// reveals it in full. The body is keyed and laid out at its full height (in
+  /// a non-scrolling scroll view) so its true height can always be measured.
   ///
-  /// The clamped preview is wrapped in IgnorePointer: it needs no interaction
-  /// (the card's InkWell handles the tap-to-expand), and this keeps the
-  /// overflowing region - which paints clipped but is not hit-test clipped -
-  /// from trapping the list's scroll gestures.
+  /// The clamp applies from the very first frame (the card is never taller
+  /// than the preview until expanded); measuring only adds the fade. If a card
+  /// first laid out at its full height and then shrank a frame later, every
+  /// long card scrolling into view would change size under the finger and the
+  /// list would keep correcting its position (scrolling that sticks and falls
+  /// back).
+  ///
+  /// A long preview is wrapped in IgnorePointer: it needs no interaction (the
+  /// card's InkWell handles the tap-to-expand), and nothing in the clipped
+  /// region can trap the list's scroll gestures.
   Widget _buildBody() {
     final body = KeyedSubtree(
       key: _bodyKey,
-      child: _ItemBody(item: widget.item),
+      child: _ItemBody(item: widget.item, preview: !_expanded),
     );
-    if (!_overflowing || _expanded) return body;
-    return ClipRect(
-      child: ShaderMask(
+    if (_expanded) return body;
+    // A non-scrolling scroll view lays the body out at its full height and
+    // sizes itself to that, capped by the max height, clipping the rest. With
+    // NeverScrollableScrollPhysics it takes no drags, so the list scrolls.
+    Widget clamped = ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: _kCollapsedMaxHeight),
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        child: body,
+      ),
+    );
+    if (_overflowing) {
+      clamped = ShaderMask(
         // dstIn keeps the body where the gradient is opaque and fades it to
         // transparent over the last stretch, so the card background shows
         // through - a "more below" cue without any label.
@@ -433,20 +469,10 @@ class _ItemCardState extends State<ItemCard> {
           stops: [0.0, 0.82, 1.0],
           colors: [Colors.black, Colors.black, Colors.transparent],
         ).createShader(rect),
-        child: IgnorePointer(
-          child: SizedBox(
-            height: _kCollapsedMaxHeight,
-            width: double.infinity,
-            child: OverflowBox(
-              alignment: Alignment.topLeft,
-              minHeight: 0,
-              maxHeight: double.infinity,
-              child: body,
-            ),
-          ),
-        ),
-      ),
-    );
+        child: clamped,
+      );
+    }
+    return IgnorePointer(ignoring: _overflowing, child: clamped);
   }
 
   Widget _tagsRow(BuildContext context, ColorScheme scheme) {
@@ -591,22 +617,32 @@ class _TagChip extends StatelessWidget {
 }
 
 class _ItemBody extends StatelessWidget {
-  const _ItemBody({required this.item});
+  const _ItemBody({required this.item, this.preview = false});
 
   final SpaceItem item;
+
+  /// Showing the clamped preview: very long text is cut to what it can show.
+  final bool preview;
+
+  String _text(Object? raw) {
+    final text = (raw ?? '').toString();
+    return preview && text.length > _kPreviewChars
+        ? text.substring(0, _kPreviewChars)
+        : text;
+  }
 
   @override
   Widget build(BuildContext context) {
     final c = item.content;
     switch (item.type) {
       case 'textbox':
-        final plain = (c['text'] ?? '').toString();
+        final plain = _text(c['text']);
         // Non-selectable so a tap on the body opens the item (via the card's
         // InkWell) instead of starting a text selection. Use the copy button
         // in the header to copy.
         return plain.isEmpty ? const _Empty() : Text(plain);
       case 'markdown':
-        final md = (c['text'] ?? '').toString();
+        final md = _text(c['text']);
         return md.isEmpty
             ? const _Empty()
             : MarkdownBody(data: md, selectable: false);
@@ -866,9 +902,9 @@ class _Code extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant.withValues(
-            alpha: 0.5,
-          ),
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: ClipRRect(
