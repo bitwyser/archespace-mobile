@@ -12,6 +12,7 @@ import 'package:archespace_mobile/src/shared/config/legal.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 
 import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
+import 'package:archespace_mobile/src/features/auth/data/mfa_service.dart';
 import 'package:archespace_mobile/src/features/backup/data/backup_repository.dart';
 import 'package:archespace_mobile/src/features/settings/application/appearance_controller.dart';
 import 'package:archespace_mobile/src/features/vault/application/auto_lock_controller.dart';
@@ -21,6 +22,9 @@ import 'package:archespace_mobile/src/features/vault/data/biometric_service.dart
 import 'package:archespace_mobile/src/features/vault/data/secure_key_store.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
 
+/// Settings, grouped like the web: Account, Vault, Appearance, Backup, About.
+/// Each row shows what it is and its current state; forms open on their own
+/// screens.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -34,11 +38,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final BiometricService _biometric = BiometricService();
   bool _biometricEnabled = false;
   bool _biometricAvailable = false;
+  // Null until known (or if it couldn't be checked).
+  bool? _twoFactorOn;
 
   @override
   void initState() {
     super.initState();
     _loadBiometricState();
+    _loadTwoFactorState();
+  }
+
+  Future<void> _loadTwoFactorState() async {
+    try {
+      final factorId = await MfaService().verifiedFactorId();
+      if (mounted) setState(() => _twoFactorOn = factorId != null);
+    } catch (_) {
+      // Offline or unknown: the row just doesn't show a state.
+    }
   }
 
   Future<void> _loadBiometricState() async {
@@ -104,11 +120,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _disableBiometric() async {
     final ok = await confirmAction(
       context,
-      title: 'Disable biometric unlock?',
+      title: 'Turn off biometric unlock?',
       message:
           'The saved key on this device will be forgotten. You will need '
           'your vault PIN to unlock next time.',
-      confirmLabel: 'Disable',
+      confirmLabel: 'Turn off',
       destructive: true,
     );
     if (!ok) return;
@@ -213,159 +229,267 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final email = _auth.currentUser?.email;
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: SafeArea(
         top: false,
         child: ListView(
+          padding: const EdgeInsets.only(bottom: 8),
           children: [
-            const _SectionHeader('Account'),
-            ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text('Signed in as'),
-              subtitle: Text(email ?? 'Unknown'),
+            // ── Account ──
+            const _SectionTitle(
+              'Account',
+              'Your email, login password and sign-in security.',
             ),
-            ListTile(
-              leading: const Icon(Icons.alternate_email),
-              title: const Text('Change email'),
-              subtitle: const Text('Update your email address'),
-              onTap: () => _push(const ChangeEmailScreen()),
-            ),
-            ListTile(
-              leading: const Icon(Icons.password_outlined),
-              title: const Text('Change login password'),
-              subtitle: const Text(
-                'Used to sign in, separate from your vault PIN',
-              ),
-              onTap: () => _push(const ChangePasswordScreen()),
-            ),
-            ListTile(
-              leading: const Icon(Icons.verified_user_outlined),
-              title: const Text('Two-factor authentication'),
-              subtitle: const Text('Add an authenticator code at sign-in'),
-              onTap: () => _push(const TwoFactorScreen()),
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.person_remove_outlined,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              title: Text(
-                'Delete account',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              subtitle: const Text('Permanently delete your account and data'),
-              onTap: () => _push(const DeleteAccountScreen()),
-            ),
-            const _SectionHeader('Appearance'),
-            const _AppearanceSection(),
-            const _SectionHeader('Backup'),
-            ListTile(
-              leading: const Icon(Icons.upload_file_outlined),
-              title: const Text('Export backup'),
-              subtitle: const Text('Save all your spaces and items to a file'),
-              onTap: _exportBackup,
-            ),
-            ListTile(
-              leading: const Icon(Icons.download_outlined),
-              title: const Text('Import backup'),
-              subtitle: const Text(
-                'Restore spaces and items from a backup file',
-              ),
-              onTap: _importBackup,
-            ),
-            const _SectionHeader('Security'),
-            ListTile(
-              leading: const Icon(Icons.pin_outlined),
-              title: const Text('Change vault PIN'),
-              subtitle: const Text('Unlocks your encrypted data'),
-              onTap: () => _push(const ChangePinScreen()),
-            ),
-            ListTile(
-              leading: const Icon(Icons.lock_reset_outlined),
-              title: const Text('Reset PIN with recovery code'),
-              subtitle: const Text('Forgot your PIN? Use your recovery code'),
-              onTap: () => _push(const ResetPinScreen()),
-            ),
-            ListTile(
-              leading: const Icon(Icons.vpn_key_outlined),
-              title: const Text('Recovery code'),
-              subtitle: const Text('Create or replace your recovery code'),
-              onTap: () => _push(const SetupRecoveryScreen()),
-            ),
-            ListenableBuilder(
-              listenable: AutoLockController.instance,
-              builder: (context, _) {
-                final option = kAutoLockOptions.firstWhere(
-                  (o) => o.id == AutoLockController.instance.id,
-                  orElse: () => kAutoLockOptions.last,
-                );
-                return ListTile(
-                  leading: const Icon(Icons.lock_clock_outlined),
-                  title: const Text('Auto-lock'),
-                  subtitle: Text('Lock after inactivity · ${option.label}'),
-                  onTap: _pickAutoLock,
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.lock_outline),
-              title: const Text('Lock vault'),
-              subtitle: const Text('Require your PIN or biometrics again'),
-              onTap: _lock,
-            ),
-            if (_biometricEnabled)
-              ListTile(
-                leading: const Icon(Icons.fingerprint),
-                title: const Text('Disable biometric unlock'),
-                subtitle: const Text('Forget the saved key on this device'),
-                onTap: _disableBiometric,
-              )
-            else if (_biometricAvailable)
-              ListTile(
-                leading: const Icon(Icons.fingerprint),
-                title: const Text('Enable biometric unlock'),
-                subtitle: const Text(
-                  'Unlock with fingerprint or face next time',
+            _SettingGroup(
+              label: 'Sign-in',
+              children: [
+                _SettingTile(
+                  icon: Icons.alternate_email,
+                  title: 'Email',
+                  subtitle: email ?? 'Unknown',
+                  onTap: () => _push(const ChangeEmailScreen()),
                 ),
-                onTap: _enableBiometric,
-              ),
-            const _SectionHeader('About'),
-            ListTile(
-              leading: const Icon(Icons.description_outlined),
-              title: const Text('Terms of Service'),
-              trailing: const Icon(Icons.open_in_new, size: 18),
-              onTap: () => _openUrl(Legal.termsUrl),
+                _SettingTile(
+                  icon: Icons.password_outlined,
+                  title: 'Login password',
+                  subtitle: 'Used to sign in. Separate from your vault PIN.',
+                  onTap: () => _push(const ChangePasswordScreen()),
+                ),
+                _SettingTile(
+                  icon: Icons.verified_user_outlined,
+                  title: 'Two-factor authentication',
+                  subtitle: switch (_twoFactorOn) {
+                    true =>
+                      'On. A code from your authenticator app at sign-in.',
+                    false =>
+                      'Off. Add a code from an authenticator app at sign-in.',
+                    null => 'A code from an authenticator app at sign-in.',
+                  },
+                  onTap: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const TwoFactorScreen(),
+                      ),
+                    );
+                    _loadTwoFactorState();
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.privacy_tip_outlined),
-              title: const Text('Privacy Policy'),
-              trailing: const Icon(Icons.open_in_new, size: 18),
-              onTap: () => _openUrl(Legal.privacyUrl),
+            _SettingGroup(
+              label: 'Sessions',
+              children: [
+                _SettingTile(
+                  icon: Icons.logout,
+                  title: 'Sign out',
+                  subtitle: 'Sign out on this device.',
+                  onTap: _signOut,
+                  chevron: false,
+                ),
+                _SettingTile(
+                  icon: Icons.devices,
+                  title: 'Sign out of all devices',
+                  subtitle:
+                      "Ends your session everywhere, including here. Use it "
+                      "if you've lost a device you were signed in on.",
+                  onTap: _signOutAll,
+                  chevron: false,
+                ),
+              ],
             ),
-            const Divider(),
-            ListTile(
-              leading: Icon(
-                Icons.logout,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              title: Text(
-                'Sign out',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              onTap: _signOut,
+            _SettingGroup(
+              label: 'Danger zone',
+              danger: true,
+              children: [
+                _SettingTile(
+                  icon: Icons.person_remove_outlined,
+                  title: 'Delete account',
+                  subtitle:
+                      'Permanently deletes your account, spaces, items and '
+                      "vault. This can't be undone.",
+                  onTap: () => _push(const DeleteAccountScreen()),
+                  destructive: true,
+                ),
+              ],
             ),
-            ListTile(
-              leading: Icon(
-                Icons.devices,
-                color: Theme.of(context).colorScheme.error,
+
+            // ── Vault ──
+            const _SectionTitle(
+              'Vault',
+              'Your vault PIN encrypts everything you store. It is separate '
+                  'from your login password.',
+            ),
+            _SettingGroup(
+              label: 'Unlocking',
+              children: [
+                _SettingTile(
+                  icon: Icons.pin_outlined,
+                  title: 'Vault PIN',
+                  subtitle:
+                      'Unlocks your encrypted data. Forgot it? Reset it '
+                      'with your recovery code.',
+                  onTap: () => _push(const ChangePinScreen()),
+                ),
+                _SettingTile(
+                  icon: Icons.fingerprint,
+                  title: 'Biometric unlock',
+                  subtitle: _biometricEnabled
+                      ? 'On for this device. Your PIN still works.'
+                      : _biometricAvailable
+                      ? 'Unlock with fingerprint or face instead of typing '
+                            'your PIN.'
+                      : 'Not available on this device.',
+                  trailing: Switch(
+                    value: _biometricEnabled,
+                    onChanged: _biometricEnabled || _biometricAvailable
+                        ? (on) => on ? _enableBiometric() : _disableBiometric()
+                        : null,
+                  ),
+                  onTap: _biometricEnabled
+                      ? _disableBiometric
+                      : _biometricAvailable
+                      ? _enableBiometric
+                      : null,
+                ),
+              ],
+            ),
+            _SettingGroup(
+              label: 'Recovery',
+              children: [
+                _SettingTile(
+                  icon: Icons.vpn_key_outlined,
+                  title: 'Recovery code',
+                  subtitle:
+                      'A one-time code that resets your vault PIN if you '
+                      'forget it. Making a new one replaces the old one.',
+                  onTap: () => _push(const SetupRecoveryScreen()),
+                ),
+              ],
+            ),
+            _SettingGroup(
+              label: 'Locking',
+              children: [
+                ListenableBuilder(
+                  listenable: AutoLockController.instance,
+                  builder: (context, _) {
+                    final option = kAutoLockOptions.firstWhere(
+                      (o) => o.id == AutoLockController.instance.id,
+                      orElse: () => kAutoLockOptions.last,
+                    );
+                    return _SettingTile(
+                      icon: Icons.lock_clock_outlined,
+                      title: 'Auto-lock',
+                      subtitle:
+                          'Lock the vault after inactivity. This device only.',
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            option.label,
+                            style: TextStyle(color: scheme.primary),
+                          ),
+                          Icon(
+                            Icons.chevron_right,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ],
+                      ),
+                      onTap: _pickAutoLock,
+                    );
+                  },
+                ),
+                _SettingTile(
+                  icon: Icons.lock_outline,
+                  title: 'Lock now',
+                  subtitle:
+                      'Your PIN or biometrics will be needed again to see '
+                      'your data.',
+                  onTap: _lock,
+                  chevron: false,
+                ),
+              ],
+            ),
+
+            // ── Appearance ──
+            const _SectionTitle('Appearance', 'Theme and accent colour.'),
+            const _AppearanceGroup(),
+
+            // ── Backup ──
+            const _SectionTitle(
+              'Backup',
+              'Download a copy of your data, or restore one.',
+            ),
+            _SettingGroup(
+              children: [
+                _SettingTile(
+                  icon: Icons.upload_file_outlined,
+                  title: 'Export backup',
+                  subtitle: 'Saves all your spaces and items as a JSON file.',
+                  onTap: _exportBackup,
+                  chevron: false,
+                ),
+                _SettingTile(
+                  icon: Icons.download_outlined,
+                  title: 'Import backup',
+                  subtitle:
+                      'Adds the spaces and items from a backup file. '
+                      'Nothing you already have is replaced.',
+                  onTap: _importBackup,
+                  chevron: false,
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 16,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'The backup file is not encrypted: anyone who opens it '
+                      'can read your data. Keep it somewhere safe.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              title: Text(
-                'Sign out of all devices',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              subtitle: const Text('End your session on every device'),
-              onTap: _signOutAll,
+            ),
+
+            // ── About ──
+            const _SectionTitle('About', null),
+            _SettingGroup(
+              children: [
+                _SettingTile(
+                  icon: Icons.description_outlined,
+                  title: 'Terms of Service',
+                  trailing: Icon(
+                    Icons.open_in_new,
+                    size: 18,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  onTap: () => _openUrl(Legal.termsUrl),
+                ),
+                _SettingTile(
+                  icon: Icons.privacy_tip_outlined,
+                  title: 'Privacy Policy',
+                  trailing: Icon(
+                    Icons.open_in_new,
+                    size: 18,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  onTap: () => _openUrl(Legal.privacyUrl),
+                ),
+              ],
             ),
             const _BuildFooter(),
           ],
@@ -443,75 +567,95 @@ class _BuildFooterState extends State<_BuildFooter> {
   }
 }
 
-class _AppearanceSection extends StatelessWidget {
-  const _AppearanceSection();
+/// A section's title with a one-line explanation (like the web's section
+/// header).
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.title, this.description);
+
+  final String title;
+  final String? description;
 
   @override
   Widget build(BuildContext context) {
-    final appearance = AppearanceController.instance;
-    return ListenableBuilder(
-      listenable: appearance,
-      builder: (context, _) => Column(
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 4),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<ThemeMode>(
-                segments: const [
-                  ButtonSegment(value: ThemeMode.system, label: Text('System')),
-                  ButtonSegment(value: ThemeMode.light, label: Text('Light')),
-                  ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
-                ],
-                selected: {appearance.themeMode},
-                showSelectedIcon: false,
-                onSelectionChanged: (selection) =>
-                    appearance.setThemeMode(selection.first),
-              ),
+          Text(
+            title,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
+          if (description != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              description!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// A labelled group of setting rows on one rounded card, split by hairlines.
+class _SettingGroup extends StatelessWidget {
+  const _SettingGroup({
+    this.label,
+    this.danger = false,
+    required this.children,
+  });
+
+  final String? label;
+  final bool danger;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (label != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+              child: Text(
+                label!.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.6,
+                  color: danger ? scheme.error : scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            color: scheme.surfaceContainer,
+            elevation: 1,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
               children: [
-                for (final option in kAccentOptions)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 16),
-                    child: Tooltip(
-                      message: option.description,
-                      excludeFromSemantics: true,
-                      child: Semantics(
-                        button: true,
-                        selected: appearance.accentId == option.id,
-                        label: '${option.name}. ${option.description}',
-                        child: GestureDetector(
-                          onTap: () => appearance.setAccent(option.id),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: option.color,
-                              border: Border.all(
-                                color: appearance.accentId == option.id
-                                    ? Theme.of(context).colorScheme.onSurface
-                                    : Colors.transparent,
-                                width: 3,
-                              ),
-                            ),
-                            child: appearance.accentId == option.id
-                                ? const Icon(
-                                    Icons.check,
-                                    color: Colors.white,
-                                    size: 20,
-                                  )
-                                : null,
-                          ),
-                        ),
-                      ),
+                for (var i = 0; i < children.length; i++) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 1,
+                      indent: 56,
+                      color: scheme.outlineVariant.withValues(alpha: 0.6),
                     ),
-                  ),
+                  children[i],
+                ],
               ],
             ),
           ),
@@ -521,24 +665,163 @@ class _AppearanceSection extends StatelessWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title);
+/// One setting: icon, title, a short explanation or current state, and what
+/// a tap does (a chevron when it opens a screen, or a custom [trailing]).
+class _SettingTile extends StatelessWidget {
+  const _SettingTile({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+    this.onTap,
+    this.chevron = true,
+    this.destructive = false,
+  });
 
+  final IconData icon;
   final String title;
+  final String? subtitle;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  /// Show a chevron (opens another screen) when there's no [trailing].
+  final bool chevron;
+  final bool destructive;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-      child: Text(
-        title.toUpperCase(),
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.6,
-          color: Theme.of(context).colorScheme.primary,
-        ),
+    final scheme = Theme.of(context).colorScheme;
+    final color = destructive ? scheme.error : null;
+    return ListTile(
+      leading: Icon(icon, color: color ?? scheme.onSurfaceVariant),
+      title: Text(
+        title,
+        style: TextStyle(fontWeight: FontWeight.w600, color: color),
       ),
+      subtitle: subtitle == null ? null : Text(subtitle!),
+      trailing:
+          trailing ??
+          (chevron
+              ? Icon(Icons.chevron_right, color: scheme.onSurfaceVariant)
+              : null),
+      onTap: onTap,
+    );
+  }
+}
+
+/// Theme mode and accent colour, as two rows on one card.
+class _AppearanceGroup extends StatelessWidget {
+  const _AppearanceGroup();
+
+  @override
+  Widget build(BuildContext context) {
+    final appearance = AppearanceController.instance;
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    return ListenableBuilder(
+      listenable: appearance,
+      builder: (context, _) {
+        final accent = kAccentOptions.firstWhere(
+          (o) => o.id == appearance.accentId,
+          orElse: () => kAccentOptions.first,
+        );
+        return _SettingGroup(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Theme',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<ThemeMode>(
+                      segments: const [
+                        ButtonSegment(
+                          value: ThemeMode.system,
+                          label: Text('System'),
+                        ),
+                        ButtonSegment(
+                          value: ThemeMode.light,
+                          label: Text('Light'),
+                        ),
+                        ButtonSegment(
+                          value: ThemeMode.dark,
+                          label: Text('Dark'),
+                        ),
+                      ],
+                      selected: {appearance.themeMode},
+                      showSelectedIcon: false,
+                      onSelectionChanged: (selection) =>
+                          appearance.setThemeMode(selection.first),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Accent colour',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${accent.name}. Used for buttons, highlights and marks.',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 14,
+                    runSpacing: 10,
+                    children: [
+                      for (final option in kAccentOptions)
+                        Semantics(
+                          button: true,
+                          selected: appearance.accentId == option.id,
+                          label: option.name,
+                          child: GestureDetector(
+                            onTap: () => appearance.setAccent(option.id),
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: option.color,
+                                border: Border.all(
+                                  color: appearance.accentId == option.id
+                                      ? scheme.onSurface
+                                      : Colors.transparent,
+                                  width: 3,
+                                ),
+                              ),
+                              child: appearance.accentId == option.id
+                                  ? const Icon(
+                                      Icons.check,
+                                      color: Colors.white,
+                                      size: 20,
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
