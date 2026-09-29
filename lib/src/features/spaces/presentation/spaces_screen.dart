@@ -213,6 +213,22 @@ class _SpacesScreenState extends State<SpacesScreen>
     }
   }
 
+  /// Read-only on / off: locks the space's details and items, not the space.
+  Future<void> _toggleReadOnlySpace(Space space) async {
+    try {
+      await _spaceRepo.setReadOnly(space.id, !space.readOnly);
+      if (mounted) {
+        _load();
+        showSuccessSnack(
+          context,
+          space.readOnly ? 'Editing allowed' : 'Space is now read-only',
+        );
+      }
+    } catch (_) {
+      if (mounted) showErrorSnack(context, "Couldn't change read-only.");
+    }
+  }
+
   Future<void> _togglePinSpace(Space space) async {
     try {
       await _spaceRepo.setPinned(space.id, !space.pinned);
@@ -1007,6 +1023,7 @@ class _SpacesScreenState extends State<SpacesScreen>
         }),
     onTogglePin: () => _togglePinSpace(space),
     onToggleStar: () => _toggleStarSpace(space),
+    onToggleReadOnly: () => _toggleReadOnlySpace(space),
     onEdit: () => _editSpace(space),
     onDuplicate: () => _duplicateSpace(space),
     onArchive: () => _archiveSpace(space),

@@ -38,6 +38,10 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
   /// writes the space back, so getting this wrong would move the item.
   String? spaceIdFor(SpaceItem item) => itemsSpaceId;
 
+  /// Whether [item] sits in a read-only space: it opens as a viewer, and the
+  /// host offers no edits for it.
+  bool isItemReadOnly(SpaceItem item) => false;
+
   ItemRepository get _repo => ItemRepository(VaultSession.instance.masterKey);
 
   void showItemError(String message) {
@@ -51,6 +55,7 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
           spaceId: spaceIdFor(item),
           type: item.type,
           existing: item,
+          readOnly: isItemReadOnly(item),
         ),
       ),
     );
@@ -165,7 +170,10 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
       showItemError("Couldn't load spaces.");
       return null;
     }
-    final destinations = spaces.where((s) => s.id != fromSpaceId).toList();
+    // A read-only space takes no new items, so it's never a destination.
+    final destinations = spaces
+        .where((s) => s.id != fromSpaceId && !s.readOnly)
+        .toList();
     final canMoveToDashboard = fromSpaceId != null;
     if (!mounted) return null;
     if (destinations.isEmpty && !canMoveToDashboard) {

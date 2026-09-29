@@ -38,6 +38,7 @@ class ItemCard extends StatefulWidget {
     this.margin,
     this.grid = false,
     this.contextLabel,
+    this.readOnly = false,
   });
 
   final SpaceItem item;
@@ -48,6 +49,10 @@ class ItemCard extends StatefulWidget {
   /// Where the item lives, shown beside the title when it's listed outside its
   /// space (the Starred view). Null shows just the title.
   final String? contextLabel;
+
+  /// In a read-only space. The host leaves out the editing callbacks; this
+  /// only adds a marker when the item is listed outside its space.
+  final bool readOnly;
   final VoidCallback? onDuplicate;
   final VoidCallback? onMove;
   final VoidCallback? onArchive;
@@ -225,6 +230,16 @@ class _ItemCardState extends State<ItemCard> {
                               size: 17,
                               color: Colors.amber.shade400,
                               semanticLabel: 'Starred',
+                            ),
+                          ),
+                        if (widget.readOnly && widget.contextLabel != null)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: Icon(
+                              Icons.edit_off_outlined,
+                              size: 15,
+                              color: scheme.onSurfaceVariant,
+                              semanticLabel: 'Read-only',
                             ),
                           ),
                         if (widget.contextLabel != null) ...[

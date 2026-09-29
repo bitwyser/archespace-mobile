@@ -6,6 +6,7 @@ class Space {
     required this.description,
     required this.pinned,
     this.starred = false,
+    this.readOnly = false,
     this.tags = const [],
     this.color,
     this.parentId,
@@ -21,6 +22,10 @@ class Space {
 
   /// In the Starred view. A quick-access flag only: it never affects order.
   final bool starred;
+
+  /// Read-only (stored on the server): its details and items can be viewed,
+  /// copied and exported, but not changed.
+  final bool readOnly;
   final List<String> tags;
 
   /// Parent space id for a sub-space (one-level nesting), or null for top-level.

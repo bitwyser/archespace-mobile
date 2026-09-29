@@ -254,10 +254,16 @@ class RichTextEditingController extends TextEditingController {
 
 /// Rich Text editor: a formatting toolbar over a styled multiline field.
 /// Writes the serialised HTML into `content['html']` on every change.
+/// [readOnly] drops the toolbar and locks the field (still selectable).
 class RichTextEditorField extends StatefulWidget {
-  const RichTextEditorField({super.key, required this.content});
+  const RichTextEditorField({
+    super.key,
+    required this.content,
+    this.readOnly = false,
+  });
 
   final Map<String, dynamic> content;
+  final bool readOnly;
 
   @override
   State<RichTextEditorField> createState() => _RichTextEditorFieldState();
@@ -289,20 +295,23 @@ class _RichTextEditorFieldState extends State<RichTextEditorField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ListenableBuilder(
-          listenable: _controller,
-          builder: (context, _) => _Toolbar(controller: _controller),
-        ),
-        const SizedBox(height: 4),
+        if (!widget.readOnly) ...[
+          ListenableBuilder(
+            listenable: _controller,
+            builder: (context, _) => _Toolbar(controller: _controller),
+          ),
+          const SizedBox(height: 4),
+        ],
         Expanded(
           child: TextField(
             controller: _controller,
+            readOnly: widget.readOnly,
             maxLines: null,
             expands: true,
             textAlignVertical: TextAlignVertical.top,
             keyboardType: TextInputType.multiline,
-            decoration: const InputDecoration(
-              hintText: 'Start writing…',
+            decoration: InputDecoration(
+              hintText: widget.readOnly ? 'Empty' : 'Start writing…',
               border: InputBorder.none,
             ),
           ),

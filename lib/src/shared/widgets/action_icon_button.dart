@@ -14,6 +14,7 @@ class ActionIconButton extends StatelessWidget {
     required this.onPressed,
     this.iconSize = 21,
     this.size = 40,
+    this.selected = false,
   });
 
   final IconData icon;
@@ -22,12 +23,20 @@ class ActionIconButton extends StatelessWidget {
   final double iconSize;
   final double size;
 
+  /// An "on" toggle: tinted with the accent colour.
+  final bool selected;
+
   @override
   Widget build(BuildContext context) {
     return IconButton(
       onPressed: onPressed,
       tooltip: tooltip,
-      icon: Icon(icon, size: iconSize),
+      isSelected: selected,
+      icon: Icon(
+        icon,
+        size: iconSize,
+        color: selected ? Theme.of(context).colorScheme.primary : null,
+      ),
       style: IconButton.styleFrom(
         shape: const CircleBorder(),
         fixedSize: Size(size, size),

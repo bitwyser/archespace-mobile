@@ -21,19 +21,22 @@ import 'package:archespace_mobile/src/shared/util/errors.dart';
 /// Full-screen editor for one item. Pass [existing] to edit, or [type] (with no
 /// [existing]) to create. The per-type body editor mutates [_content] in place;
 /// Save re-encrypts and writes to Supabase, then pops `true` so the caller can
-/// refresh.
+/// refresh. With [readOnly] (an item in a read-only space) it's a viewer: the
+/// content stays selectable and copyable, but nothing can change or save.
 class ItemEditorScreen extends StatefulWidget {
   const ItemEditorScreen({
     super.key,
     required this.spaceId,
     required this.type,
     this.existing,
+    this.readOnly = false,
   });
 
   /// The item's space, or null for a dashboard item (belongs to no space).
   final String? spaceId;
   final String type;
   final SpaceItem? existing;
+  final bool readOnly;
 
   @override
   State<ItemEditorScreen> createState() => _ItemEditorScreenState();
@@ -82,6 +85,7 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.readOnly) return; // nothing to save
     _autoSaveTimer = Timer.periodic(
       const Duration(seconds: 2),
       (_) => _autoTick(),
@@ -123,7 +127,7 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
   /// Persists the item. Returns true on success. [silent] suppresses the error
   /// snackbar (used by background auto-save). Never navigates.
   Future<bool> _save({bool silent = false}) async {
-    if (_saving) return false;
+    if (_saving || widget.readOnly) return false;
     setState(() => _saving = true);
     final repo = ItemRepository(VaultSession.instance.masterKey);
     try {
@@ -167,7 +171,7 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
   // Flush on leave: save pending edits, then close. On a save failure the user
   // stays in the editor (with the error) so nothing is lost.
   Future<void> _handleBack() async {
-    if (!_isDirty()) {
+    if (widget.readOnly || !_isDirty()) {
       if (mounted) Navigator.pop(context, _savedAny);
       return;
     }
@@ -196,22 +200,37 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
         ),
         child: Scaffold(
           appBar: AppBar(
-            title: Text(widget.existing != null ? 'Edit $label' : 'New $label'),
+            title: Text(
+              widget.readOnly
+                  ? label
+                  : widget.existing != null
+                  ? 'Edit $label'
+                  : 'New $label',
+            ),
             actions: [
-              _saving
-                  ? const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : IconButton(
-                      onPressed: _saveAndClose,
-                      icon: const Icon(Icons.check),
-                      tooltip: 'Save',
-                    ),
+              if (widget.readOnly)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Tooltip(
+                    message: 'Read-only space',
+                    child: Icon(Icons.edit_off_outlined, size: 20),
+                  ),
+                )
+              else if (_saving)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              else
+                IconButton(
+                  onPressed: _saveAndClose,
+                  icon: const Icon(Icons.check),
+                  tooltip: 'Save',
+                ),
             ],
           ),
           body: SafeArea(
@@ -227,9 +246,10 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
                 children: [
                   TextField(
                     controller: _title,
+                    readOnly: widget.readOnly,
                     style: Theme.of(context).textTheme.titleLarge,
-                    decoration: const InputDecoration(
-                      hintText: 'Title',
+                    decoration: InputDecoration(
+                      hintText: widget.readOnly ? 'Untitled' : 'Title',
                       border: InputBorder.none,
                       isDense: true,
                       contentPadding: EdgeInsets.symmetric(vertical: 4),
@@ -247,31 +267,45 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
   }
 
   Widget _buildBody() {
+    final readOnly = widget.readOnly;
     switch (widget.type) {
       case 'textbox':
       case 'markdown':
-        return _NoteEditor(content: _content);
+        return _NoteEditor(content: _content, readOnly: readOnly);
       case 'richtext':
-        return RichTextEditorField(content: _content);
+        return RichTextEditorField(content: _content, readOnly: readOnly);
       case 'code':
-        return _CodeEditor(content: _content);
+        return _CodeEditor(content: _content, readOnly: readOnly);
       case 'menu_list':
-        return _ListEditor(content: _content, variant: _ListVariant.bullet);
+        return _ListEditor(
+          content: _content,
+          variant: _ListVariant.bullet,
+          readOnly: readOnly,
+        );
       case 'numbered_list':
-        return _ListEditor(content: _content, variant: _ListVariant.numbered);
+        return _ListEditor(
+          content: _content,
+          variant: _ListVariant.numbered,
+          readOnly: readOnly,
+        );
       case 'checkbox_list':
-        return _ListEditor(content: _content, variant: _ListVariant.checklist);
+        return _ListEditor(
+          content: _content,
+          variant: _ListVariant.checklist,
+          readOnly: readOnly,
+        );
       case 'card_list':
-        return _CardsEditor(content: _content);
+        return _CardsEditor(content: _content, readOnly: readOnly);
       case 'table':
-        return _TableEditor(content: _content);
+        return _TableEditor(content: _content, readOnly: readOnly);
       case 'draw':
-        return _DrawEditor(content: _content);
+        return _DrawEditor(content: _content, readOnly: readOnly);
       case 'authenticator':
-        return _AuthenticatorEditor(content: _content);
+        return _AuthenticatorEditor(content: _content, readOnly: readOnly);
       case 'secret':
         return _SecretEditor(
           content: _content,
+          readOnly: readOnly,
           onRegisterFinalize: (fn) => _finalizeContent = fn,
           onChanged: () {
             _secretDirty = true;
@@ -286,9 +320,10 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
 
 /// Plain multiline text editor for note / markdown content (`{ text }`).
 class _NoteEditor extends StatefulWidget {
-  const _NoteEditor({required this.content});
+  const _NoteEditor({required this.content, this.readOnly = false});
 
   final Map<String, dynamic> content;
+  final bool readOnly;
 
   @override
   State<_NoteEditor> createState() => _NoteEditorState();
@@ -309,13 +344,14 @@ class _NoteEditorState extends State<_NoteEditor> {
   Widget build(BuildContext context) {
     return TextField(
       controller: _text,
+      readOnly: widget.readOnly,
       onChanged: (value) => widget.content['text'] = value,
       maxLines: null,
       expands: true,
       textAlignVertical: TextAlignVertical.top,
       keyboardType: TextInputType.multiline,
-      decoration: const InputDecoration(
-        hintText: 'Start writing…',
+      decoration: InputDecoration(
+        hintText: widget.readOnly ? 'Empty' : 'Start writing…',
         border: InputBorder.none,
       ),
     );
@@ -326,9 +362,10 @@ class _NoteEditorState extends State<_NoteEditor> {
 /// (`{ code: "…" }`). Editing is unstyled monospace; syntax highlighting is
 /// applied in the read view (item card), where the language is auto-detected.
 class _CodeEditor extends StatefulWidget {
-  const _CodeEditor({required this.content});
+  const _CodeEditor({required this.content, this.readOnly = false});
 
   final Map<String, dynamic> content;
+  final bool readOnly;
 
   @override
   State<_CodeEditor> createState() => _CodeEditorState();
@@ -354,6 +391,7 @@ class _CodeEditorState extends State<_CodeEditor> {
     // Plain field (no box) like the other editors; text is live-highlighted.
     return TextField(
       controller: _code,
+      readOnly: widget.readOnly,
       onChanged: (value) => widget.content['code'] = value,
       maxLines: null,
       expands: true,
@@ -365,8 +403,8 @@ class _CodeEditorState extends State<_CodeEditor> {
         height: 1.5,
         color: Theme.of(context).colorScheme.onSurface,
       ),
-      decoration: const InputDecoration(
-        hintText: 'Paste or write code…',
+      decoration: InputDecoration(
+        hintText: widget.readOnly ? 'Empty' : 'Paste or write code…',
         border: InputBorder.none,
         isCollapsed: true,
       ),
@@ -380,10 +418,15 @@ enum _ListVariant { bullet, numbered, checklist }
 /// (`{ items: [{id, text, checked?}] }`). Add, edit, remove, and drag to
 /// reorder. [variant] controls the leading marker (bullet / number / checkbox).
 class _ListEditor extends StatefulWidget {
-  const _ListEditor({required this.content, required this.variant});
+  const _ListEditor({
+    required this.content,
+    required this.variant,
+    this.readOnly = false,
+  });
 
   final Map<String, dynamic> content;
   final _ListVariant variant;
+  final bool readOnly;
 
   @override
   State<_ListEditor> createState() => _ListEditorState();
@@ -468,8 +511,9 @@ class _ListEditorState extends State<_ListEditor> {
       case _ListVariant.checklist:
         return Checkbox(
           value: (item['checked'] ?? false) == true,
-          onChanged: (value) =>
-              setState(() => item['checked'] = value ?? false),
+          onChanged: widget.readOnly
+              ? null
+              : (value) => setState(() => item['checked'] = value ?? false),
           visualDensity: VisualDensity.compact,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         );
@@ -499,6 +543,7 @@ class _ListEditorState extends State<_ListEditor> {
           child: ReorderableListView.builder(
             itemCount: _items.length,
             onReorderItem: _reorder,
+            buildDefaultDragHandles: !widget.readOnly,
             itemBuilder: (context, index) {
               final item = _items[index];
               return Padding(
@@ -511,6 +556,7 @@ class _ListEditorState extends State<_ListEditor> {
                       child: TextField(
                         controller: _controllerFor(item),
                         focusNode: _focusNodeFor(item),
+                        readOnly: widget.readOnly,
                         onChanged: (value) {
                           final nl = value.indexOf('\n');
                           if (nl < 0) {
@@ -541,55 +587,61 @@ class _ListEditorState extends State<_ListEditor> {
                                 decoration: TextDecoration.lineThrough,
                               )
                             : null,
-                        decoration: const InputDecoration(
-                          hintText: 'Item…',
+                        decoration: InputDecoration(
+                          hintText: widget.readOnly ? null : 'Item…',
                           border: InputBorder.none,
                           isDense: true,
-                          contentPadding: EdgeInsets.symmetric(vertical: 1),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 1,
+                          ),
                         ),
                       ),
                     ),
-                    IconButton(
-                      onPressed: () => _remove(index),
-                      icon: const Icon(Icons.close, size: 18),
-                      tooltip: 'Remove',
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 26,
-                        minHeight: 26,
-                      ),
-                    ),
-                    ReorderableDragStartListener(
-                      index: index,
-                      child: const Padding(
-                        padding: EdgeInsets.all(2),
-                        child: Icon(
-                          Icons.drag_handle,
-                          size: 18,
-                          semanticLabel: 'Drag to reorder',
+                    if (!widget.readOnly) ...[
+                      IconButton(
+                        onPressed: () => _remove(index),
+                        icon: const Icon(Icons.close, size: 18),
+                        tooltip: 'Remove',
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 26,
+                          minHeight: 26,
                         ),
                       ),
-                    ),
+                      ReorderableDragStartListener(
+                        index: index,
+                        child: const Padding(
+                          padding: EdgeInsets.all(2),
+                          child: Icon(
+                            Icons.drag_handle,
+                            size: 18,
+                            semanticLabel: 'Drag to reorder',
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               );
             },
           ),
         ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: _add,
-            icon: const Icon(Icons.add),
-            label: const Text('Add item'),
-            style: TextButton.styleFrom(
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: VisualDensity.compact,
+        if (!widget.readOnly) ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _add,
+              icon: const Icon(Icons.add),
+              label: const Text('Add item'),
+              style: TextButton.styleFrom(
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
             ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -602,9 +654,10 @@ String _uid() =>
 /// Editable cards for `card_list` (`{ items: [{id, title, description}] }`).
 /// Two fields per card; add, remove, and drag to reorder.
 class _CardsEditor extends StatefulWidget {
-  const _CardsEditor({required this.content});
+  const _CardsEditor({required this.content, this.readOnly = false});
 
   final Map<String, dynamic> content;
+  final bool readOnly;
 
   @override
   State<_CardsEditor> createState() => _CardsEditorState();
@@ -678,6 +731,7 @@ class _CardsEditorState extends State<_CardsEditor> {
           child: ReorderableListView.builder(
             itemCount: _items.length,
             onReorderItem: _reorder,
+            buildDefaultDragHandles: !widget.readOnly,
             itemBuilder: (context, index) {
               final item = _items[index];
               final scheme = Theme.of(context).colorScheme;
@@ -699,33 +753,36 @@ class _CardsEditorState extends State<_CardsEditor> {
                           Expanded(
                             child: TextField(
                               controller: _titleFor(item),
+                              readOnly: widget.readOnly,
                               onChanged: (value) => item['title'] = value,
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                               ),
-                              decoration: const InputDecoration(
-                                hintText: 'Title',
+                              decoration: InputDecoration(
+                                hintText: widget.readOnly ? null : 'Title',
                                 border: InputBorder.none,
                                 isDense: true,
                               ),
                             ),
                           ),
-                          IconButton(
-                            onPressed: () => _remove(index),
-                            icon: const Icon(Icons.close, size: 18),
-                            tooltip: 'Remove',
-                          ),
-                          ReorderableDragStartListener(
-                            index: index,
-                            child: const Padding(
-                              padding: EdgeInsets.all(6),
-                              child: Icon(
-                                Icons.drag_handle,
-                                size: 18,
-                                semanticLabel: 'Drag to reorder',
+                          if (!widget.readOnly) ...[
+                            IconButton(
+                              onPressed: () => _remove(index),
+                              icon: const Icon(Icons.close, size: 18),
+                              tooltip: 'Remove',
+                            ),
+                            ReorderableDragStartListener(
+                              index: index,
+                              child: const Padding(
+                                padding: EdgeInsets.all(6),
+                                child: Icon(
+                                  Icons.drag_handle,
+                                  size: 18,
+                                  semanticLabel: 'Drag to reorder',
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                       // Separator between the card's heading and its content.
@@ -735,11 +792,12 @@ class _CardsEditorState extends State<_CardsEditor> {
                       ),
                       TextField(
                         controller: _descFor(item),
+                        readOnly: widget.readOnly,
                         onChanged: (value) => item['description'] = value,
                         minLines: 1,
                         maxLines: null,
-                        decoration: const InputDecoration(
-                          hintText: 'Description',
+                        decoration: InputDecoration(
+                          hintText: widget.readOnly ? null : 'Description',
                           border: InputBorder.none,
                           isDense: true,
                         ),
@@ -751,19 +809,21 @@ class _CardsEditorState extends State<_CardsEditor> {
             },
           ),
         ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: _add,
-            icon: const Icon(Icons.add),
-            label: const Text('Add card'),
-            style: TextButton.styleFrom(
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: VisualDensity.compact,
+        if (!widget.readOnly) ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _add,
+              icon: const Icon(Icons.add),
+              label: const Text('Add card'),
+              style: TextButton.styleFrom(
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
             ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -775,9 +835,10 @@ const double _kCellWidth = 150;
 /// header + cells, add/remove columns and rows. The grid is kept rectangular
 /// (every row has one cell per column). Scrolls both axes.
 class _TableEditor extends StatefulWidget {
-  const _TableEditor({required this.content});
+  const _TableEditor({required this.content, this.readOnly = false});
 
   final Map<String, dynamic> content;
+  final bool readOnly;
 
   @override
   State<_TableEditor> createState() => _TableEditorState();
@@ -915,18 +976,21 @@ class _TableEditorState extends State<_TableEditor> {
                               Expanded(
                                 child: TextField(
                                   controller: _colCtrls[c],
+                                  readOnly: widget.readOnly,
                                   onChanged: (v) => _columns[c] = v,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w600,
                                   ),
                                   decoration: InputDecoration(
-                                    hintText: 'Column ${c + 1}',
+                                    hintText: widget.readOnly
+                                        ? null
+                                        : 'Column ${c + 1}',
                                     border: InputBorder.none,
                                     isDense: true,
                                   ),
                                 ),
                               ),
-                              if (_columns.length > 1)
+                              if (!widget.readOnly && _columns.length > 1)
                                 InkWell(
                                   onTap: () => _removeColumn(c),
                                   child: const Padding(
@@ -937,11 +1001,12 @@ class _TableEditorState extends State<_TableEditor> {
                             ],
                           ),
                         ),
-                      IconButton(
-                        onPressed: _addColumn,
-                        icon: const Icon(Icons.add),
-                        tooltip: 'Add column',
-                      ),
+                      if (!widget.readOnly)
+                        IconButton(
+                          onPressed: _addColumn,
+                          icon: const Icon(Icons.add),
+                          tooltip: 'Add column',
+                        ),
                     ],
                   ),
                   // Data rows + remove-row button.
@@ -954,6 +1019,7 @@ class _TableEditorState extends State<_TableEditor> {
                             decoration: BoxDecoration(border: border),
                             child: TextField(
                               controller: _cellCtrls[r][c],
+                              readOnly: widget.readOnly,
                               onChanged: (v) => _rows[r][c] = v,
                               minLines: 1,
                               maxLines: null,
@@ -967,13 +1033,14 @@ class _TableEditorState extends State<_TableEditor> {
                               ),
                             ),
                           ),
-                        IconButton(
-                          onPressed: _rows.length > 1
-                              ? () => _removeRow(r)
-                              : null,
-                          icon: const Icon(Icons.close, size: 16),
-                          tooltip: 'Remove row',
-                        ),
+                        if (!widget.readOnly)
+                          IconButton(
+                            onPressed: _rows.length > 1
+                                ? () => _removeRow(r)
+                                : null,
+                            icon: const Icon(Icons.close, size: 16),
+                            tooltip: 'Remove row',
+                          ),
                       ],
                     ),
                 ],
@@ -981,19 +1048,21 @@ class _TableEditorState extends State<_TableEditor> {
             ),
           ),
         ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: _addRow,
-            icon: const Icon(Icons.add),
-            label: const Text('Add row'),
-            style: TextButton.styleFrom(
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: VisualDensity.compact,
+        if (!widget.readOnly) ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _addRow,
+              icon: const Icon(Icons.add),
+              label: const Text('Add row'),
+              style: TextButton.styleFrom(
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
             ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -1014,9 +1083,10 @@ const List<double> _kInkSizes = [4, 8, 16];
 /// Points are captured in a fixed 1000x600 logical space so drawings scale and
 /// match the read renderer / web. Includes colour + size pickers, undo, clear.
 class _DrawEditor extends StatefulWidget {
-  const _DrawEditor({required this.content});
+  const _DrawEditor({required this.content, this.readOnly = false});
 
   final Map<String, dynamic> content;
+  final bool readOnly;
 
   @override
   State<_DrawEditor> createState() => _DrawEditorState();
@@ -1135,94 +1205,99 @@ class _DrawEditorState extends State<_DrawEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            _toolButton('pen', Icons.edit_outlined, 'Pen', accent),
-            _toolButton('line', Icons.horizontal_rule, 'Line', accent),
-            _toolButton('rect', Icons.crop_square, 'Rectangle', accent),
-            _toolButton('ellipse', Icons.circle_outlined, 'Ellipse', accent),
-            const Spacer(),
-            _orientationButton(
-              'landscape',
-              Icons.crop_landscape,
-              'Landscape',
-              accent,
-            ),
-            _orientationButton(
-              'portrait',
-              Icons.crop_portrait,
-              'Portrait',
-              accent,
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  for (final col in _kInkColors)
-                    GestureDetector(
-                      onTap: () => setState(() => _color = col),
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _parseInk(col, Colors.black),
-                          border: Border.all(
-                            color: _color == col ? accent : Colors.transparent,
-                            width: 3,
-                          ),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(width: 8),
-                  for (final s in _kInkSizes)
-                    GestureDetector(
-                      onTap: () => setState(() => _size = s),
-                      child: Container(
-                        width: 34,
-                        height: 34,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _size == s
-                                ? accent
-                                : Theme.of(context).dividerColor,
-                          ),
-                        ),
-                        child: Container(
-                          width: s,
-                          height: s,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+        // No tools when read-only: the drawing is view-only.
+        if (!widget.readOnly) ...[
+          Row(
+            children: [
+              _toolButton('pen', Icons.edit_outlined, 'Pen', accent),
+              _toolButton('line', Icons.horizontal_rule, 'Line', accent),
+              _toolButton('rect', Icons.crop_square, 'Rectangle', accent),
+              _toolButton('ellipse', Icons.circle_outlined, 'Ellipse', accent),
+              const Spacer(),
+              _orientationButton(
+                'landscape',
+                Icons.crop_landscape,
+                'Landscape',
+                accent,
               ),
-            ),
-            IconButton(
-              onPressed: _strokes.isEmpty ? null : _undo,
-              icon: const Icon(Icons.undo),
-              tooltip: 'Undo',
-            ),
-            IconButton(
-              onPressed: _strokes.isEmpty ? null : _clear,
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Clear',
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
+              _orientationButton(
+                'portrait',
+                Icons.crop_portrait,
+                'Portrait',
+                accent,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    for (final col in _kInkColors)
+                      GestureDetector(
+                        onTap: () => setState(() => _color = col),
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _parseInk(col, Colors.black),
+                            border: Border.all(
+                              color: _color == col
+                                  ? accent
+                                  : Colors.transparent,
+                              width: 3,
+                            ),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(width: 8),
+                    for (final s in _kInkSizes)
+                      GestureDetector(
+                        onTap: () => setState(() => _size = s),
+                        child: Container(
+                          width: 34,
+                          height: 34,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _size == s
+                                  ? accent
+                                  : Theme.of(context).dividerColor,
+                            ),
+                          ),
+                          child: Container(
+                            width: s,
+                            height: s,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: _strokes.isEmpty ? null : _undo,
+                icon: const Icon(Icons.undo),
+                tooltip: 'Undo',
+              ),
+              IconButton(
+                onPressed: _strokes.isEmpty ? null : _clear,
+                icon: const Icon(Icons.delete_outline),
+                tooltip: 'Clear',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
         Expanded(
           child: Center(
             child: AspectRatio(
@@ -1240,11 +1315,13 @@ class _DrawEditorState extends State<_DrawEditor> {
                       borderRadius: BorderRadius.circular(8),
                       child: Listener(
                         behavior: HitTestBehavior.opaque,
-                        onPointerDown: (e) =>
-                            _start(e.localPosition, e.pressure),
-                        onPointerMove: (e) =>
-                            _extend(e.localPosition, e.pressure),
-                        onPointerUp: (e) => _end(),
+                        onPointerDown: widget.readOnly
+                            ? null
+                            : (e) => _start(e.localPosition, e.pressure),
+                        onPointerMove: widget.readOnly
+                            ? null
+                            : (e) => _extend(e.localPosition, e.pressure),
+                        onPointerUp: widget.readOnly ? null : (e) => _end(),
                         child: CustomPaint(
                           painter: _DrawPainter(_strokes, _current, _logical),
                           // A concrete expanding child guarantees the canvas fills
@@ -1342,11 +1419,13 @@ class _SecretEditor extends StatefulWidget {
     required this.content,
     required this.onRegisterFinalize,
     required this.onChanged,
+    this.readOnly = false,
   });
 
   final Map<String, dynamic> content;
   final void Function(Future<void> Function()) onRegisterFinalize;
   final VoidCallback onChanged;
+  final bool readOnly;
 
   @override
   State<_SecretEditor> createState() => _SecretEditorState();
@@ -1422,13 +1501,14 @@ class _SecretEditorState extends State<_SecretEditor> {
     if (_revealed) {
       return TextField(
         controller: _text,
+        readOnly: widget.readOnly,
         onChanged: (_) => widget.onChanged(),
         maxLines: null,
         expands: true,
         textAlignVertical: TextAlignVertical.top,
         keyboardType: TextInputType.multiline,
-        decoration: const InputDecoration(
-          hintText: 'Secret text…',
+        decoration: InputDecoration(
+          hintText: widget.readOnly ? 'Empty' : 'Secret text…',
           border: InputBorder.none,
         ),
       );
@@ -1441,8 +1521,10 @@ class _SecretEditorState extends State<_SecretEditor> {
           const SizedBox(height: 8),
           const Icon(Icons.lock_outline, size: 40),
           const SizedBox(height: 12),
-          const Text(
-            'This secret is hidden. Enter your vault PIN to reveal and edit it.',
+          Text(
+            widget.readOnly
+                ? 'This secret is hidden. Enter your vault PIN to reveal it.'
+                : 'This secret is hidden. Enter your vault PIN to reveal and edit it.',
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
@@ -1483,9 +1565,10 @@ class _SecretEditorState extends State<_SecretEditor> {
 /// with live rotating codes. Mutates `content['entries']`; the screen's
 /// jsonEncode diff auto-saves when accounts are added, edited, or removed.
 class _AuthenticatorEditor extends StatefulWidget {
-  const _AuthenticatorEditor({required this.content});
+  const _AuthenticatorEditor({required this.content, this.readOnly = false});
 
   final Map<String, dynamic> content;
+  final bool readOnly;
 
   @override
   State<_AuthenticatorEditor> createState() => _AuthenticatorEditorState();
@@ -1511,7 +1594,7 @@ class _AuthenticatorEditorState extends State<_AuthenticatorEditor> {
   @override
   void initState() {
     super.initState();
-    _adding = _entries.isEmpty;
+    _adding = _entries.isEmpty && !widget.readOnly;
     _refreshCodes();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -1601,8 +1684,15 @@ class _AuthenticatorEditorState extends State<_AuthenticatorEditor> {
       padding: const EdgeInsets.only(top: 4, bottom: 16),
       children: [
         for (final entry in entries) _entryTile(entry, scheme),
-        const SizedBox(height: 8),
-        if (_adding) _addForm(scheme) else _addButton(),
+        if (widget.readOnly && entries.isEmpty)
+          Text(
+            'No accounts.',
+            style: TextStyle(color: scheme.onSurfaceVariant),
+          ),
+        if (!widget.readOnly) ...[
+          const SizedBox(height: 8),
+          if (_adding) _addForm(scheme) else _addButton(),
+        ],
       ],
     );
   }
@@ -1676,11 +1766,12 @@ class _AuthenticatorEditorState extends State<_AuthenticatorEditor> {
                 showSuccessSnack(context, 'Code copied.');
               },
             ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, size: 18),
-              tooltip: 'Remove account',
-              onPressed: () => _removeEntry(id),
-            ),
+            if (!widget.readOnly)
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 18),
+                tooltip: 'Remove account',
+                onPressed: () => _removeEntry(id),
+              ),
           ],
         ),
       ),

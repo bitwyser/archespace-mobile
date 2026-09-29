@@ -40,6 +40,14 @@ class _StarredScreenState extends State<StarredScreen>
   @override
   String? spaceIdFor(SpaceItem item) => item.spaceId;
 
+  // An item from a read-only space opens as a viewer and offers no edits.
+  @override
+  bool isItemReadOnly(SpaceItem item) =>
+      item.spaceId != null &&
+      (_spaces ?? const <Space>[]).any(
+        (s) => s.id == item.spaceId && s.readOnly,
+      );
+
   @override
   Future<void> reloadItems() => _load();
 
@@ -278,6 +286,11 @@ class _StarredScreenState extends State<StarredScreen>
       "Couldn't update the star.",
       success: space.starred ? 'Removed from Starred' : 'Added to Starred',
     ),
+    onToggleReadOnly: () => _spaceOp(
+      (r) => r.setReadOnly(space.id, !space.readOnly),
+      "Couldn't change read-only.",
+      success: space.readOnly ? 'Editing allowed' : 'Space is now read-only',
+    ),
     onEdit: () => _editSpace(space),
     onDuplicate: () => _spaceOp(
       (r) => r.duplicateSpace(space),
@@ -288,17 +301,23 @@ class _StarredScreenState extends State<StarredScreen>
     onDelete: () => _deleteSpace(space),
   );
 
-  Widget _itemCard(SpaceItem item, String where) => ItemCard(
-    item: item,
-    contextLabel: where,
-    onTap: isEditableType(item.type) ? () => editItem(item) : null,
-    onTogglePin: () => togglePinItem(item),
-    onToggleStar: () => toggleStarItem(item),
-    onDuplicate: () => duplicateItem(item),
-    onMove: () => moveItem(item),
-    onArchive: () => archiveItem(item),
-    onExport: () => exportItem(item),
-    onDelete: () => deleteItem(item),
-    onSetTags: _offline ? null : (tags) => _setItemTags(item, tags),
-  );
+  Widget _itemCard(SpaceItem item, String where) {
+    final readOnly = isItemReadOnly(item);
+    return ItemCard(
+      item: item,
+      contextLabel: where,
+      readOnly: readOnly,
+      onTap: isEditableType(item.type) ? () => editItem(item) : null,
+      onTogglePin: readOnly ? null : () => togglePinItem(item),
+      onToggleStar: () => toggleStarItem(item),
+      onDuplicate: readOnly ? null : () => duplicateItem(item),
+      onMove: readOnly ? null : () => moveItem(item),
+      onArchive: readOnly ? null : () => archiveItem(item),
+      onExport: () => exportItem(item),
+      onDelete: readOnly ? null : () => deleteItem(item),
+      onSetTags: _offline || readOnly
+          ? null
+          : (tags) => _setItemTags(item, tags),
+    );
+  }
 }

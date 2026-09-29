@@ -19,6 +19,7 @@ class SpaceCard extends StatelessWidget {
     required this.onArchive,
     required this.onDelete,
     this.onToggleStar,
+    this.onToggleReadOnly,
     this.selectMode = false,
     this.selected = false,
     this.onSelectToggle,
@@ -37,6 +38,9 @@ class SpaceCard extends StatelessWidget {
 
   /// Star / unstar (adds it to Starred without moving it). Null hides it.
   final VoidCallback? onToggleStar;
+
+  /// Read-only on / off. Null hides it.
+  final VoidCallback? onToggleReadOnly;
   final bool selectMode;
   final bool selected;
   final VoidCallback? onSelectToggle;
@@ -151,6 +155,16 @@ class SpaceCard extends StatelessWidget {
                                   semanticLabel: 'Starred',
                                 ),
                               ),
+                            if (space.readOnly)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 4),
+                                child: Icon(
+                                  Icons.edit_off_outlined,
+                                  size: 16,
+                                  color: scheme.onSurfaceVariant,
+                                  semanticLabel: 'Read-only',
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -176,6 +190,9 @@ class SpaceCard extends StatelessWidget {
                             onSelected: (value) {
                               if (value == 'pin') onTogglePin();
                               if (value == 'star') onToggleStar?.call();
+                              if (value == 'read-only') {
+                                onToggleReadOnly?.call();
+                              }
                               if (value == 'edit') onEdit();
                               if (value == 'duplicate') onDuplicate();
                               if (value == 'archive') onArchive();
@@ -195,11 +212,24 @@ class SpaceCard extends StatelessWidget {
                                     space.starred ? 'Unstar' : 'Star',
                                   ),
                                 ),
-                              const PopupMenuItem(
-                                height: 40,
-                                value: 'edit',
-                                child: Text('Edit'),
-                              ),
+                              // Read-only locks the space's content (details
+                              // and items); managing the space itself stays.
+                              if (onToggleReadOnly != null)
+                                PopupMenuItem(
+                                  height: 40,
+                                  value: 'read-only',
+                                  child: Text(
+                                    space.readOnly
+                                        ? 'Allow editing'
+                                        : 'Make read-only',
+                                  ),
+                                ),
+                              if (!space.readOnly)
+                                const PopupMenuItem(
+                                  height: 40,
+                                  value: 'edit',
+                                  child: Text('Edit'),
+                                ),
                               const PopupMenuItem(
                                 height: 40,
                                 value: 'duplicate',

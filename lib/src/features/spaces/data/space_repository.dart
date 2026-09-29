@@ -26,7 +26,7 @@ class SpaceRepository {
       rows = await _client
           .from('spaces')
           .select(
-            'id, name, description, tags, color, parent_id, pinned, starred, position, created_at',
+            'id, name, description, tags, color, parent_id, pinned, starred, read_only, position, created_at',
           )
           .isFilter('deleted_at', null)
           .isFilter('archived_at', null)
@@ -86,6 +86,7 @@ class SpaceRepository {
             ),
             pinned: (m['pinned'] ?? false) as bool,
             starred: (m['starred'] ?? false) as bool,
+            readOnly: (m['read_only'] ?? false) as bool,
             tags: await _decodeTags(m['tags']),
             color: m['color'] as String?,
             parentId: m['parent_id'] as String?,
@@ -237,6 +238,23 @@ class SpaceRepository {
   /// Star / unstar. Never touches the space's position.
   Future<void> setStarred(String id, bool starred) async {
     await _client.from('spaces').update({'starred': starred}).eq('id', id);
+  }
+
+  /// Read-only on / off. While on, the database refuses changes to the
+  /// space's details and to its items' content.
+  Future<void> setReadOnly(String id, bool readOnly) async {
+    await _client.from('spaces').update({'read_only': readOnly}).eq('id', id);
+  }
+
+  /// The space's current read-only flag, straight from the server.
+  Future<bool> fetchReadOnly(String id) async {
+    final row = await _client
+        .from('spaces')
+        .select('read_only')
+        .eq('id', id)
+        .single()
+        .timeout(const Duration(seconds: 8));
+    return (row['read_only'] ?? false) as bool;
   }
 
   Future<void> archiveSpace(String id) async {

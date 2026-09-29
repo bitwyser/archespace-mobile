@@ -22,6 +22,7 @@ import 'package:archespace_mobile/src/shared/widgets/create_fabs.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
 import 'package:archespace_mobile/src/shared/widgets/offline_banner.dart';
 import 'package:archespace_mobile/src/shared/widgets/scrollable_message.dart';
+import 'package:archespace_mobile/src/shared/widgets/status_banner.dart';
 import 'package:archespace_mobile/src/shared/widgets/tag_filter_bar.dart';
 
 class SpaceDetailScreen extends StatefulWidget {
@@ -44,6 +45,15 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
 
   @override
   Future<void> reloadItems() => _load();
+
+  // Read-only (stored on the server): items open as viewers and nothing in
+  // the space can be added or changed. Seeded from the passed space, then kept
+  // in sync with the server (another device may toggle it).
+  late bool _readOnly = widget.space.readOnly;
+  TableWatcher? _spaceWatcher;
+
+  @override
+  bool isItemReadOnly(SpaceItem item) => _readOnly;
 
   List<SpaceItem>? _items;
   List<Space> _subSpaces = const [];
@@ -82,17 +92,68 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
       filterValue: widget.space.id,
       onChange: _load,
     );
+    _spaceWatcher = TableWatcher(
+      channelName: 'space-${widget.space.id}',
+      table: 'spaces',
+      filterColumn: 'id',
+      filterValue: widget.space.id,
+      onChange: _refreshReadOnly,
+    );
   }
 
   @override
   void dispose() {
     _watcher?.dispose();
+    _spaceWatcher?.dispose();
     _searchController.dispose();
     _searchFocus.dispose();
     super.dispose();
   }
 
+  /// Pick up the read-only flag from the server. Non-fatal: offline keeps the
+  /// last known value.
+  Future<void> _refreshReadOnly() async {
+    try {
+      final readOnly = await SpaceRepository(
+        VaultSession.instance.masterKey,
+      ).fetchReadOnly(widget.space.id);
+      if (mounted && readOnly != _readOnly) {
+        setState(() {
+          _readOnly = readOnly;
+          if (readOnly) {
+            _selectMode = false;
+            _selected.clear();
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleReadOnly() async {
+    final next = !_readOnly;
+    try {
+      await SpaceRepository(
+        VaultSession.instance.masterKey,
+      ).setReadOnly(widget.space.id, next);
+      if (!mounted) return;
+      setState(() {
+        _readOnly = next;
+        if (next) {
+          _selectMode = false;
+          _selected.clear();
+        }
+      });
+      showSuccessSnack(
+        context,
+        next ? 'Space is now read-only' : 'Editing allowed',
+      );
+    } catch (_) {
+      _showError("Couldn't change read-only.");
+    }
+  }
+
   Future<void> _load() async {
+    _refreshReadOnly();
     try {
       final result = await ItemRepository(
         VaultSession.instance.masterKey,
@@ -208,6 +269,10 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
       await r.setStarred(sub.id, !sub.starred);
       StorageCounts.instance.refresh();
     }, "Couldn't update the star."),
+    onToggleReadOnly: () => _subSpaceOp(
+      (r) => r.setReadOnly(sub.id, !sub.readOnly),
+      "Couldn't change read-only.",
+    ),
     onEdit: () => _editSubSpace(sub),
     onDuplicate: () => _subSpaceOp(
       (r) => r.duplicateSpace(sub),
@@ -347,6 +412,14 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
   List<Widget> _buildBarActions(bool hasItems) {
     // New sub-space is a floating button beside Add item (see CreateFabs).
     return [
+      ActionIconButton(
+        icon: Icons.edit_off_outlined,
+        tooltip: _readOnly
+            ? 'Read-only - tap to allow editing'
+            : 'Make read-only',
+        onPressed: _toggleReadOnly,
+        selected: _readOnly,
+      ),
       if (hasItems)
         _barAction(Icons.picture_as_pdf_outlined, 'Export PDF', _exportSpace),
       const SizedBox(width: 4),
@@ -420,7 +493,10 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
             size: 36,
           ),
           SortMenu(value: _sort, onChanged: _setSort, size: 36),
-          _barAction(Icons.checklist, 'Select', _enterSelect, size: 36),
+          // Every bulk action changes items, so there's no selecting while
+          // read-only.
+          if (!_readOnly)
+            _barAction(Icons.checklist, 'Select', _enterSelect, size: 36),
         ],
       ),
     );
@@ -453,7 +529,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
               ),
               actions: _buildBarActions(hasItems),
             ),
-      floatingActionButton: _selectMode
+      floatingActionButton: _selectMode || _readOnly
           ? null
           : CreateFabs(
               onAddItem: openAddItemSheet,
@@ -508,6 +584,11 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
               child: Column(
                 children: [
                   if (_offline) const OfflineBanner(),
+                  if (_readOnly)
+                    const StatusBanner(
+                      icon: Icons.edit_off_outlined,
+                      message: 'Read-only - view, copy and export only',
+                    ),
                   Expanded(
                     child: RefreshIndicator(onRefresh: _load, child: _body()),
                   ),
@@ -536,6 +617,13 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
         ? null
         : Column(children: [for (final s in _subSpaces) _subSpaceCard(s)]);
     if (all.isEmpty && subSection == null) {
+      if (_readOnly) {
+        return const StateMessage(
+          icon: Icons.edit_off_outlined,
+          title: 'No items yet',
+          message: 'This space is read-only.',
+        );
+      }
       return StateMessage(
         icon: Icons.note_add_outlined,
         title: 'No items yet',
@@ -598,6 +686,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(top: 4, bottom: 88),
             buildDefaultDragHandles:
+                !_readOnly &&
                 !_selectMode &&
                 !_offline &&
                 _sort == kSortDefault &&
@@ -742,14 +831,15 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
     selectMode: _selectMode,
     selected: _selected.contains(item.id),
     onSelectToggle: () => _toggleSelect(item.id),
+    // Read-only: the card opens a viewer, and only star, copy and export stay.
     onTap: isEditableType(item.type) ? () => editItem(item) : null,
-    onTogglePin: () => togglePinItem(item),
+    onTogglePin: _readOnly ? null : () => togglePinItem(item),
     onToggleStar: () => toggleStarItem(item),
-    onDuplicate: () => duplicateItem(item),
-    onMove: () => moveItem(item),
-    onArchive: () => archiveItem(item),
+    onDuplicate: _readOnly ? null : () => duplicateItem(item),
+    onMove: _readOnly ? null : () => moveItem(item),
+    onArchive: _readOnly ? null : () => archiveItem(item),
     onExport: () => exportItem(item),
-    onDelete: () => deleteItem(item),
-    onSetTags: _offline ? null : (tags) => _setTags(item, tags),
+    onDelete: _readOnly ? null : () => deleteItem(item),
+    onSetTags: _offline || _readOnly ? null : (tags) => _setTags(item, tags),
   );
 }
