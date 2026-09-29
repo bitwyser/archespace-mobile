@@ -143,15 +143,14 @@ class SpaceCard extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            // Starred, right after the name: gold, so it
-                            // never reads as the (accent) pin.
+                            // Starred, right after the name, in the accent.
                             if (space.starred)
                               Padding(
                                 padding: const EdgeInsets.only(left: 4),
                                 child: Icon(
                                   Icons.star_rounded,
                                   size: 19,
-                                  color: Colors.amber.shade400,
+                                  color: scheme.primary,
                                   semanticLabel: 'Starred',
                                 ),
                               ),
@@ -221,7 +220,7 @@ class SpaceCard extends StatelessWidget {
                                   child: Text(
                                     space.readOnly
                                         ? 'Allow editing'
-                                        : 'Make read-only',
+                                        : 'Read-only',
                                   ),
                                 ),
                               if (!space.readOnly)

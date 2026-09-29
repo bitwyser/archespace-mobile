@@ -223,15 +223,14 @@ class _ItemCardState extends State<ItemCard> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        // Starred, right after the name: gold, so it never
-                        // reads as the (accent) pin.
+                        // Starred, right after the name, in the accent.
                         if (item.starred)
                           Padding(
                             padding: const EdgeInsets.only(left: 4),
                             child: Icon(
                               Icons.star_rounded,
                               size: 17,
-                              color: Colors.amber.shade400,
+                              color: scheme.primary,
                               semanticLabel: 'Starred',
                             ),
                           ),

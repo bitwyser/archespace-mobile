@@ -414,9 +414,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
     return [
       ActionIconButton(
         icon: Icons.edit_off_outlined,
-        tooltip: _readOnly
-            ? 'Read-only - tap to allow editing'
-            : 'Make read-only',
+        tooltip: _readOnly ? 'Read-only - tap to allow editing' : 'Read-only',
         onPressed: _toggleReadOnly,
         selected: _readOnly,
       ),
