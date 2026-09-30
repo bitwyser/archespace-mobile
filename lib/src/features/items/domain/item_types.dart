@@ -11,6 +11,7 @@ class ItemTypeDef {
     required this.icon,
     required this.color,
     this.editable = false,
+    this.addable = true,
   });
 
   final String type;
@@ -22,6 +23,10 @@ class ItemTypeDef {
   /// per-type palette.
   final Color color;
   final bool editable;
+
+  /// Offered in the add-item menu. False for a variant of another type (a
+  /// numbered List), which opens and edits normally but isn't picked there.
+  final bool addable;
 
   /// [color] for a theme brightness: the pale shades fade on a light
   /// background, so light mode uses a deeper shade of the same hue (as the
@@ -74,18 +79,20 @@ const List<ItemTypeDef> kItemTypes = [
   ItemTypeDef(
     type: 'menu_list',
     label: 'List',
-    description: 'Simple bullet list',
+    description: 'Bullet or numbered list',
     icon: Icons.list,
     color: Color(0xFFC084FC), // purple
     editable: true,
   ),
   ItemTypeDef(
+    // A List with numbers on (its Numbered checkbox); not a separate choice.
     type: 'numbered_list',
-    label: 'Numbered list',
-    description: 'Ordered list',
+    label: 'List',
+    description: 'Bullet or numbered list',
     icon: Icons.format_list_numbered,
-    color: Color(0xFFF472B6), // pink
+    color: Color(0xFFC084FC), // purple, like List
     editable: true,
+    addable: false,
   ),
   ItemTypeDef(
     type: 'checkbox_list',

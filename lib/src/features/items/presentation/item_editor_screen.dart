@@ -57,6 +57,10 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
   // Snapshot of the last persisted state, for change detection.
   late String _savedTitle = (widget.existing?.title ?? '').trim();
   late String _savedContentJson = jsonEncode(_content);
+  // The item's type as edited: a List switches between bullets (menu_list)
+  // and numbers (numbered_list) with its Numbered checkbox.
+  late String _type = widget.type;
+  late String _savedType = widget.type;
   // True once any save has succeeded, so the caller refreshes on close.
   bool _savedAny = false;
 
@@ -70,6 +74,7 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
   // (no change since the last tick) rather than on every keystroke.
   late String _tickTitle = _title.text;
   late String _tickContentJson = _savedContentJson;
+  late String _tickType = widget.type;
   Timer? _autoSaveTimer;
 
   // Some editors (Secret) must run async work (encryption) to fold their state
@@ -102,6 +107,7 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
   bool _isDirty() =>
       _title.text.trim() != _savedTitle ||
       jsonEncode(_content) != _savedContentJson ||
+      _type != _savedType ||
       _secretDirty;
 
   // Auto-save unsaved edits once they settle (unchanged since the last tick),
@@ -113,13 +119,16 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
     final dirty =
         curTitle.trim() != _savedTitle ||
         curJson != _savedContentJson ||
+        _type != _savedType ||
         _secretDirty;
     final settled =
         curTitle == _tickTitle &&
         curJson == _tickContentJson &&
+        _type == _tickType &&
         !_secretChangedSinceTick;
     _tickTitle = curTitle;
     _tickContentJson = curJson;
+    _tickType = _type;
     _secretChangedSinceTick = false;
     if (dirty && settled) _save(silent: true);
   }
@@ -133,24 +142,26 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
     try {
       if (_finalizeContent != null) await _finalizeContent!();
       final title = _title.text.trim();
+      final type = _type;
       if (_itemId != null) {
         await repo.updateItem(
           id: _itemId!,
           spaceId: widget.spaceId,
-          type: widget.type,
+          type: type,
           title: title,
           content: _content,
         );
       } else {
         _itemId = await repo.createItem(
           spaceId: widget.spaceId,
-          type: widget.type,
+          type: type,
           title: title,
           content: _content,
         );
       }
       _savedTitle = title;
       _savedContentJson = jsonEncode(_content);
+      _savedType = type;
       _secretDirty = false;
       _savedAny = true;
       if (mounted) setState(() => _saving = false);
@@ -277,16 +288,16 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
       case 'code':
         return _CodeEditor(content: _content, readOnly: readOnly);
       case 'menu_list':
-        return _ListEditor(
-          content: _content,
-          variant: _ListVariant.bullet,
-          readOnly: readOnly,
-        );
       case 'numbered_list':
+        // One List type: bullets or numbers, switched by its checkbox.
         return _ListEditor(
           content: _content,
-          variant: _ListVariant.numbered,
+          variant: _type == 'numbered_list'
+              ? _ListVariant.numbered
+              : _ListVariant.bullet,
           readOnly: readOnly,
+          onNumberedChanged: (numbered) =>
+              setState(() => _type = numbered ? 'numbered_list' : 'menu_list'),
         );
       case 'checkbox_list':
         return _ListEditor(
@@ -422,11 +433,16 @@ class _ListEditor extends StatefulWidget {
     required this.content,
     required this.variant,
     this.readOnly = false,
+    this.onNumberedChanged,
   });
 
   final Map<String, dynamic> content;
   final _ListVariant variant;
   final bool readOnly;
+
+  /// For the List type: shows a Numbered checkbox that switches between
+  /// bullets and numbers. Null (checklists) hides it.
+  final ValueChanged<bool>? onNumberedChanged;
 
   @override
   State<_ListEditor> createState() => _ListEditorState();
@@ -629,17 +645,39 @@ class _ListEditorState extends State<_ListEditor> {
         ),
         if (!widget.readOnly) ...[
           const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: _add,
-              icon: const Icon(Icons.add),
-              label: const Text('Add item'),
-              style: TextButton.styleFrom(
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
+          Row(
+            children: [
+              TextButton.icon(
+                onPressed: _add,
+                icon: const Icon(Icons.add),
+                label: const Text('Add item'),
+                style: TextButton.styleFrom(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
               ),
-            ),
+              const Spacer(),
+              if (widget.onNumberedChanged != null)
+                InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => widget.onNumberedChanged!(
+                    widget.variant != _ListVariant.numbered,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Checkbox(
+                        value: widget.variant == _ListVariant.numbered,
+                        onChanged: (v) => widget.onNumberedChanged!(v ?? false),
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      const Text('Numbered'),
+                      const SizedBox(width: 8),
+                    ],
+                  ),
+                ),
+            ],
           ),
         ],
       ],

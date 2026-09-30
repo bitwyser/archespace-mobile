@@ -86,7 +86,9 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
           child: ListView(
             padding: const EdgeInsets.only(bottom: 8),
             children: [
-              for (final def in kItemTypes.where((d) => d.editable))
+              for (final def in kItemTypes.where(
+                (d) => d.editable && d.addable,
+              ))
                 ListTile(
                   visualDensity: VisualDensity.compact,
                   leading: Container(
