@@ -1,38 +1,238 @@
 import 'package:flutter/material.dart';
 
-/// The "New space" and "Add item" floating buttons, stacked and styled alike:
-/// New space above, Add item in the primary (lowest, thumb-reach) spot. Pass
-/// no [onNewSpace] to show only Add item (e.g. inside a sub-space, which can't
-/// hold further spaces).
-class CreateFabs extends StatelessWidget {
+/// The create button. With both actions it is a speed dial: tapping + opens
+/// "New space" and "Add item" above it (Add item nearest, the thumb-reach
+/// spot) over a dimmed screen, and the + turns into a close button. Pass no
+/// [onNewSpace] to show a plain Add item button (e.g. inside a sub-space,
+/// which can't hold further spaces).
+class CreateFabs extends StatefulWidget {
   const CreateFabs({super.key, required this.onAddItem, this.onNewSpace});
 
   final VoidCallback onAddItem;
   final VoidCallback? onNewSpace;
 
   @override
+  State<CreateFabs> createState() => _CreateFabsState();
+}
+
+class _CreateFabsState extends State<CreateFabs>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _anim;
+  late final Animation<double> _curve;
+  late final List<Animation<double>> _stagger;
+  final OverlayPortalController _portal = OverlayPortalController();
+  final LayerLink _link = LayerLink();
+  bool _open = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _curve = CurvedAnimation(
+      parent: _anim,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    // Each option's entrance, staggered from the + button outwards.
+    _stagger = [
+      for (var i = 0; i < 2; i++)
+        CurvedAnimation(
+          parent: _curve,
+          curve: Interval(i * 0.15, i * 0.15 + 0.85),
+        ),
+    ];
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  void _show() {
+    setState(() => _open = true);
+    _portal.show();
+    _anim.forward();
+  }
+
+  Future<void> _close() async {
+    if (!_open) return;
+    setState(() => _open = false);
+    await _anim.reverse();
+    if (mounted && !_open) _portal.hide();
+  }
+
+  /// Close the dial, then run the chosen action.
+  void _pick(VoidCallback action) {
+    _close();
+    action();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        if (onNewSpace != null) ...[
-          FloatingActionButton(
-            // Two FABs on one screen need distinct hero tags.
-            heroTag: 'fab-new-space',
-            onPressed: onNewSpace,
-            tooltip: 'New space',
-            child: const Icon(Icons.create_new_folder_outlined),
+    if (widget.onNewSpace == null) {
+      return FloatingActionButton(
+        heroTag: 'fab-add-item',
+        onPressed: widget.onAddItem,
+        tooltip: 'Add item',
+        child: const Icon(Icons.add),
+      );
+    }
+    return PopScope(
+      // Back closes the open dial instead of leaving the screen.
+      canPop: !_open,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _close();
+      },
+      child: OverlayPortal(
+        controller: _portal,
+        overlayChildBuilder: _buildDial,
+        child: CompositedTransformTarget(
+          link: _link,
+          child: FloatingActionButton(
+            heroTag: 'fab-create',
+            onPressed: _show,
+            tooltip: 'Create',
+            child: const Icon(Icons.add),
           ),
-          const SizedBox(height: 12),
-        ],
-        FloatingActionButton(
-          heroTag: 'fab-add-item',
-          onPressed: onAddItem,
-          tooltip: 'Add item',
-          child: const Icon(Icons.add),
+        ),
+      ),
+    );
+  }
+
+  /// The open dial, drawn above the whole screen: a scrim that closes it,
+  /// the options, and the close button exactly over the + button.
+  Widget _buildDial(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final fabColor =
+        Theme.of(context).floatingActionButtonTheme.backgroundColor ??
+        scheme.primary;
+    final fabFg =
+        Theme.of(context).floatingActionButtonTheme.foregroundColor ??
+        scheme.onPrimary;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: FadeTransition(
+            opacity: _curve,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _close,
+              child: ColoredBox(color: scheme.scrim.withValues(alpha: 0.45)),
+            ),
+          ),
+        ),
+        CompositedTransformFollower(
+          link: _link,
+          showWhenUnlinked: false,
+          targetAnchor: Alignment.bottomRight,
+          followerAnchor: Alignment.bottomRight,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _option(
+                index: 1,
+                icon: Icons.create_new_folder_outlined,
+                label: 'New space',
+                onTap: () => _pick(widget.onNewSpace!),
+              ),
+              const SizedBox(height: 14),
+              _option(
+                index: 0,
+                icon: Icons.note_add_outlined,
+                label: 'Add item',
+                onTap: () => _pick(widget.onAddItem),
+              ),
+              const SizedBox(height: 18),
+              AnimatedBuilder(
+                animation: _curve,
+                builder: (context, child) => FloatingActionButton(
+                  heroTag: null,
+                  onPressed: _close,
+                  tooltip: 'Close',
+                  backgroundColor: Color.lerp(
+                    fabColor,
+                    scheme.surfaceContainerHighest,
+                    _curve.value,
+                  ),
+                  foregroundColor: Color.lerp(
+                    fabFg,
+                    scheme.onSurface,
+                    _curve.value,
+                  ),
+                  child: child,
+                ),
+                // + turns an eighth into an x.
+                child: RotationTransition(
+                  turns: Tween(begin: 0.0, end: 0.125).animate(_curve),
+                  child: const Icon(Icons.add),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
+    );
+  }
+
+  /// One option row: a label pill and its button, both tappable. Rows nearer
+  /// the + button ([index] 0) appear first.
+  Widget _option({
+    required int index,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final anim = _stagger[index];
+    return FadeTransition(
+      opacity: anim,
+      child: SlideTransition(
+        position: Tween(
+          begin: const Offset(0, 0.3),
+          end: Offset.zero,
+        ).animate(anim),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // The button's tooltip already names it for screen readers.
+            ExcludeSemantics(
+              child: Material(
+                color: scheme.surfaceContainerHighest,
+                shape: const StadiumBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: onTap,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 10,
+                    ),
+                    child: Text(
+                      label,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.titleSmall?.copyWith(color: scheme.onSurface),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            FloatingActionButton(
+              heroTag: null,
+              onPressed: onTap,
+              tooltip: label,
+              elevation: 2,
+              child: Icon(icon),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -410,7 +410,8 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
   /// The list controls (view, sort, select) live in the body header instead
   /// (see [_buildItemsHeader]).
   List<Widget> _buildBarActions(bool hasItems) {
-    // New sub-space is a floating button beside Add item (see CreateFabs).
+    // New sub-space is in the create button's dial with Add item (see
+    // CreateFabs).
     return [
       ActionIconButton(
         icon: Icons.edit_off_outlined,
