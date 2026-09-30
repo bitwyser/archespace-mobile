@@ -7,6 +7,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'package:archespace_mobile/src/features/items/domain/draw.dart';
+import 'package:archespace_mobile/src/features/items/domain/rich_doc.dart';
 import 'package:archespace_mobile/src/features/items/domain/rich_text_html.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
 import 'package:archespace_mobile/src/shared/brand/brand_paths.dart';
@@ -67,7 +68,14 @@ class PdfExporter {
     final base = pw.Font.ttf(await rootBundle.load('assets/fonts/DejaVuSans.ttf'));
     final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/DejaVuSans-Bold.ttf'));
     _mono = pw.Font.ttf(await rootBundle.load('assets/fonts/DejaVuSansMono.ttf'));
-    return pw.ThemeData.withFont(base: base, bold: bold);
+    // No italic face is bundled: italic text (Rich text) uses the upright
+    // fonts rather than falling back to Helvetica, which has no Unicode.
+    return pw.ThemeData.withFont(
+      base: base,
+      bold: bold,
+      italic: base,
+      boldItalic: bold,
+    );
   }
 
   /// The ArcheSpace wordmark for the page corner: "Arche" in the mint accent,
@@ -153,6 +161,13 @@ class PdfExporter {
         final text = (c['text'] ?? '').toString();
         return [_text(text.isEmpty ? '(empty)' : text)];
       case 'richtext':
+        if (isRichDoc(c)) {
+          if (richContentPlainText('richtext', c).isEmpty) {
+            return [pw.Text('(empty)')];
+          }
+          return _richDoc((c['doc'] as Map).cast<String, dynamic>());
+        }
+        // Saved before the Tiptap editor (converts when next edited).
         final text = richHtmlToPlainText((c['html'] ?? '').toString());
         return [_text(text.isEmpty ? '(empty)' : text)];
       case 'code':
@@ -181,6 +196,203 @@ class PdfExporter {
       default:
         return const [];
     }
+  }
+
+  // ── Rich text (Tiptap JSON) ──
+  // Flat, splittable widgets only (see _section): each block is one spanning
+  // RichText, and nesting is shown with a leading indent rather than a
+  // Padding (which can't split across pages).
+
+  static const _nbsp = '\u00A0';
+
+  static pw.RichText _rich(
+    List<pw.InlineSpan> spans, {
+    pw.TextStyle? style,
+    pw.TextAlign? align,
+  }) => pw.RichText(
+    text: pw.TextSpan(children: spans, style: style),
+    textAlign: align,
+    overflow: pw.TextOverflow.span,
+  );
+
+  /// Extra spacing for a paragraph/heading's `lineHeight` (the editor's
+  /// Normal is 1.5, which the PDF's default spacing already matches).
+  static pw.TextStyle? _lineSpacing(Map<String, dynamic> node, double size) {
+    final attrs = node['attrs'];
+    final lh = double.tryParse('${attrs is Map ? attrs['lineHeight'] : ''}');
+    if (lh == null) return null;
+    return pw.TextStyle(lineSpacing: ((lh - 1.2) * size).clamp(0, 2 * size));
+  }
+
+  /// A paragraph/heading's alignment (Tiptap's `textAlign` attribute).
+  static pw.TextAlign? _align(Map<String, dynamic> node) {
+    final attrs = node['attrs'];
+    return switch (attrs is Map ? attrs['textAlign'] : null) {
+      'center' => pw.TextAlign.center,
+      'right' => pw.TextAlign.right,
+      'justify' => pw.TextAlign.justify,
+      _ => null,
+    };
+  }
+
+  /// Text runs for a node's inline content (text with its marks).
+  static List<pw.InlineSpan> _runs(Map<String, dynamic>? node) {
+    final spans = <pw.InlineSpan>[];
+    for (final child in richChildren(node)) {
+      if (child['type'] == 'hardBreak') {
+        spans.add(const pw.TextSpan(text: '\n'));
+        continue;
+      }
+      if (child['type'] != 'text') continue;
+      var style = const pw.TextStyle();
+      final decorations = <pw.TextDecoration>[];
+      for (final mark in (child['marks'] as List? ?? const [])) {
+        if (mark is! Map) continue;
+        switch (mark['type']) {
+          case 'bold':
+            style = style.copyWith(fontWeight: pw.FontWeight.bold);
+          case 'italic':
+            style = style.copyWith(fontStyle: pw.FontStyle.italic);
+          case 'underline':
+            decorations.add(pw.TextDecoration.underline);
+          case 'strike':
+            decorations.add(pw.TextDecoration.lineThrough);
+          case 'code':
+            style = style.copyWith(font: _mono, fontSize: 9.5);
+          case 'link':
+            style = style.copyWith(color: PdfColor.fromHex('#0b7f64'));
+            decorations.add(pw.TextDecoration.underline);
+          case 'highlight':
+            style = style.copyWith(
+              background: pw.BoxDecoration(color: PdfColor.fromHex('#fdf1a8')),
+            );
+          case 'superscript':
+          case 'subscript':
+            // Smaller text; the pdf package can't shift the baseline.
+            style = style.copyWith(fontSize: 8);
+        }
+      }
+      if (decorations.isNotEmpty) {
+        style = style.copyWith(
+          decoration: pw.TextDecoration.combine(decorations),
+        );
+      }
+      spans.add(
+        pw.TextSpan(text: (child['text'] ?? '').toString(), style: style),
+      );
+    }
+    return spans;
+  }
+
+  static List<pw.Widget> _richDoc(Map<String, dynamic> doc) {
+    final out = <pw.Widget>[];
+
+    void blocks(List<Map<String, dynamic>> nodes, {String indent = ''}) {
+      for (final n in nodes) {
+        switch (n['type']) {
+          case 'paragraph':
+            out.add(
+              _rich(
+                [pw.TextSpan(text: indent), ..._runs(n)],
+                align: _align(n),
+                style: _lineSpacing(n, 11),
+              ),
+            );
+            out.add(pw.SizedBox(height: 3));
+          case 'heading':
+            final level = (n['attrs'] is Map ? n['attrs']['level'] : 1) ?? 1;
+            final size = switch (level) {
+              1 => 16.0,
+              2 => 14.0,
+              _ => 12.5,
+            };
+            out.add(pw.SizedBox(height: 4));
+            out.add(
+              _rich(
+                _runs(n),
+                style: pw.TextStyle(
+                  fontSize: size,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                align: _align(n),
+              ),
+            );
+            out.add(pw.SizedBox(height: 3));
+          case 'bulletList':
+          case 'orderedList':
+          case 'taskList':
+            final items = richChildren(n);
+            for (var i = 0; i < items.length; i++) {
+              final item = items[i];
+              final checked =
+                  item['attrs'] is Map && item['attrs']['checked'] == true;
+              final marker = switch (n['type']) {
+                'orderedList' => '${i + 1}. ',
+                'taskList' => checked ? '☑  ' : '☐  ',
+                _ => '• ',
+              };
+              final children = richChildren(item);
+              final first = children.isNotEmpty ? children.first : null;
+              out.add(
+                _rich(
+                  [pw.TextSpan(text: '$indent$marker'), ..._runs(first)],
+                  style: checked
+                      ? const pw.TextStyle(
+                          color: PdfColors.grey600,
+                          decoration: pw.TextDecoration.lineThrough,
+                        )
+                      : null,
+                ),
+              );
+              if (children.length > 1) {
+                blocks(children.sublist(1), indent: '$indent${_nbsp * 4}');
+              }
+            }
+            out.add(pw.SizedBox(height: 3));
+          case 'blockquote':
+            blocks(richChildren(n), indent: '$indent│${_nbsp * 2}');
+          case 'codeBlock':
+            final code = richChildren(
+              n,
+            ).map((t) => (t['text'] ?? '').toString()).join();
+            out.add(
+              _text(
+                code,
+                style: pw.TextStyle(font: _mono, fontSize: 9, lineSpacing: 2),
+              ),
+            );
+            out.add(pw.SizedBox(height: 4));
+          case 'horizontalRule':
+            out.add(pw.Divider(thickness: 0.3));
+          case 'table':
+            final rows = richChildren(n);
+            if (rows.isEmpty) break;
+            String cellText(Map<String, dynamic> cell) =>
+                richContentPlainText('richtext', {
+                  'doc': {'type': 'doc', 'content': cell['content'] ?? []},
+                }).replaceAll('\n', ' ');
+            final firstIsHeader = richChildren(
+              rows.first,
+            ).every((c) => c['type'] == 'tableHeader');
+            final table = [
+              for (final r in rows)
+                [for (final c in richChildren(r)) cellText(c)],
+            ];
+            out.add(
+              pw.TableHelper.fromTextArray(
+                headers: firstIsHeader ? table.first : null,
+                data: firstIsHeader ? table.sublist(1) : table,
+              ),
+            );
+            out.add(pw.SizedBox(height: 4));
+          default:
+            blocks(richChildren(n), indent: indent);
+        }
+      }
+    }
+
+    blocks(richChildren(doc));
+    return out;
   }
 
   static List<pw.Widget> _bullets(

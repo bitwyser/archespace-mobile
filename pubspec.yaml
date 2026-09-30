@@ -17,8 +17,12 @@ dependencies:
   # Biometric gate + OS keystore for the vault key.
   local_auth: ^2.3.0
   flutter_secure_storage: ^9.2.2
-  # Markdown rendering for the Markdown item type.
+  # Markdown rendering for old Markdown notes (until they're edited, which
+  # turns them into Rich text).
   flutter_markdown: ^0.7.4
+  # The Rich text editor: the web's Tiptap editor, bundled offline into
+  # assets/rich_text_editor.html, runs in a WebView.
+  webview_flutter: ^4.14.1
   # Syntax highlighting for the Code item type (auto-detects the language).
   flutter_highlight: ^0.7.0
   highlight: ^0.7.0
@@ -57,6 +61,8 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
   assets:
+    # Built from the web repo: `npm run build:mobile-editor`.
+    - assets/rich_text_editor.html
     - assets/fonts/DejaVuSans.ttf
     - assets/fonts/DejaVuSans-Bold.ttf
     - assets/fonts/DejaVuSansMono.ttf

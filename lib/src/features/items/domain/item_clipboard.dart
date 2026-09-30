@@ -1,4 +1,4 @@
-import 'package:archespace_mobile/src/features/items/domain/rich_text_html.dart';
+import 'package:archespace_mobile/src/features/items/domain/rich_doc.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
 
 /// Types whose content can be copied to the clipboard as plain text.
@@ -21,10 +21,10 @@ String itemClipboardText(SpaceItem item) {
   final c = item.content;
   switch (item.type) {
     case 'textbox':
-    case 'markdown':
       return (c['text'] ?? '').toString();
+    case 'markdown':
     case 'richtext':
-      return richHtmlToPlainText((c['html'] ?? '').toString());
+      return richContentPlainText(item.type, c);
     case 'code':
       return (c['code'] ?? '').toString();
     case 'menu_list':

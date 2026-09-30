@@ -6,6 +6,8 @@ import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:highlight/highlight.dart' show highlight;
 
+import 'package:archespace_mobile/src/features/items/presentation/rich_doc_view.dart';
+import 'package:archespace_mobile/src/features/items/domain/rich_doc.dart';
 import 'package:archespace_mobile/src/features/items/domain/code_highlight.dart';
 import 'package:archespace_mobile/src/features/items/domain/draw.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_clipboard.dart';
@@ -641,12 +643,14 @@ class _ItemBody extends StatelessWidget {
         // InkWell) instead of starting a text selection. Use the copy button
         // in the header to copy.
         return plain.isEmpty ? const _Empty() : Text(plain);
-      case 'markdown':
-        final md = _text(c['text']);
-        return md.isEmpty
-            ? const _Empty()
-            : MarkdownBody(data: md, selectable: false);
       case 'richtext':
+        // Tiptap JSON, drawn natively (the editor itself is a WebView).
+        if (isRichDoc(c)) {
+          return richContentPlainText('richtext', c).isEmpty
+              ? const _Empty()
+              : RichDocView(doc: (c['doc'] as Map).cast<String, dynamic>());
+        }
+        // Saved before the Tiptap editor: shown as before until next edit.
         final spans = parseRichHtml((c['html'] ?? '').toString());
         return spans.isEmpty
             ? const _Empty()
@@ -656,6 +660,12 @@ class _ItemBody extends StatelessWidget {
                   base: DefaultTextStyle.of(context).style,
                 ),
               );
+      case 'markdown':
+        // An old Markdown note (converts to Rich text when next edited).
+        final md = _text(c['text']);
+        return md.isEmpty
+            ? const _Empty()
+            : MarkdownBody(data: md, selectable: false);
       case 'code':
         return _Code(code: (c['code'] ?? '').toString());
       case 'menu_list':

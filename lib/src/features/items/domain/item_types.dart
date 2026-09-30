@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:archespace_mobile/src/features/items/domain/rich_doc.dart';
+
 /// Definition of an item type: label, icon, and whether a mobile editor exists
 /// yet. Editors are being added one type at a time; [editable] gates which
 /// types show in the "add item" picker and open for editing on tap.
@@ -62,19 +64,22 @@ const List<ItemTypeDef> kItemTypes = [
   ),
   ItemTypeDef(
     type: 'richtext',
-    label: 'Rich Text',
-    description: 'Formatted text - bold, italic, underline, font size',
+    label: 'Rich text',
+    description: 'Headings, lists, tasks, tables, links and more',
     icon: Icons.text_fields,
     color: Color(0xFFFB7185), // rose
     editable: true,
   ),
   ItemTypeDef(
+    // An old Markdown note: shown as Rich text, and saved as Rich text the
+    // next time it's edited. No longer offered in the add menu.
     type: 'markdown',
-    label: 'Markdown',
-    description: 'Rich text with markdown',
-    icon: Icons.code,
-    color: Color(0xFF2DD4BF), // teal
+    label: 'Rich text',
+    description: 'Headings, lists, tasks, tables, links and more',
+    icon: Icons.text_fields,
+    color: Color(0xFFFB7185), // rose, like Rich text
     editable: true,
+    addable: false,
   ),
   ItemTypeDef(
     type: 'menu_list',
@@ -160,7 +165,7 @@ Map<String, dynamic> defaultContentFor(String type) {
     case 'markdown':
       return {'text': ''};
     case 'richtext':
-      return {'html': ''};
+      return {'doc': kEmptyRichDoc};
     case 'code':
       return {'code': ''};
     case 'menu_list':

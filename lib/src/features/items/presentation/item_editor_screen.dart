@@ -10,7 +10,7 @@ import 'package:archespace_mobile/src/features/items/domain/draw.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/features/items/domain/totp.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
-import 'package:archespace_mobile/src/features/items/presentation/rich_text_editor.dart';
+import 'package:archespace_mobile/src/features/items/presentation/rich_text_web_editor.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/util/errors.dart';
@@ -227,16 +227,18 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
           ),
           body: SafeArea(
             top: false,
-            child: Padding(
-              // Top trimmed to 8 so the title sits a uniform, small distance
-              // below the app bar (matching the divider gap beneath it); bottom
-              // trimmed to 8 so the trailing add button (list/card/table editors)
-              // sits a uniform, small distance from the screen edge.
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  TextField(
+            // Top trimmed to 8 so the title sits a uniform, small distance
+            // below the app bar (matching the divider gap beneath it); bottom
+            // trimmed to 8 so the trailing add button (list/card/table
+            // editors) sits a uniform, small distance from the screen edge.
+            // Rich text runs edge to edge: its page pads itself and its
+            // toolbar spans the screen above the keyboard.
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: TextField(
                     controller: _title,
                     readOnly: widget.readOnly,
                     style: Theme.of(context).textTheme.titleLarge,
@@ -244,13 +246,23 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
                       hintText: widget.readOnly ? 'Untitled' : 'Title',
                       border: InputBorder.none,
                       isDense: true,
-                      contentPadding: EdgeInsets.symmetric(vertical: 4),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
                     ),
                   ),
-                  const Divider(height: 8),
-                  Expanded(child: _buildBody()),
-                ],
-              ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Divider(height: 8),
+                ),
+                Expanded(
+                  child: _isRichText
+                      ? _buildBody()
+                      : Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                          child: _buildBody(),
+                        ),
+                ),
+              ],
             ),
           ),
         ),
@@ -258,14 +270,33 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
     );
   }
 
+  // Rich text, or an old Markdown note (it opens in the Rich text editor and
+  // saves as Rich text).
+  bool get _isRichText =>
+      widget.type == 'richtext' || widget.type == 'markdown';
+
+  /// A Rich text edit: the new document replaces the content (converting an
+  /// older format on its first change), and the item becomes Rich text.
+  void _onRichDoc(Map<String, dynamic> doc) {
+    _content
+      ..clear()
+      ..['doc'] = doc;
+    _type = 'richtext';
+  }
+
   Widget _buildBody() {
     final readOnly = widget.readOnly;
     switch (widget.type) {
       case 'textbox':
-      case 'markdown':
         return _NoteEditor(content: _content, readOnly: readOnly);
       case 'richtext':
-        return RichTextEditorField(content: _content, readOnly: readOnly);
+      case 'markdown':
+        return RichTextWebEditor(
+          type: widget.type,
+          content: Map<String, dynamic>.of(_content),
+          readOnly: readOnly,
+          onChanged: _onRichDoc,
+        );
       case 'code':
         return _CodeEditor(content: _content, readOnly: readOnly);
       case 'menu_list':
