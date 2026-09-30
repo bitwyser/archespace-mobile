@@ -260,13 +260,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _SettingTile(
                   icon: Icons.verified_user_outlined,
                   title: 'Two-factor authentication',
-                  subtitle: switch (_twoFactorOn) {
-                    true =>
-                      'On. A code from your authenticator app at sign-in.',
-                    false =>
-                      'Off. Add a code from an authenticator app at sign-in.',
-                    null => 'A code from an authenticator app at sign-in.',
+                  status: switch (_twoFactorOn) {
+                    true => 'On',
+                    false => 'Off',
+                    null => null,
                   },
+                  statusOn: _twoFactorOn == true,
+                  subtitle: 'A code from your authenticator app at sign-in.',
                   onTap: () async {
                     await Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -291,9 +291,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _SettingTile(
                   icon: Icons.devices,
                   title: 'Sign out of all devices',
-                  subtitle:
-                      "Ends your session everywhere, including here. Use it "
-                      "if you've lost a device you were signed in on.",
+                  subtitle: 'Ends your session everywhere, including here.',
                   onTap: _signOutAll,
                   chevron: false,
                 ),
@@ -439,30 +437,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: _importBackup,
                   chevron: false,
                 ),
+                const _BackupWarning(),
               ],
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    size: 16,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'The backup file is not encrypted: anyone who opens it '
-                      'can read your data. Keep it somewhere safe.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ),
 
             // ── About ──
@@ -548,7 +524,6 @@ class _BuildFooterState extends State<_BuildFooter> {
           TextSpan(
             style: baseStyle,
             children: [
-              const TextSpan(text: 'ArcheSpace  ·  '),
               TextSpan(
                 text: 'v${BuildInfo.appVersion}',
                 style: baseStyle?.copyWith(
@@ -672,6 +647,8 @@ class _SettingTile extends StatelessWidget {
     required this.icon,
     required this.title,
     this.subtitle,
+    this.status,
+    this.statusOn = false,
     this.trailing,
     this.onTap,
     this.chevron = true,
@@ -681,6 +658,11 @@ class _SettingTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
+
+  /// A short state ("On" / "Off") shown before the subtitle, set apart by a
+  /// dot; accent-coloured when [statusOn].
+  final String? status;
+  final bool statusOn;
   final Widget? trailing;
   final VoidCallback? onTap;
 
@@ -698,13 +680,72 @@ class _SettingTile extends StatelessWidget {
         title,
         style: TextStyle(fontWeight: FontWeight.w600, color: color),
       ),
-      subtitle: subtitle == null ? null : Text(subtitle!),
+      subtitle: status != null
+          ? Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: status,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: statusOn ? scheme.primary : null,
+                    ),
+                  ),
+                  if (subtitle != null) TextSpan(text: '  ·  $subtitle'),
+                ],
+              ),
+            )
+          : subtitle == null
+          ? null
+          : Text(subtitle!),
       trailing:
           trailing ??
           (chevron
               ? Icon(Icons.chevron_right, color: scheme.onSurfaceVariant)
               : null),
       onTap: onTap,
+    );
+  }
+}
+
+/// A highlighted warning at the foot of the Backup card: the exported file
+/// holds your data unencrypted.
+class _BackupWarning extends StatelessWidget {
+  const _BackupWarning();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final amber = dark ? const Color(0xFFFBBF24) : const Color(0xFFB45309);
+    return Container(
+      width: double.infinity,
+      color: amber.withValues(alpha: dark ? 0.12 : 0.1),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.warning_amber_rounded, size: 20, color: amber),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'The backup file is not encrypted. ',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: amber),
+                  ),
+                  const TextSpan(
+                    text:
+                        'Anyone who opens it can read your data, so keep it '
+                        'somewhere safe.',
+                  ),
+                ],
+              ),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -774,7 +815,7 @@ class _AppearanceGroup extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${accent.name}. Used for buttons, highlights and marks.',
+                    accent.name,
                     style: textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),
