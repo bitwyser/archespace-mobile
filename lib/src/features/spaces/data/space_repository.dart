@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
+import 'package:archespace_mobile/src/features/vault/application/content_lock.dart';
 import 'package:archespace_mobile/src/shared/crypto/arche_crypto.dart';
 import 'package:archespace_mobile/src/shared/data/cache_store.dart';
 import 'package:archespace_mobile/src/shared/offline/write_queue.dart';
@@ -26,7 +27,7 @@ class SpaceRepository {
       rows = await _client
           .from('spaces')
           .select(
-            'id, name, description, tags, color, parent_id, pinned, starred, read_only, position, created_at',
+            'id, name, description, tags, color, parent_id, pinned, starred, read_only, locked, position, created_at',
           )
           .isFilter('deleted_at', null)
           .isFilter('archived_at', null)
@@ -61,11 +62,18 @@ class SpaceRepository {
     } catch (_) {
       final cached = await CacheStore.read(cacheKey);
       if (cached is List) {
-        return (spaces: await _decode(cached), fromCache: true);
+        return (spaces: _registerLocks(await _decode(cached)), fromCache: true);
       }
       rethrow;
     }
-    return (spaces: await _decode(rows), fromCache: false);
+    return (spaces: _registerLocks(await _decode(rows)), fromCache: false);
+  }
+
+  /// Tell ContentLock which spaces are locked, so their items stay hidden
+  /// wherever they're listed (Starred, search).
+  List<Space> _registerLocks(List<Space> spaces) {
+    ContentLock.instance.setSpaces(spaces);
+    return spaces;
   }
 
   Future<List<Space>> _decode(List<dynamic> rows) async {
@@ -87,6 +95,7 @@ class SpaceRepository {
             pinned: (m['pinned'] ?? false) as bool,
             starred: (m['starred'] ?? false) as bool,
             readOnly: (m['read_only'] ?? false) as bool,
+            locked: (m['locked'] ?? false) as bool,
             tags: await _decodeTags(m['tags']),
             color: m['color'] as String?,
             parentId: m['parent_id'] as String?,
@@ -142,6 +151,8 @@ class SpaceRepository {
       'description': await _enc(space.description),
       'color': space.color,
       'position': existing.length,
+      // A copy of a locked space stays locked.
+      'locked': space.locked,
     };
     if (space.tags.isNotEmpty) payload['tags'] = await _encTags(space.tags);
 
@@ -154,7 +165,7 @@ class SpaceRepository {
 
     final srcItems = await _client
         .from('space_items')
-        .select('type, title, content, position, pinned')
+        .select('type, title, content, position, pinned, locked')
         .eq('space_id', space.id)
         .isFilter('deleted_at', null)
         .isFilter('archived_at', null);
@@ -169,6 +180,7 @@ class SpaceRepository {
             'content': it['content'],
             'position': it['position'],
             'pinned': it['pinned'] ?? false,
+            'locked': it['locked'] ?? false,
           },
       ];
       await _client.from('space_items').insert(rows);
@@ -244,6 +256,12 @@ class SpaceRepository {
   /// space's details and to its items' content.
   Future<void> setReadOnly(String id, bool readOnly) async {
     await _client.from('spaces').update({'read_only': readOnly}).eq('id', id);
+  }
+
+  /// Lock / remove the lock (a flag only; nothing is re-encrypted).
+  Future<void> setLocked(String id, bool locked) async {
+    await _client.from('spaces').update({'locked': locked}).eq('id', id);
+    ContentLock.instance.setSpaceLocked(id, locked);
   }
 
   /// The space's current read-only flag, straight from the server.

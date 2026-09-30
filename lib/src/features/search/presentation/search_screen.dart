@@ -108,7 +108,7 @@ class _SearchScreenState extends State<SearchScreen> {
         message: 'Find spaces and items by name, tag, or content.',
       );
     }
-    final matches = _all!.where((h) => h.haystack.contains(q)).toList();
+    final matches = _all!.where((h) => h.matches(q)).toList();
     final spaces = matches.where((h) => h.isSpace).toList();
     final items = matches.where((h) => !h.isSpace).toList();
     if (matches.isEmpty) {

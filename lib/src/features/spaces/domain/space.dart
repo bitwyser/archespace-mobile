@@ -7,6 +7,7 @@ class Space {
     required this.pinned,
     this.starred = false,
     this.readOnly = false,
+    this.locked = false,
     this.tags = const [],
     this.color,
     this.parentId,
@@ -26,6 +27,10 @@ class Space {
   /// Read-only (stored on the server): its details and items can be viewed,
   /// copied and exported, but not changed.
   final bool readOnly;
+
+  /// Locked: the name shows, but opening the space (and its sub-spaces and
+  /// items, wherever they're listed) needs the vault PIN (see ContentLock).
+  final bool locked;
   final List<String> tags;
 
   /// Parent space id for a sub-space (one-level nesting), or null for top-level.

@@ -15,6 +15,8 @@ import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/features/items/domain/rich_text_html.dart';
 import 'package:archespace_mobile/src/features/items/domain/totp.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
+import 'package:archespace_mobile/src/features/vault/application/content_lock.dart';
+import 'package:archespace_mobile/src/features/vault/presentation/widgets/vault_pin_prompt.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/widgets/select_box.dart';
 
@@ -28,6 +30,7 @@ class ItemCard extends StatefulWidget {
     this.onTap,
     this.onTogglePin,
     this.onToggleStar,
+    this.onToggleLock,
     this.onDuplicate,
     this.onMove,
     this.onArchive,
@@ -47,6 +50,10 @@ class ItemCard extends StatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onTogglePin;
   final VoidCallback? onToggleStar;
+
+  /// Lock / remove the lock. A hidden locked item shows a Locked panel
+  /// instead of its content; tapping the card (onTap) asks for the PIN.
+  final VoidCallback? onToggleLock;
 
   /// Where the item lives, shown beside the title when it's listed outside its
   /// space (the Starred view). Null shows just the title.
@@ -100,6 +107,14 @@ class _ItemCardState extends State<ItemCard>
   @override
   void initState() {
     super.initState();
+    ContentLock.instance.addListener(_onLockChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureBody());
+  }
+
+  /// An item opened or hidden again: its body is shown or covered.
+  void _onLockChanged() {
+    if (!mounted) return;
+    setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) => _measureBody());
   }
 
@@ -126,6 +141,7 @@ class _ItemCardState extends State<ItemCard>
 
   @override
   void dispose() {
+    ContentLock.instance.removeListener(_onLockChanged);
     _tagController.dispose();
     super.dispose();
   }
@@ -160,7 +176,12 @@ class _ItemCardState extends State<ItemCard>
     final onArchive = widget.onArchive;
     final onDelete = widget.onDelete;
     final onExport = widget.onExport;
+    final onToggleLock = widget.onToggleLock;
     final scheme = Theme.of(context).colorScheme;
+    // Locked (itself or its space) and not opened with the PIN: the content,
+    // Copy and Export PDF stay out of reach.
+    final hidden = ContentLock.instance.isItemHidden(item);
+    final canCopy = !hidden && isCopyableType(item.type);
     // Styled like a space card: borderless on a lighter surface with a soft
     // shadow, and a soft accent border only when selected. Pinned is shown by
     // the pin marker, so a pinned card has no border.
@@ -182,9 +203,13 @@ class _ItemCardState extends State<ItemCard>
       child: InkWell(
         // A clamped (long, not yet expanded) body reveals itself in full on
         // tap; otherwise a tap opens the full editor.
+        // A hidden item opens with the PIN: via onTap (which asks first), or
+        // here for an item with no editor.
         onTap: selectMode
             ? onSelectToggle
-            : (!_collapsed && _overflowing && !_expanded)
+            : (hidden && onTap == null)
+            ? _unlock
+            : (!hidden && !_collapsed && _overflowing && !_expanded)
             ? _setExpanded
             : onTap,
         borderRadius: BorderRadius.circular(16),
@@ -258,6 +283,34 @@ class _ItemCardState extends State<ItemCard>
                               semanticLabel: 'Starred',
                             ),
                           ),
+                        // Locked: a closed lock, or an open one (tap to hide
+                        // again) once the PIN has opened it.
+                        if (hidden)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: Icon(
+                              Icons.lock_outline,
+                              size: 16,
+                              color: scheme.onSurfaceVariant,
+                              semanticLabel: 'Locked',
+                            ),
+                          )
+                        else if (item.locked)
+                          SizedBox(
+                            height: 28,
+                            width: 28,
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.lock_open_outlined,
+                                size: 16,
+                                color: scheme.primary,
+                              ),
+                              padding: EdgeInsets.zero,
+                              tooltip: 'Lock again',
+                              onPressed: () =>
+                                  ContentLock.instance.hide(item.id),
+                            ),
+                          ),
                         if (widget.readOnly && widget.contextLabel != null)
                           Padding(
                             padding: const EdgeInsets.only(left: 4),
@@ -300,7 +353,7 @@ class _ItemCardState extends State<ItemCard>
                     ),
                   // In the compact grid the copy action moves into the 3-dot
                   // menu; the list keeps the quick copy button.
-                  if (!selectMode && !widget.grid && isCopyableType(item.type))
+                  if (!selectMode && !widget.grid && canCopy)
                     SizedBox(
                       height: 32,
                       width: 32,
@@ -321,12 +374,13 @@ class _ItemCardState extends State<ItemCard>
                   if (!selectMode &&
                       (onTogglePin != null ||
                           onToggleStar != null ||
+                          onToggleLock != null ||
                           onDuplicate != null ||
                           onMove != null ||
                           onArchive != null ||
-                          onExport != null ||
+                          (onExport != null && !hidden) ||
                           onDelete != null ||
-                          (widget.grid && isCopyableType(item.type))))
+                          (widget.grid && canCopy)))
                     SizedBox(
                       height: 32,
                       width: 32,
@@ -349,6 +403,7 @@ class _ItemCardState extends State<ItemCard>
                           }
                           if (value == 'pin') onTogglePin?.call();
                           if (value == 'star') onToggleStar?.call();
+                          if (value == 'lock') onToggleLock?.call();
                           if (value == 'duplicate') onDuplicate?.call();
                           if (value == 'move') onMove?.call();
                           if (value == 'export') onExport?.call();
@@ -356,7 +411,7 @@ class _ItemCardState extends State<ItemCard>
                           if (value == 'delete') onDelete?.call();
                         },
                         itemBuilder: (context) => [
-                          if (widget.grid && isCopyableType(item.type))
+                          if (widget.grid && canCopy)
                             const PopupMenuItem(
                               height: 40,
                               value: 'copy',
@@ -374,6 +429,12 @@ class _ItemCardState extends State<ItemCard>
                               value: 'star',
                               child: Text(item.starred ? 'Unstar' : 'Star'),
                             ),
+                          if (onToggleLock != null)
+                            PopupMenuItem(
+                              height: 40,
+                              value: 'lock',
+                              child: Text(item.locked ? 'Remove lock' : 'Lock'),
+                            ),
                           if (onDuplicate != null)
                             const PopupMenuItem(
                               height: 40,
@@ -386,7 +447,7 @@ class _ItemCardState extends State<ItemCard>
                               value: 'move',
                               child: Text('Move'),
                             ),
-                          if (onExport != null)
+                          if (onExport != null && !hidden)
                             const PopupMenuItem(
                               height: 40,
                               value: 'export',
@@ -419,7 +480,7 @@ class _ItemCardState extends State<ItemCard>
                 const SizedBox(height: 10),
                 Divider(height: 1, color: scheme.outlineVariant),
                 const SizedBox(height: 10),
-                _buildBody(),
+                if (hidden) _lockedBody(scheme) else _buildBody(),
               ],
             ],
           ),
@@ -475,6 +536,51 @@ class _ItemCardState extends State<ItemCard>
       );
     }
     return IgnorePointer(ignoring: _overflowing, child: clamped);
+  }
+
+  Future<void> _unlock() async {
+    final item = widget.item;
+    final ok = await askVaultPin(
+      context,
+      title: 'Unlock item',
+      message:
+          'Enter your vault PIN to open '
+          '"${item.title.isEmpty ? 'Untitled' : item.title}".',
+    );
+    if (ok) ContentLock.instance.revealItem(item);
+  }
+
+  /// In place of a hidden locked item's content. The card's tap (which opens
+  /// the item) asks for the PIN first.
+  Widget _lockedBody(ColorScheme scheme) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(vertical: widget.grid ? 14 : 22),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.lock_outline, size: 20, color: scheme.onSurfaceVariant),
+          const SizedBox(height: 6),
+          Text(
+            'Locked',
+            style: textTheme.titleSmall?.copyWith(color: scheme.onSurface),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Tap to unlock with your vault PIN',
+            textAlign: TextAlign.center,
+            style: textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _tagsRow(BuildContext context, ColorScheme scheme) {

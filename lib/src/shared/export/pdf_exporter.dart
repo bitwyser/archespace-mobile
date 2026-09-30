@@ -10,6 +10,7 @@ import 'package:archespace_mobile/src/features/items/domain/draw.dart';
 import 'package:archespace_mobile/src/features/items/domain/rich_doc.dart';
 import 'package:archespace_mobile/src/features/items/domain/rich_text_html.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
+import 'package:archespace_mobile/src/features/vault/application/content_lock.dart';
 import 'package:archespace_mobile/src/shared/brand/brand_paths.dart';
 
 /// Builds a PDF for a whole space or a single item, per item type. Mirrors the
@@ -149,7 +150,11 @@ class PdfExporter {
       style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
     ),
     pw.SizedBox(height: 4),
-    ..._body(item),
+    // A locked item that isn't open stays out of the file.
+    if (ContentLock.instance.isItemHidden(item))
+      pw.Text('Locked')
+    else
+      ..._body(item),
     pw.Divider(),
   ];
 

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:archespace_mobile/src/features/items/domain/rich_doc.dart';
+import 'package:archespace_mobile/src/features/vault/application/content_lock.dart';
 import 'package:archespace_mobile/src/shared/crypto/arche_crypto.dart';
 
 /// One searchable entry: either a space or an item. [haystack] is the
@@ -16,10 +17,31 @@ class SearchHit {
     required this.title,
     required this.type,
     required this.haystack,
+    this.contentText = '',
+    this.locked = false,
   });
 
   final bool isSpace;
   final String id;
+
+  /// Lowercased content text (an item's body, a space's description), matched
+  /// only while it isn't hidden by a lock.
+  final String contentText;
+
+  /// The item or space itself is locked (see ContentLock).
+  final bool locked;
+
+  /// Whether [query] (lowercased) matches. A locked item or space, or one
+  /// inside a locked space, is found by its name and tags only until opened:
+  /// matching its content would reveal what it says.
+  bool matches(String query) {
+    if (haystack.contains(query)) return true;
+    final lock = ContentLock.instance;
+    final hidden = isSpace
+        ? lock.isSpaceHidden(id)
+        : (locked && !lock.isRevealed(id)) || lock.isSpaceHidden(spaceId);
+    return !hidden && contentText.contains(query);
+  }
 
   /// The item's space, or null for a dashboard item (belongs to no space).
   final String? spaceId;
@@ -42,7 +64,7 @@ class SearchRepository {
   Future<List<SearchHit>> loadIndex() async {
     final spaceRows = await _client
         .from('spaces')
-        .select('id, name, description, tags')
+        .select('id, name, description, tags, parent_id, locked')
         .isFilter('deleted_at', null)
         .isFilter('archived_at', null);
 
@@ -51,6 +73,12 @@ class SearchRepository {
 
     for (final row in spaceRows) {
       final id = row['id'] as String;
+      final locked = (row['locked'] ?? false) as bool;
+      ContentLock.instance.registerSpace(
+        id,
+        locked: locked,
+        parentId: row['parent_id'] as String?,
+      );
       final name = await ArcheCrypto.decryptArc1(
         (row['name'] ?? '') as String,
         _masterKey,
@@ -69,14 +97,16 @@ class SearchRepository {
           spaceName: name,
           title: name,
           type: 'space',
-          haystack: '$name $description ${tags.join(' ')}'.toLowerCase(),
+          haystack: '$name ${tags.join(' ')}'.toLowerCase(),
+          contentText: description.toLowerCase(),
+          locked: locked,
         ),
       );
     }
 
     final itemRows = await _client
         .from('space_items')
-        .select('id, space_id, type, title, content, tags')
+        .select('id, space_id, type, title, content, tags, locked')
         .isFilter('deleted_at', null)
         .isFilter('archived_at', null);
 
@@ -99,8 +129,9 @@ class SearchRepository {
               : spaceNameById[spaceId] ?? '',
           title: title,
           type: type,
-          haystack: '${_itemText(type, title, content)} ${tags.join(' ')}'
-              .toLowerCase(),
+          haystack: '$title ${tags.join(' ')}'.toLowerCase(),
+          contentText: _itemText(type, title, content).toLowerCase(),
+          locked: (row['locked'] ?? false) as bool,
         ),
       );
     }

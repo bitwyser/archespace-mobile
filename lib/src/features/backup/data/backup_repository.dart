@@ -52,7 +52,7 @@ class BackupRepository {
   Future<List<Map<String, dynamic>>> _exportItems(String? spaceId) async {
     final query = _client
         .from('space_items')
-        .select('type, title, content, position, pinned');
+        .select('type, title, content, position, pinned, locked');
     final itemRows =
         await (spaceId == null
                 ? query.isFilter('space_id', null)
@@ -69,16 +69,39 @@ class BackupRepository {
         'content': await _decContent(it['content']),
         'position': it['position'],
         'pinned': it['pinned'] ?? false,
+        // Only written when set, so older app versions read the file as before.
+        if (it['locked'] == true) 'locked': true,
       });
     }
     return items;
+  }
+
+  /// Whether any active space or item is locked. The backup holds everything
+  /// readable, so the caller asks for the vault PIN first when it is.
+  Future<bool> hasLockedContent() async {
+    final spaces = await _client
+        .from('spaces')
+        .select('id')
+        .eq('locked', true)
+        .isFilter('deleted_at', null)
+        .isFilter('archived_at', null)
+        .limit(1);
+    if (spaces.isNotEmpty) return true;
+    final items = await _client
+        .from('space_items')
+        .select('id')
+        .eq('locked', true)
+        .isFilter('deleted_at', null)
+        .isFilter('archived_at', null)
+        .limit(1);
+    return items.isNotEmpty;
   }
 
   /// Build the backup JSON (active spaces + items, decrypted).
   Future<String> exportJson() async {
     final spaceRows = await _client
         .from('spaces')
-        .select('id, name, description, tags, color, pinned, position')
+        .select('id, name, description, tags, color, pinned, locked, position')
         .isFilter('deleted_at', null)
         .isFilter('archived_at', null)
         .order('position');
@@ -91,6 +114,7 @@ class BackupRepository {
         'color': s['color'],
         'tags': await _decTags(s['tags']),
         'pinned': s['pinned'] ?? false,
+        if (s['locked'] == true) 'locked': true,
         'position': s['position'],
         'items': await _exportItems(s['id'] as String),
       });
@@ -153,6 +177,7 @@ class BackupRepository {
         'content': await _encJson(content),
         'position': it['position'] is int ? it['position'] : rows.length,
         'pinned': it['pinned'] == true,
+        'locked': it['locked'] == true,
       });
     }
     if (rows.isNotEmpty) {
@@ -216,6 +241,7 @@ class BackupRepository {
             'color': color,
             'tags': tags.isEmpty ? null : await _encJson(tags),
             'pinned': raw['pinned'] == true,
+            'locked': raw['locked'] == true,
             'position': spacePos++,
           })
           .select('id')

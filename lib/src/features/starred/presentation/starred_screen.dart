@@ -10,6 +10,7 @@ import 'package:archespace_mobile/src/features/spaces/data/space_repository.dart
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_detail_screen.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_editor_screen.dart';
+import 'package:archespace_mobile/src/features/spaces/presentation/space_lock_actions.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/widgets/space_card.dart';
 import 'package:archespace_mobile/src/features/storage/application/storage_counts.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
@@ -291,6 +292,12 @@ class _StarredScreenState extends State<StarredScreen>
       "Couldn't change read-only.",
       success: space.readOnly ? 'Editing allowed' : 'Space is now read-only',
     ),
+    onToggleLock: () async {
+      if (await toggleSpaceLock(context, space, locked: space.locked) &&
+          mounted) {
+        _load();
+      }
+    },
     onEdit: () => _editSpace(space),
     onDuplicate: () => _spaceOp(
       (r) => r.duplicateSpace(space),
@@ -310,6 +317,7 @@ class _StarredScreenState extends State<StarredScreen>
       onTap: isEditableType(item.type) ? () => editItem(item) : null,
       onTogglePin: readOnly ? null : () => togglePinItem(item),
       onToggleStar: () => toggleStarItem(item),
+      onToggleLock: () => toggleLockItem(item),
       onDuplicate: readOnly ? null : () => duplicateItem(item),
       onMove: readOnly ? null : () => moveItem(item),
       onArchive: readOnly ? null : () => archiveItem(item),

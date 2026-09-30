@@ -12,6 +12,7 @@ import 'package:archespace_mobile/src/features/spaces/data/space_repository.dart
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_detail_screen.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_editor_screen.dart';
+import 'package:archespace_mobile/src/features/spaces/presentation/space_lock_actions.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/widgets/app_drawer.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/widgets/space_card.dart';
 import 'package:archespace_mobile/src/features/storage/application/storage_counts.dart';
@@ -1036,6 +1037,12 @@ class _SpacesScreenState extends State<SpacesScreen>
     onTogglePin: () => _togglePinSpace(space),
     onToggleStar: () => _toggleStarSpace(space),
     onToggleReadOnly: () => _toggleReadOnlySpace(space),
+    onToggleLock: () async {
+      if (await toggleSpaceLock(context, space, locked: space.locked) &&
+          mounted) {
+        _load();
+      }
+    },
     onEdit: () => _editSpace(space),
     onDuplicate: () => _duplicateSpace(space),
     onArchive: () => _archiveSpace(space),
@@ -1060,6 +1067,7 @@ class _SpacesScreenState extends State<SpacesScreen>
     onTap: isEditableType(item.type) ? () => editItem(item) : null,
     onTogglePin: () => togglePinItem(item),
     onToggleStar: () => toggleStarItem(item),
+    onToggleLock: () => toggleLockItem(item),
     onDuplicate: () => duplicateItem(item),
     onMove: () => moveItem(item),
     onArchive: () => archiveItem(item),

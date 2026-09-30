@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/spaces/domain/space_colors.dart';
+import 'package:archespace_mobile/src/features/vault/application/content_lock.dart';
 import 'package:archespace_mobile/src/shared/widgets/select_box.dart';
 
 /// A space rendered as a content card: a subtle border that turns accent when
@@ -20,6 +21,7 @@ class SpaceCard extends StatelessWidget {
     required this.onDelete,
     this.onToggleStar,
     this.onToggleReadOnly,
+    this.onToggleLock,
     this.selectMode = false,
     this.selected = false,
     this.onSelectToggle,
@@ -41,6 +43,9 @@ class SpaceCard extends StatelessWidget {
 
   /// Read-only on / off. Null hides it.
   final VoidCallback? onToggleReadOnly;
+
+  /// Lock / remove the lock. Null hides it.
+  final VoidCallback? onToggleLock;
   final bool selectMode;
   final bool selected;
   final VoidCallback? onSelectToggle;
@@ -86,8 +91,20 @@ class SpaceCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    // Rebuild when a locked space is opened or hidden again.
+    listenable: ContentLock.instance,
+    builder: (context, _) => _build(context),
+  );
+
+  Widget _build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // Locked (itself or its parent) and not opened: the name, tags and count
+    // show; the description and editing wait for the PIN.
+    final lock = ContentLock.instance;
+    final hidden =
+        lock.isSpaceHidden(space.id) ||
+        (space.locked && !lock.isRevealed(space.id));
     // Cards are borderless except a selected card in select mode, which keeps a
     // soft accent border alongside its checkbox. Pinned is shown by the pin
     // marker; normal and pinned cards have no border.
@@ -164,6 +181,20 @@ class SpaceCard extends StatelessWidget {
                                   semanticLabel: 'Read-only',
                                 ),
                               ),
+                            if (space.locked || hidden)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 4),
+                                child: Icon(
+                                  hidden
+                                      ? Icons.lock_outline
+                                      : Icons.lock_open_outlined,
+                                  size: 16,
+                                  color: hidden
+                                      ? scheme.onSurfaceVariant
+                                      : scheme.primary,
+                                  semanticLabel: hidden ? 'Locked' : 'Unlocked',
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -192,6 +223,7 @@ class SpaceCard extends StatelessWidget {
                               if (value == 'read-only') {
                                 onToggleReadOnly?.call();
                               }
+                              if (value == 'lock') onToggleLock?.call();
                               if (value == 'edit') onEdit();
                               if (value == 'duplicate') onDuplicate();
                               if (value == 'archive') onArchive();
@@ -223,7 +255,17 @@ class SpaceCard extends StatelessWidget {
                                         : 'Read-only',
                                   ),
                                 ),
-                              if (!space.readOnly)
+                              if (onToggleLock != null)
+                                PopupMenuItem(
+                                  height: 40,
+                                  value: 'lock',
+                                  child: Text(
+                                    space.locked ? 'Remove lock' : 'Lock',
+                                  ),
+                                ),
+                              // Editing shows the description, so a hidden
+                              // locked space opens first.
+                              if (!space.readOnly && !hidden)
                                 const PopupMenuItem(
                                   height: 40,
                                   value: 'edit',
@@ -254,7 +296,7 @@ class SpaceCard extends StatelessWidget {
                         ),
                     ],
                   ),
-                  if (space.description.isNotEmpty)
+                  if (space.description.isNotEmpty && !hidden)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(

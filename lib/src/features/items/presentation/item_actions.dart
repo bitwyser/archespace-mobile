@@ -10,7 +10,9 @@ import 'package:archespace_mobile/src/features/items/presentation/item_editor_sc
 import 'package:archespace_mobile/src/features/spaces/data/space_repository.dart';
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/storage/application/storage_counts.dart';
+import 'package:archespace_mobile/src/features/vault/application/content_lock.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
+import 'package:archespace_mobile/src/features/vault/presentation/widgets/vault_pin_prompt.dart';
 import 'package:archespace_mobile/src/shared/export/pdf_exporter.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
@@ -49,6 +51,8 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
   }
 
   Future<void> editItem(SpaceItem item) async {
+    // A locked item (or one in a locked space) opens after the vault PIN.
+    if (!await unlockItem(item) || !mounted) return;
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => ItemEditorScreen(
@@ -141,6 +145,51 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
       }
     } catch (_) {
       showItemError("Couldn't update the star.");
+    }
+  }
+
+  /// Open [item] with the vault PIN if its content is hidden. True when it
+  /// can be shown (it already was, or the PIN was right).
+  Future<bool> unlockItem(SpaceItem item) async {
+    final lock = ContentLock.instance;
+    if (!lock.isItemHidden(item)) return true;
+    final ok = await askVaultPin(
+      context,
+      title: 'Unlock item',
+      message:
+          'Enter your vault PIN to open '
+          '"${item.title.isEmpty ? 'Untitled' : item.title}".',
+    );
+    if (ok) lock.revealItem(item);
+    return ok;
+  }
+
+  /// Lock is instant and hides the content at once. Removing a lock needs
+  /// the PIN, unless the item was already opened with it.
+  Future<void> toggleLockItem(SpaceItem item) async {
+    final lock = ContentLock.instance;
+    if (item.locked && !lock.isRevealed(item.id)) {
+      final ok = await askVaultPin(
+        context,
+        title: 'Remove lock',
+        message:
+            'Enter your vault PIN to remove the lock. The content will show '
+            'without the PIN.',
+        confirmLabel: 'Remove lock',
+      );
+      if (!ok) return;
+    }
+    try {
+      await _repo.setLocked(item.id, !item.locked);
+      if (!item.locked) lock.hide(item.id);
+      if (mounted) {
+        reloadItems();
+        showSuccessSnack(context, item.locked ? 'Lock removed' : 'Item locked');
+      }
+    } catch (_) {
+      showItemError(
+        item.locked ? "Couldn't remove the lock." : "Couldn't lock the item.",
+      );
     }
   }
 
@@ -307,6 +356,7 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
     content: item.content,
     pinned: item.pinned,
     starred: item.starred,
+    locked: item.locked,
     spaceId: item.spaceId,
     tags: tags,
     createdAt: item.createdAt,

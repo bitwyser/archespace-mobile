@@ -20,6 +20,7 @@ import 'package:archespace_mobile/src/features/settings/presentation/account_sec
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/features/vault/data/biometric_service.dart';
 import 'package:archespace_mobile/src/features/vault/data/secure_key_store.dart';
+import 'package:archespace_mobile/src/features/vault/presentation/widgets/vault_pin_prompt.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
 
 /// Settings, grouped like the web: Account, Vault, Appearance, Backup, About.
@@ -177,9 +178,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _exportBackup() async {
     try {
-      final json = await BackupRepository(
-        VaultSession.instance.masterKey,
-      ).exportJson();
+      final repo = BackupRepository(VaultSession.instance.masterKey);
+      // The file holds everything readable, so locked content needs the PIN.
+      if (await repo.hasLockedContent()) {
+        if (!mounted) return;
+        final ok = await askVaultPin(
+          context,
+          title: 'Export locked content',
+          message:
+              'The backup includes locked items or spaces, saved readable in '
+              'the file. Enter your vault PIN to export.',
+          confirmLabel: 'Export',
+        );
+        if (!ok) return;
+      }
+      final json = await repo.exportJson();
       final bytes = Uint8List.fromList(utf8.encode(json));
       final date = DateTime.now().toIso8601String().substring(0, 10);
       final path = await FilePicker.platform.saveFile(

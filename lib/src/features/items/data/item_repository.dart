@@ -47,8 +47,8 @@ class ItemRepository {
       _list('items_starred', (q) => q.eq('starred', true));
 
   static const _columns =
-      'id, space_id, type, title, content, tags, pinned, starred, position, '
-      'created_at';
+      'id, space_id, type, title, content, tags, pinned, starred, locked, '
+      'position, created_at';
 
   /// Fetch active items matching [where], caching the encrypted rows under
   /// [cacheKey]; on a network error, fall back to that cache.
@@ -96,6 +96,7 @@ class ItemRepository {
             tags: await _decodeTags(m['tags']),
             pinned: (m['pinned'] ?? false) as bool,
             starred: (m['starred'] ?? false) as bool,
+            locked: (m['locked'] ?? false) as bool,
             spaceId: m['space_id'] as String?,
             createdAt: DateTime.tryParse((m['created_at'] ?? '').toString()),
           ),
@@ -186,6 +187,11 @@ class ItemRepository {
     await _client.from('space_items').update({'starred': starred}).eq('id', id);
   }
 
+  /// Lock / remove the lock (a flag only; the content is not re-encrypted).
+  Future<void> setLocked(String id, bool locked) async {
+    await _client.from('space_items').update({'locked': locked}).eq('id', id);
+  }
+
   Future<void> archiveItem(String id) async {
     await _client
         .from('space_items')
@@ -219,6 +225,8 @@ class ItemRepository {
       'title': await _encTitle(title),
       'content': await _encContent(item.content),
       'position': await _endPosition(spaceId),
+      // A copy of a locked item stays locked.
+      'locked': item.locked,
     });
   }
 

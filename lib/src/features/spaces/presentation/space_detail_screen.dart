@@ -9,8 +9,10 @@ import 'package:archespace_mobile/src/features/items/presentation/item_card.dart
 import 'package:archespace_mobile/src/features/spaces/data/space_repository.dart';
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_editor_screen.dart';
+import 'package:archespace_mobile/src/features/spaces/presentation/space_lock_actions.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/widgets/space_card.dart';
 import 'package:archespace_mobile/src/features/storage/application/storage_counts.dart';
+import 'package:archespace_mobile/src/features/vault/application/content_lock.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/shared/export/pdf_exporter.dart';
 import 'package:archespace_mobile/src/shared/realtime/table_watcher.dart';
@@ -19,6 +21,7 @@ import 'package:archespace_mobile/src/shared/widgets/action_icon_button.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/widgets/bulk_action_bar.dart';
 import 'package:archespace_mobile/src/shared/widgets/create_fabs.dart';
+import 'package:archespace_mobile/src/shared/widgets/locked_view.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
 import 'package:archespace_mobile/src/shared/widgets/offline_banner.dart';
 import 'package:archespace_mobile/src/shared/widgets/scrollable_message.dart';
@@ -75,6 +78,9 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
   @override
   void initState() {
     super.initState();
+    ContentLock.instance.addListener(_onLockChanged);
+    // A locked space asks for the PIN as it opens.
+    if (_hidden) WidgetsBinding.instance.addPostFrameCallback((_) => _unlock());
     _load();
     SharedPreferences.getInstance().then((prefs) {
       final saved = prefs.getString('sort_items');
@@ -101,8 +107,14 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
     );
   }
 
+  /// Opened or hidden again (or the lock changed): show or cover the space.
+  void _onLockChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    ContentLock.instance.removeListener(_onLockChanged);
     _watcher?.dispose();
     _spaceWatcher?.dispose();
     _searchController.dispose();
@@ -273,6 +285,11 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
       (r) => r.setReadOnly(sub.id, !sub.readOnly),
       "Couldn't change read-only.",
     ),
+    onToggleLock: () async {
+      if (await toggleSpaceLock(context, sub, locked: sub.locked) && mounted) {
+        _load();
+      }
+    },
     onEdit: () => _editSubSpace(sub),
     onDuplicate: () => _subSpaceOp(
       (r) => r.duplicateSpace(sub),
@@ -414,6 +431,12 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
     // CreateFabs).
     return [
       ActionIconButton(
+        icon: Icons.lock_outline,
+        tooltip: _locked ? 'Locked - tap to remove the lock' : 'Lock',
+        onPressed: _toggleLock,
+        selected: _locked,
+      ),
+      ActionIconButton(
         icon: Icons.edit_off_outlined,
         tooltip: _readOnly ? 'Read-only - tap to allow editing' : 'Read-only',
         onPressed: _toggleReadOnly,
@@ -501,8 +524,41 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
     );
   }
 
+  /// Locked (itself or its parent) and not opened with the PIN.
+  bool get _hidden {
+    final lock = ContentLock.instance;
+    return lock.isSpaceHidden(widget.space.id) ||
+        (widget.space.locked && !lock.isRevealed(widget.space.id));
+  }
+
+  /// This space's own lock: as last loaded, else as it was passed in.
+  bool get _locked =>
+      ContentLock.instance.isSpaceLocked(widget.space.id) ??
+      widget.space.locked;
+
+  Future<void> _unlock() => unlockSpace(context, widget.space);
+
+  Future<void> _toggleLock() async {
+    await toggleSpaceLock(context, widget.space, locked: _locked);
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_hidden) {
+      return Scaffold(
+        appBar: AppBar(
+          titleSpacing: 0,
+          title: Text(
+            widget.space.name.isEmpty ? 'Untitled' : widget.space.name,
+          ),
+        ),
+        body: LockedView(
+          message: 'Enter your vault PIN to open this space.',
+          onUnlock: _unlock,
+        ),
+      );
+    }
     final hasItems = (_items ?? const <SpaceItem>[]).isNotEmpty;
     return Scaffold(
       appBar: _selectMode
@@ -834,6 +890,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
     onTap: isEditableType(item.type) ? () => editItem(item) : null,
     onTogglePin: _readOnly ? null : () => togglePinItem(item),
     onToggleStar: () => toggleStarItem(item),
+    onToggleLock: () => toggleLockItem(item),
     onDuplicate: _readOnly ? null : () => duplicateItem(item),
     onMove: _readOnly ? null : () => moveItem(item),
     onArchive: _readOnly ? null : () => archiveItem(item),
