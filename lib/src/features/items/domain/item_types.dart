@@ -119,14 +119,6 @@ const List<ItemTypeDef> kItemTypes = [
     editable: true,
   ),
   ItemTypeDef(
-    type: 'secret',
-    label: 'Secret',
-    description: 'PIN-protected hidden text',
-    icon: Icons.lock_outline,
-    color: Color(0xFF818CF8), // indigo
-    editable: true,
-  ),
-  ItemTypeDef(
     type: 'draw',
     label: 'Drawing',
     description: 'Freehand sketch',
@@ -189,8 +181,6 @@ Map<String, dynamic> defaultContentFor(String type) {
           ['', ''],
         ],
       };
-    case 'secret':
-      return {'secret': true, 'cipher': ''};
     case 'draw':
       return {'strokes': <dynamic>[]};
     case 'authenticator':

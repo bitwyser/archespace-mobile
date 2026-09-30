@@ -666,8 +666,6 @@ class _ItemBody extends StatelessWidget {
         return _Checklist(items: (c['items'] as List?) ?? const []);
       case 'card_list':
         return _Cards(items: (c['items'] as List?) ?? const []);
-      case 'secret':
-        return const _Masked();
       case 'table':
         return _TableView(columns: _columns(c), rows: _rows(c));
       case 'draw':
@@ -814,26 +812,6 @@ class _Cards extends StatelessWidget {
                 );
               },
             ),
-      ],
-    );
-  }
-}
-
-class _Masked extends StatelessWidget {
-  const _Masked();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Icon(Icons.lock_outline, size: 18),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            '•••••• Tap to reveal',
-            style: TextStyle(color: Theme.of(context).hintColor),
-          ),
-        ),
       ],
     );
   }

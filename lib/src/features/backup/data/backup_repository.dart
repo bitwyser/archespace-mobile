@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:archespace_mobile/src/features/items/data/secret_migration.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/shared/crypto/arche_crypto.dart';
 
@@ -122,12 +123,23 @@ class BackupRepository {
         skipped++;
         continue;
       }
-      final type = it['type'];
+      var type = it['type'];
+      var content = it['content'];
+      // Secrets (a removed type) come in as Notes when they're from this
+      // vault; one sealed to another vault can't be opened, so it's skipped.
+      if (type == 'secret' && content is Map) {
+        try {
+          content = await SecretMigration.noteContent(content, _masterKey);
+          type = 'textbox';
+        } catch (_) {
+          skipped++;
+          continue;
+        }
+      }
       if (type is! String || !knownTypes.contains(type)) {
         skipped++;
         continue;
       }
-      final content = it['content'];
       if (content is! Map) {
         skipped++;
         continue;

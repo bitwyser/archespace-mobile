@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:archespace_mobile/src/features/items/data/secret_migration.dart';
 import 'package:archespace_mobile/src/features/items/data/item_repository.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
@@ -70,6 +71,17 @@ class _SpacesScreenState extends State<SpacesScreen>
   void initState() {
     super.initState();
     _load();
+    // The Secret type was removed: turn any existing secrets into Notes once
+    // per session (only an unlocked device can open them), then refresh.
+    SecretMigration.runOnce(VaultSession.instance.masterKey).then((converted) {
+      if (converted == 0 || !mounted) return;
+      _load();
+      showSuccessSnack(
+        context,
+        '$converted ${converted == 1 ? 'secret was' : 'secrets were'} '
+        'turned into Notes.',
+      );
+    });
     // Warm the drawer's archive/bin counts at launch so they're ready before
     // the drawer is opened (mirrors the always-in-memory spaces count).
     StorageCounts.instance.refresh();

@@ -176,8 +176,6 @@ class PdfExporter {
         return _cards(c);
       case 'table':
         return [_table(c)];
-      case 'secret':
-        return [pw.Text('•••••• (hidden secret)')];
       case 'draw':
         return [_drawing(c)];
       default:

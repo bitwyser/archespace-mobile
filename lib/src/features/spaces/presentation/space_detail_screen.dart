@@ -625,7 +625,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
       return StateMessage(
         icon: Icons.note_add_outlined,
         title: 'No items yet',
-        message: 'Add notes, lists, secrets, and more to this space.',
+        message: 'Add notes, lists, tables, and more to this space.',
         actionLabel: 'Add item',
         actionIcon: Icons.add,
         onAction: openAddItemSheet,

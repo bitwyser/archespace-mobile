@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:archespace_mobile/src/features/auth/data/auth_service.dart';
 import 'package:archespace_mobile/src/features/items/data/item_repository.dart';
 import 'package:archespace_mobile/src/features/items/domain/code_highlight.dart';
 import 'package:archespace_mobile/src/features/items/domain/draw.dart';
@@ -13,8 +12,6 @@ import 'package:archespace_mobile/src/features/items/domain/totp.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
 import 'package:archespace_mobile/src/features/items/presentation/rich_text_editor.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
-import 'package:archespace_mobile/src/features/vault/data/vault_service.dart';
-import 'package:archespace_mobile/src/shared/crypto/arche_crypto.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/util/errors.dart';
 
@@ -64,22 +61,12 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
   // True once any save has succeeded, so the caller refreshes on close.
   bool _savedAny = false;
 
-  // The Secret editor keeps its plaintext to itself (folded into `_content`
-  // only at save via finalize), so its edits can't be seen by diffing
-  // `_content`. It signals changes through these flags instead.
-  bool _secretDirty = false;
-  bool _secretChangedSinceTick = false;
-
   // Previous auto-save tick's snapshot, so we only save once edits settle
   // (no change since the last tick) rather than on every keystroke.
   late String _tickTitle = _title.text;
   late String _tickContentJson = _savedContentJson;
   late String _tickType = widget.type;
   Timer? _autoSaveTimer;
-
-  // Some editors (Secret) must run async work (encryption) to fold their state
-  // into `_content` just before saving. They register that step here.
-  Future<void> Function()? _finalizeContent;
 
   Map<String, dynamic> _initialContent() {
     final source = widget.existing?.content ?? defaultContentFor(widget.type);
@@ -107,8 +94,7 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
   bool _isDirty() =>
       _title.text.trim() != _savedTitle ||
       jsonEncode(_content) != _savedContentJson ||
-      _type != _savedType ||
-      _secretDirty;
+      _type != _savedType;
 
   // Auto-save unsaved edits once they settle (unchanged since the last tick),
   // so we don't write on every keystroke.
@@ -119,17 +105,14 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
     final dirty =
         curTitle.trim() != _savedTitle ||
         curJson != _savedContentJson ||
-        _type != _savedType ||
-        _secretDirty;
+        _type != _savedType;
     final settled =
         curTitle == _tickTitle &&
         curJson == _tickContentJson &&
-        _type == _tickType &&
-        !_secretChangedSinceTick;
+        _type == _tickType;
     _tickTitle = curTitle;
     _tickContentJson = curJson;
     _tickType = _type;
-    _secretChangedSinceTick = false;
     if (dirty && settled) _save(silent: true);
   }
 
@@ -140,7 +123,6 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
     setState(() => _saving = true);
     final repo = ItemRepository(VaultSession.instance.masterKey);
     try {
-      if (_finalizeContent != null) await _finalizeContent!();
       final title = _title.text.trim();
       final type = _type;
       if (_itemId != null) {
@@ -162,7 +144,6 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
       _savedTitle = title;
       _savedContentJson = jsonEncode(_content);
       _savedType = type;
-      _secretDirty = false;
       _savedAny = true;
       if (mounted) setState(() => _saving = false);
       return true;
@@ -313,16 +294,6 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
         return _DrawEditor(content: _content, readOnly: readOnly);
       case 'authenticator':
         return _AuthenticatorEditor(content: _content, readOnly: readOnly);
-      case 'secret':
-        return _SecretEditor(
-          content: _content,
-          readOnly: readOnly,
-          onRegisterFinalize: (fn) => _finalizeContent = fn,
-          onChanged: () {
-            _secretDirty = true;
-            _secretChangedSinceTick = true;
-          },
-        );
       default:
         return Center(child: Text("You can't edit this item type yet."));
     }
@@ -1446,157 +1417,6 @@ Color _parseInk(Object? hex, Color fallback) {
     if (value != null) return Color(0xFF000000 | value);
   }
   return fallback;
-}
-
-/// Editor for `secret` (`{ secret: true, cipher: <arc1> }`). The secret text is
-/// a nested cipher; revealing/editing it requires re-verifying the vault PIN.
-/// A new/empty secret is editable directly; an existing one starts locked.
-/// On save, the plaintext is re-encrypted with the master key into `cipher`.
-class _SecretEditor extends StatefulWidget {
-  const _SecretEditor({
-    required this.content,
-    required this.onRegisterFinalize,
-    required this.onChanged,
-    this.readOnly = false,
-  });
-
-  final Map<String, dynamic> content;
-  final void Function(Future<void> Function()) onRegisterFinalize;
-  final VoidCallback onChanged;
-  final bool readOnly;
-
-  @override
-  State<_SecretEditor> createState() => _SecretEditorState();
-}
-
-class _SecretEditorState extends State<_SecretEditor> {
-  final AuthService _auth = AuthService();
-  final VaultService _vault = VaultService();
-  final TextEditingController _text = TextEditingController();
-  final TextEditingController _pin = TextEditingController();
-
-  bool _revealed = false;
-  bool _busy = false;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    final cipher = (widget.content['cipher'] ?? '').toString();
-    // A new / empty secret is editable straight away; existing ciphers stay
-    // locked until the PIN is re-verified.
-    _revealed = cipher.isEmpty;
-    widget.onRegisterFinalize(_finalize);
-  }
-
-  @override
-  void dispose() {
-    _text.dispose();
-    _pin.dispose();
-    super.dispose();
-  }
-
-  // Fold the plaintext back into the (nested) cipher before saving. If never
-  // revealed, the existing cipher is left untouched (only the title changed).
-  Future<void> _finalize() async {
-    if (!_revealed) return;
-    widget.content['secret'] = true;
-    widget.content['cipher'] = await ArcheCrypto.encryptArc1(
-      _text.text,
-      VaultSession.instance.masterKey,
-    );
-  }
-
-  Future<void> _reveal() async {
-    final userId = _auth.currentUser?.id;
-    if (userId == null) return;
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      // Re-verify the vault PIN (throws on a wrong PIN).
-      await _vault.unlock(userId, _pin.text.trim());
-      final cipher = (widget.content['cipher'] ?? '').toString();
-      _text.text = cipher.isEmpty
-          ? ''
-          : await ArcheCrypto.decryptArc1(
-              cipher,
-              VaultSession.instance.masterKey,
-            );
-      setState(() => _revealed = true);
-    } on VaultException catch (e) {
-      setState(() => _error = e.message);
-    } catch (_) {
-      setState(() => _error = "Couldn't verify your PIN.");
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_revealed) {
-      return TextField(
-        controller: _text,
-        readOnly: widget.readOnly,
-        onChanged: (_) => widget.onChanged(),
-        maxLines: null,
-        expands: true,
-        textAlignVertical: TextAlignVertical.top,
-        keyboardType: TextInputType.multiline,
-        decoration: InputDecoration(
-          hintText: widget.readOnly ? 'Empty' : 'Secret text…',
-          border: InputBorder.none,
-        ),
-      );
-    }
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 8),
-          const Icon(Icons.lock_outline, size: 40),
-          const SizedBox(height: 12),
-          Text(
-            widget.readOnly
-                ? 'This secret is hidden. Enter your vault PIN to reveal it.'
-                : 'This secret is hidden. Enter your vault PIN to reveal and edit it.',
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _pin,
-            obscureText: true,
-            keyboardType: TextInputType.number,
-            enabled: !_busy,
-            onSubmitted: (_) => _reveal(),
-            decoration: const InputDecoration(labelText: 'Vault PIN'),
-          ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: _busy ? null : _reveal,
-            child: _busy
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Reveal'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Editor for the "authenticator" item type: a list of TOTP accounts rendered

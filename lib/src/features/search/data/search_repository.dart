@@ -31,8 +31,7 @@ class SearchHit {
 
 /// Loads and decrypts every space + item into a flat search index. Mirrors the
 /// web global search: spaces match on name/description/tags; items match on
-/// title, tags, and type-specific content text. Secret content stays sealed
-/// (title only).
+/// title, tags, and type-specific content text.
 class SearchRepository {
   SearchRepository(this._masterKey);
 
@@ -135,7 +134,7 @@ class SearchRepository {
   }
 }
 
-/// Type-specific searchable text (title + content). Secret/drawing add nothing
+/// Type-specific searchable text (title + content). Drawings add nothing
 /// beyond the title.
 String _itemText(String type, String title, Map<String, dynamic> content) {
   final parts = <String>[title];
