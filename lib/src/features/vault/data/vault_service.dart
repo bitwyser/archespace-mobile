@@ -86,6 +86,26 @@ class VaultService {
     return _unlockWithPin(meta, pin);
   }
 
+  /// The vault's PIN-wrapped key, for an encrypted backup to carry: the same
+  /// values the server stores (public salt plus ciphertext), useless without
+  /// the PIN. Uses the offline copy when the server can't be reached.
+  Future<Map<String, String>> backupMeta(String userId) async {
+    final meta = await _loadUnlockMeta(userId);
+    if (meta == null || meta['wrapped_key'] == null) {
+      throw VaultException('No vault PIN is configured for this account.');
+    }
+    return {
+      'salt': meta['salt'] as String,
+      'wrapped_key': meta['wrapped_key'] as String,
+      'key_check': meta['key_check'] as String,
+    };
+  }
+
+  /// Unwrap a vault key from its PIN-wrapped form (a backup's `vault` block).
+  /// Throws [VaultException] 'Incorrect PIN.' when the PIN doesn't open it.
+  Future<Uint8List> unwrapWithPin(Map<String, dynamic> meta, String pin) =>
+      _unlockWithPin(meta, pin);
+
   /// Create a brand-new vault for a user who has none: generate a random master
   /// key, wrap it under [pin], and also wrap it under a fresh one-time recovery
   /// code. Returns the master key (to unlock the session) and the recovery code

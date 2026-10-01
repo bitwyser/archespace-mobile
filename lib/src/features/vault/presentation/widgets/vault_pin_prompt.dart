@@ -11,11 +11,16 @@ import 'package:archespace_mobile/src/features/vault/data/vault_service.dart';
 /// true once the right PIN is entered (or, when biometric unlock is on, a
 /// fingerprint / face is confirmed), false if cancelled. After
 /// [ContentLock.maxAttempts] wrong PINs in a row the vault locks.
+///
+/// [verify] replaces the check against this vault's PIN (a backup from
+/// another vault); it returns false for a wrong PIN. Biometrics and the
+/// vault lockout don't apply then.
 Future<bool> askVaultPin(
   BuildContext context, {
   required String title,
   required String message,
   String confirmLabel = 'Unlock',
+  Future<bool> Function(String pin)? verify,
 }) async {
   final ok = await showDialog<bool>(
     context: context,
@@ -23,6 +28,7 @@ Future<bool> askVaultPin(
       title: title,
       message: message,
       confirmLabel: confirmLabel,
+      verify: verify,
     ),
   );
   return ok ?? false;
@@ -33,11 +39,13 @@ class _VaultPinDialog extends StatefulWidget {
     required this.title,
     required this.message,
     required this.confirmLabel,
+    this.verify,
   });
 
   final String title;
   final String message;
   final String confirmLabel;
+  final Future<bool> Function(String pin)? verify;
 
   @override
   State<_VaultPinDialog> createState() => _VaultPinDialogState();
@@ -66,6 +74,8 @@ class _VaultPinDialogState extends State<_VaultPinDialog> {
   /// Biometric unlock is on when the device supports it and the vault key was
   /// saved for it; then offer (and start) a fingerprint / face check.
   Future<void> _initBiometric() async {
+    // Biometrics open this vault only, not another vault's backup.
+    if (widget.verify != null) return;
     final enabled =
         await _biometric.isAvailable() && await SecureKeyStore().hasKey();
     if (!mounted || !enabled) return;
@@ -90,6 +100,21 @@ class _VaultPinDialogState extends State<_VaultPinDialog> {
       _busy = true;
       _error = null;
     });
+    final verify = widget.verify;
+    if (verify != null) {
+      try {
+        if (await verify(pin)) {
+          if (mounted) Navigator.pop(context, true);
+          return;
+        }
+        _error = 'Incorrect PIN.';
+        _pin.clear();
+      } catch (_) {
+        _error = "Couldn't check the PIN.";
+      }
+      if (mounted) setState(() => _busy = false);
+      return;
+    }
     try {
       await VaultService().unlock(userId, pin);
       ContentLock.instance.failedAttempts = 0;

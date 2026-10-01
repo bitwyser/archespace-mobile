@@ -5,13 +5,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:archespace_mobile/src/features/items/data/secret_migration.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
+import 'package:archespace_mobile/src/features/vault/data/vault_service.dart';
 import 'package:archespace_mobile/src/shared/crypto/arche_crypto.dart';
 
-/// JSON backup export/import, matching the web format: a versioned envelope
-/// `{ app, version, exportedAt, spaces: [...], items: [...] }` where each space
-/// carries its decrypted fields and an `items` array of decrypted items ({ type,
-/// title, content, position, pinned }), and the top-level `items` are the
-/// dashboard's (no space). Import also accepts the older bare-array format.
+/// JSON backup export/import, matching the web format. A backup is encrypted:
+/// `{ app, version: 3, encrypted: true, exportedAt, vault, data }`, where
+/// `data` is the contents `{ spaces: [...], items: [...] }` encrypted with the
+/// vault key, and `vault` is that key wrapped with the vault PIN (as the
+/// server stores it). So it opens as-is in the same vault, and anywhere else
+/// with the vault PIN of the time. Each space carries its fields and an
+/// `items` array ({ type, title, content, position, pinned }); the top-level
+/// `items` are the dashboard's (no space). Import also accepts the older
+/// readable formats (versioned, and the bare array).
 class BackupRepository {
   BackupRepository(this._masterKey);
 
@@ -77,29 +82,10 @@ class BackupRepository {
     return items;
   }
 
-  /// Whether any active space or item is locked. The backup holds everything
-  /// readable, so the caller asks for the vault PIN first when it is.
-  Future<bool> hasLockedContent() async {
-    final spaces = await _client
-        .from('spaces')
-        .select('id')
-        .eq('locked', true)
-        .isFilter('deleted_at', null)
-        .isFilter('archived_at', null)
-        .limit(1);
-    if (spaces.isNotEmpty) return true;
-    final items = await _client
-        .from('space_items')
-        .select('id')
-        .eq('locked', true)
-        .isFilter('deleted_at', null)
-        .isFilter('archived_at', null)
-        .limit(1);
-    return items.isNotEmpty;
-  }
-
-  /// Build the backup JSON (active spaces + items, decrypted).
-  Future<String> exportJson() async {
+  /// Build the encrypted backup JSON (active spaces + items). [vaultMeta] is
+  /// the vault's PIN-wrapped key (VaultService.backupMeta), carried so the
+  /// file opens elsewhere with the vault PIN.
+  Future<String> exportJson(Map<String, String> vaultMeta) async {
     final spaceRows = await _client
         .from('spaces')
         .select('id, name, description, tags, color, pinned, locked, position')
@@ -120,16 +106,40 @@ class BackupRepository {
         'items': await _exportItems(s['id'] as String),
       });
     }
-    final payload = {
-      'app': 'ArcheSpace',
-      'version': 2,
-      'exportedAt': DateTime.now().toUtc().toIso8601String(),
+    final contents = {
       'spaces': out,
-      // Items that live on the dashboard, outside any space. Optional: older
-      // backups don't have it, and older app versions ignore it.
+      // Items that live on the dashboard, outside any space.
       'items': await _exportItems(null),
     };
+    final payload = {
+      'app': 'ArcheSpace',
+      'version': 3,
+      'encrypted': true,
+      'exportedAt': DateTime.now().toUtc().toIso8601String(),
+      'vault': vaultMeta,
+      'data': await _encJson(contents),
+    };
     return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
+  static bool _isEncrypted(Object? parsed) =>
+      parsed is Map &&
+      parsed['encrypted'] == true &&
+      parsed['data'] is String &&
+      parsed['vault'] is Map;
+
+  /// Decrypt a sealed backup's contents with [key]; null if it doesn't fit.
+  static Future<Object?> _open(
+    Map<dynamic, dynamic> sealed,
+    List<int> key,
+  ) async {
+    try {
+      return jsonDecode(
+        await ArcheCrypto.decryptArc1(sealed['data'] as String, key),
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Validate, encrypt and insert a backup's items into a space, or onto the
@@ -198,15 +208,44 @@ class BackupRepository {
     return (imported: rows.length, skipped: skipped);
   }
 
-  /// Import a backup: encrypt and insert new spaces + items. Accepts the current
-  /// `{ version, spaces: [...] }` format and the older bare-array format.
-  /// Returns how many spaces and items were imported, and how many items were
-  /// skipped (unknown type / malformed content).
-  Future<({int spaces, int items, int skipped})> importJson(String text) async {
+  /// Import a backup: encrypt and insert new spaces + items. Accepts the
+  /// encrypted format and the older readable ones (`{ version, spaces }` and
+  /// the bare array). An encrypted backup from another vault needs the vault
+  /// PIN it was made with: [askBackupPin] is given a `check` that tries a PIN,
+  /// and resolves false to cancel (then this returns null). Otherwise returns
+  /// how many spaces and items were imported, and how many items were skipped
+  /// (unknown type / malformed content).
+  Future<({int spaces, int items, int skipped})?> importJson(
+    String text, {
+    Future<bool> Function(Future<bool> Function(String pin) check)?
+    askBackupPin,
+  }) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw StateError('Not authenticated');
 
-    final parsed = jsonDecode(text);
+    var parsed = jsonDecode(text);
+    if (_isEncrypted(parsed)) {
+      final sealed = parsed as Map;
+      var contents = await _open(sealed, _masterKey);
+      if (contents == null) {
+        if (askBackupPin == null) {
+          throw const FormatException('This backup is from another vault.');
+        }
+        final vault = (sealed['vault'] as Map).cast<String, dynamic>();
+        final ok = await askBackupPin((pin) async {
+          try {
+            final key = await VaultService().unwrapWithPin(vault, pin);
+            contents = await _open(sealed, key);
+            return contents != null;
+          } on VaultException catch (e) {
+            if (e.message == 'Incorrect PIN.') return false;
+            rethrow;
+          }
+        });
+        if (!ok) return null;
+      }
+      parsed = contents;
+    }
     // Current format is { version, spaces: [...] }; older backups are a bare list.
     final List<dynamic> parsedSpaces;
     if (parsed is List) {

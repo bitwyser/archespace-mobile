@@ -20,6 +20,7 @@ import 'package:archespace_mobile/src/features/settings/presentation/account_sec
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/features/vault/data/biometric_service.dart';
 import 'package:archespace_mobile/src/features/vault/data/secure_key_store.dart';
+import 'package:archespace_mobile/src/features/vault/data/vault_service.dart';
 import 'package:archespace_mobile/src/features/vault/presentation/widgets/vault_pin_prompt.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
 
@@ -178,21 +179,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _exportBackup() async {
     try {
-      final repo = BackupRepository(VaultSession.instance.masterKey);
-      // The file holds everything readable, so locked content needs the PIN.
-      if (await repo.hasLockedContent()) {
-        if (!mounted) return;
-        final ok = await askVaultPin(
-          context,
-          title: 'Export locked content',
-          message:
-              'The backup includes locked items or spaces, saved readable in '
-              'the file. Enter your vault PIN to export.',
-          confirmLabel: 'Export',
-        );
-        if (!ok) return;
-      }
-      final json = await repo.exportJson();
+      final userId = _auth.currentUser?.id;
+      if (userId == null) return;
+      final json = await BackupRepository(
+        VaultSession.instance.masterKey,
+      ).exportJson(await VaultService().backupMeta(userId));
       final bytes = Uint8List.fromList(utf8.encode(json));
       final date = DateTime.now().toIso8601String().substring(0, 10);
       final path = await FilePicker.platform.saveFile(
@@ -217,9 +208,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final path = result?.files.single.path;
       if (path == null) return;
       final text = await File(path).readAsString();
-      final summary = await BackupRepository(
-        VaultSession.instance.masterKey,
-      ).importJson(text);
+      if (!mounted) return;
+      final summary = await BackupRepository(VaultSession.instance.masterKey)
+          .importJson(
+            text,
+            // A backup from another vault (another account, or before a reset).
+            askBackupPin: (check) => askVaultPin(
+              context,
+              title: 'Open backup',
+              message:
+                  'This backup was made in another vault. Enter the vault PIN '
+                  'you had when you exported it.',
+              confirmLabel: 'Open',
+              verify: check,
+            ),
+          );
+      if (summary == null) return;
       final spacesLabel =
           '${summary.spaces} ${summary.spaces == 1 ? 'space' : 'spaces'}';
       final itemsLabel =
@@ -437,7 +441,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _SettingTile(
                   icon: Icons.upload_file_outlined,
                   title: 'Export backup',
-                  subtitle: 'Saves all your spaces and items as a JSON file.',
+                  subtitle:
+                      'Saves all your spaces and items as an encrypted '
+                      'file.',
                   onTap: _exportBackup,
                   chevron: false,
                 ),
@@ -450,7 +456,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: _importBackup,
                   chevron: false,
                 ),
-                const _BackupWarning(),
+                const _BackupNote(),
               ],
             ),
 
@@ -721,36 +727,39 @@ class _SettingTile extends StatelessWidget {
   }
 }
 
-/// A highlighted warning at the foot of the Backup card: the exported file
-/// holds your data unencrypted.
-class _BackupWarning extends StatelessWidget {
-  const _BackupWarning();
+/// A note at the foot of the Backup card: what opens an exported file.
+class _BackupNote extends StatelessWidget {
+  const _BackupNote();
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final amber = dark ? const Color(0xFFFBBF24) : const Color(0xFFB45309);
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
-      color: amber.withValues(alpha: dark ? 0.12 : 0.1),
+      color: scheme.primary.withValues(alpha: 0.08),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.warning_amber_rounded, size: 20, color: amber),
+          Icon(Icons.lock_outline, size: 20, color: scheme.primary),
           const SizedBox(width: 12),
           Expanded(
             child: Text.rich(
               TextSpan(
                 children: [
                   TextSpan(
-                    text: 'The backup file is not encrypted. ',
-                    style: TextStyle(fontWeight: FontWeight.w700, color: amber),
+                    text: 'Backups are encrypted. ',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: scheme.primary,
+                    ),
                   ),
                   const TextSpan(
                     text:
-                        'Anyone who opens it can read your data, so keep it '
-                        'somewhere safe.',
+                        'They open in this vault as they are, and anywhere '
+                        'else with the vault PIN you had when exporting. After '
+                        'a PIN change, older backups still need the earlier '
+                        'PIN.',
                   ),
                 ],
               ),
