@@ -573,6 +573,7 @@ class _SpacesScreenState extends State<SpacesScreen>
       bottomNavigationBar: _selectMode
           ? BulkActionBar(
               count: _selectedCount,
+              onClear: _exitSelect,
               actions: [
                 BulkAction(
                   icon: Icons.push_pin,
@@ -600,6 +601,7 @@ class _SpacesScreenState extends State<SpacesScreen>
                   icon: Icons.delete_outline,
                   label: 'Delete',
                   onPressed: _bulkDelete,
+                  destructive: true,
                 ),
               ],
             )

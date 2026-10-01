@@ -7,6 +7,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:highlight/highlight.dart' show highlight;
 
 import 'package:archespace_mobile/src/features/items/presentation/rich_doc_view.dart';
+import 'package:archespace_mobile/src/features/items/presentation/widgets/type_badge.dart';
 import 'package:archespace_mobile/src/features/items/domain/rich_doc.dart';
 import 'package:archespace_mobile/src/features/items/domain/code_highlight.dart';
 import 'package:archespace_mobile/src/features/items/domain/draw.dart';
@@ -238,34 +239,10 @@ class _ItemCardState extends State<ItemCard>
                       ),
                     ),
                   if (itemTypeDef(item.type) != null)
-                    Builder(
-                      builder: (context) {
-                        final def = itemTypeDef(item.type)!;
-                        final color = def.colorFor(
-                          Theme.of(context).brightness,
-                        );
-                        // A smaller badge in the compact grid cards.
-                        final grid = widget.grid;
-                        return Padding(
-                          padding: EdgeInsets.only(right: grid ? 6 : 8),
-                          child: Container(
-                            padding: EdgeInsets.all(grid ? 2 : 3),
-                            decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(grid ? 5 : 6),
-                              border: Border.all(
-                                color: color.withValues(alpha: 0.28),
-                              ),
-                            ),
-                            child: Icon(
-                              def.icon,
-                              size: grid ? 13 : 16,
-                              color: color,
-                              semanticLabel: def.label,
-                            ),
-                          ),
-                        );
-                      },
+                    Padding(
+                      padding: EdgeInsets.only(right: widget.grid ? 6 : 8),
+                      // A smaller badge in the compact grid cards.
+                      child: TypeBadge(type: item.type, compact: widget.grid),
                     ),
                   Expanded(
                     child: Row(

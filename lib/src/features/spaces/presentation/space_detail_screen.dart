@@ -600,6 +600,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
       bottomNavigationBar: _selectMode
           ? BulkActionBar(
               count: _selected.length,
+              onClear: _exitSelect,
               actions: [
                 BulkAction(
                   icon: Icons.push_pin,
@@ -631,6 +632,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
                   icon: Icons.delete_outline,
                   label: 'Delete',
                   onPressed: _bulkDeleteItems,
+                  destructive: true,
                 ),
               ],
             )

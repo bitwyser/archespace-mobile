@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
+import 'package:archespace_mobile/src/features/items/presentation/widgets/type_badge.dart';
 import 'package:archespace_mobile/src/features/storage/data/storage_repository.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
+import 'package:archespace_mobile/src/shared/widgets/bulk_action_bar.dart';
+import 'package:archespace_mobile/src/shared/widgets/select_box.dart';
 import 'package:archespace_mobile/src/shared/widgets/scrollable_message.dart';
 
 enum StorageMode { archive, bin }
@@ -52,6 +55,10 @@ class _StorageScreenState extends State<StorageScreen> {
       _selected.clear();
     });
   }
+
+  void _selectAll() => setState(() {
+    _selected.addAll((_entries ?? const <StoredEntry>[]).map(_key));
+  });
 
   void _toggle(StoredEntry e) {
     final k = _key(e);
@@ -233,16 +240,9 @@ class _StorageScreenState extends State<StorageScreen> {
               title: Text('${_selected.length} selected'),
               actions: [
                 IconButton(
-                  onPressed: _selected.isEmpty ? null : _restoreSelected,
-                  icon: const Icon(Icons.restore),
-                  tooltip: 'Restore',
-                ),
-                IconButton(
-                  onPressed: _selected.isEmpty ? null : _deleteSelected,
-                  icon: Icon(
-                    _isBin ? Icons.delete_forever : Icons.delete_outline,
-                  ),
-                  tooltip: _isBin ? 'Delete permanently' : 'Move to bin',
+                  onPressed: _selectAll,
+                  icon: const Icon(Icons.select_all),
+                  tooltip: 'Select all',
                 ),
               ],
             )
@@ -263,6 +263,26 @@ class _StorageScreenState extends State<StorageScreen> {
                   ),
               ],
             ),
+      // The batch actions, in the same bar as the other screens.
+      bottomNavigationBar: _selectMode
+          ? BulkActionBar(
+              count: _selected.length,
+              onClear: _exitSelect,
+              actions: [
+                BulkAction(
+                  icon: Icons.restore,
+                  label: 'Restore',
+                  onPressed: _restoreSelected,
+                ),
+                BulkAction(
+                  icon: _isBin ? Icons.delete_forever : Icons.delete_outline,
+                  label: _isBin ? 'Delete permanently' : 'Move to bin',
+                  onPressed: _deleteSelected,
+                  destructive: true,
+                ),
+              ],
+            )
+          : null,
       body: _entries == null && _error == null
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(top: false, child: _body()),
@@ -308,20 +328,19 @@ class _StorageScreenState extends State<StorageScreen> {
   }
 
   Widget _tile(StoredEntry e) {
-    final icon = Icon(
-      e.isSpace
-          ? Icons.folder_outlined
-          : (itemTypeDef(e.type)?.icon ?? Icons.notes),
-    );
+    // An item shows its coloured type badge, as on item cards.
+    final Widget icon = e.isSpace || itemTypeDef(e.type) == null
+        ? Icon(e.isSpace ? Icons.folder_outlined : Icons.notes)
+        : TypeBadge(type: e.type);
     final title = Text(e.label.isEmpty ? 'Untitled' : e.label);
 
     if (_selectMode) {
       final selected = _selected.contains(_key(e));
+      // The same check box as space and item cards, with no recolouring.
       return ListTile(
         leading: icon,
         title: title,
-        selected: selected,
-        trailing: Checkbox(value: selected, onChanged: (_) => _toggle(e)),
+        trailing: SelectBox(selected: selected),
         onTap: () => _toggle(e),
       );
     }
