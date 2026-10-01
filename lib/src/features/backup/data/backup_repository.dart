@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:markdown/markdown.dart' as md;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:archespace_mobile/src/features/items/data/secret_migration.dart';
@@ -159,6 +160,17 @@ class BackupRepository {
           skipped++;
           continue;
         }
+      }
+      // Markdown (a removed type) comes in as Rich text: its HTML, which the
+      // editor turns into its own format when the note is next opened.
+      if (type == 'markdown' && content is Map) {
+        final text = content['text'];
+        if (text is! String) {
+          skipped++;
+          continue;
+        }
+        content = {'html': md.markdownToHtml(text)};
+        type = 'richtext';
       }
       if (type is! String || !knownTypes.contains(type)) {
         skipped++;
