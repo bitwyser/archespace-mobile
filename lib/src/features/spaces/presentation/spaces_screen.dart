@@ -18,6 +18,7 @@ import 'package:archespace_mobile/src/features/spaces/presentation/widgets/space
 import 'package:archespace_mobile/src/features/storage/application/storage_counts.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/shared/offline/write_queue.dart';
+import 'package:archespace_mobile/src/shared/realtime/reload_when_shown.dart';
 import 'package:archespace_mobile/src/shared/realtime/table_watcher.dart';
 import 'package:archespace_mobile/src/shared/sort/sort.dart';
 import 'package:archespace_mobile/src/shared/widgets/action_icon_button.dart';
@@ -41,7 +42,11 @@ class SpacesScreen extends StatefulWidget {
 }
 
 class _SpacesScreenState extends State<SpacesScreen>
-    with ItemActions<SpacesScreen> {
+    with ItemActions<SpacesScreen>, ReloadWhenShown<SpacesScreen> {
+  // Realtime changes reload this screen only while it's showing.
+  @override
+  Future<void> reloadShown() => _load();
+
   // Dashboard items belong to no space.
   @override
   String? get itemsSpaceId => null;
@@ -98,7 +103,7 @@ class _SpacesScreenState extends State<SpacesScreen>
     _watcher = TableWatcher(
       channelName: 'spaces-realtime',
       table: 'spaces',
-      onChange: _load,
+      onChange: reloadWhenShown,
     );
     // Realtime filters can't express "space_id is null", so the dashboard
     // listens to all of the user's item changes (the watcher debounces).
@@ -109,7 +114,7 @@ class _SpacesScreenState extends State<SpacesScreen>
         table: 'space_items',
         filterColumn: 'user_id',
         filterValue: userId,
-        onChange: _load,
+        onChange: reloadWhenShown,
       );
     }
   }

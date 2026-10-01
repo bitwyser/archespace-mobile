@@ -15,6 +15,7 @@ import 'package:archespace_mobile/src/features/storage/application/storage_count
 import 'package:archespace_mobile/src/features/vault/application/content_lock.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/shared/export/pdf_exporter.dart';
+import 'package:archespace_mobile/src/shared/realtime/reload_when_shown.dart';
 import 'package:archespace_mobile/src/shared/realtime/table_watcher.dart';
 import 'package:archespace_mobile/src/shared/sort/sort.dart';
 import 'package:archespace_mobile/src/shared/widgets/action_icon_button.dart';
@@ -42,7 +43,11 @@ class SpaceDetailScreen extends StatefulWidget {
 }
 
 class _SpaceDetailScreenState extends State<SpaceDetailScreen>
-    with ItemActions<SpaceDetailScreen> {
+    with ItemActions<SpaceDetailScreen>, ReloadWhenShown<SpaceDetailScreen> {
+  // Realtime changes reload this screen only while it's showing.
+  @override
+  Future<void> reloadShown() => _load();
+
   @override
   String? get itemsSpaceId => widget.space.id;
 
@@ -96,7 +101,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
       table: 'space_items',
       filterColumn: 'space_id',
       filterValue: widget.space.id,
-      onChange: _load,
+      onChange: reloadWhenShown,
     );
     _spaceWatcher = TableWatcher(
       channelName: 'space-${widget.space.id}',
@@ -167,20 +172,18 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
   Future<void> _load() async {
     _refreshReadOnly();
     try {
+      // Sub-spaces (one-level nesting): only a top-level space can have them.
+      // They load alongside the items rather than after them.
+      final subsFuture = widget.space.parentId == null
+          ? SpaceRepository(VaultSession.instance.masterKey)
+                .listSubSpaces(widget.space.id)
+                // Non-fatal: items still load without the sub-space list.
+                .catchError((Object _) => const <Space>[])
+          : Future.value(const <Space>[]);
       final result = await ItemRepository(
         VaultSession.instance.masterKey,
       ).listItems(widget.space.id);
-      // Sub-spaces (one-level nesting): only a top-level space can have them.
-      List<Space> subs = const [];
-      if (widget.space.parentId == null) {
-        try {
-          subs = await SpaceRepository(
-            VaultSession.instance.masterKey,
-          ).listSubSpaces(widget.space.id);
-        } catch (_) {
-          // Non-fatal: items still load without the sub-space list.
-        }
-      }
+      final subs = await subsFuture;
       if (mounted) {
         setState(() {
           _items = result.items;

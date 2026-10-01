@@ -157,17 +157,33 @@ class _ItemEditorScreenState extends State<ItemEditorScreen> {
   }
 
   Future<void> _saveAndClose() async {
-    if (await _save() && mounted) Navigator.pop(context, true);
+    if (await _save() && mounted) await _close(true);
   }
 
   // Flush on leave: save pending edits, then close. On a save failure the user
   // stays in the editor (with the error) so nothing is lost.
   Future<void> _handleBack() async {
     if (widget.readOnly || !_isDirty()) {
-      if (mounted) Navigator.pop(context, _savedAny);
+      if (mounted) await _close(_savedAny);
       return;
     }
-    if (await _save() && mounted) Navigator.pop(context, true);
+    if (await _save() && mounted) await _close(true);
+  }
+
+  /// Close the editor with the keyboard put away first. Leaving while the
+  /// Rich text editor's keyboard is up (it belongs to a WebView) can leave the
+  /// screens below sized as if it were still open, cut off above where the
+  /// keyboard was; so wait (briefly) until Android reports it closed.
+  Future<void> _close(bool result) async {
+    final view = View.of(context);
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (view.viewInsets.bottom > 0) {
+      await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+      for (var i = 0; i < 25 && view.viewInsets.bottom > 0; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+    }
+    if (mounted) Navigator.pop(context, result);
   }
 
   @override

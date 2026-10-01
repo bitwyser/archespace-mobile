@@ -14,6 +14,7 @@ import 'package:archespace_mobile/src/features/spaces/presentation/space_lock_ac
 import 'package:archespace_mobile/src/features/spaces/presentation/widgets/space_card.dart';
 import 'package:archespace_mobile/src/features/storage/application/storage_counts.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
+import 'package:archespace_mobile/src/shared/realtime/reload_when_shown.dart';
 import 'package:archespace_mobile/src/shared/realtime/table_watcher.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
@@ -31,7 +32,11 @@ class StarredScreen extends StatefulWidget {
 }
 
 class _StarredScreenState extends State<StarredScreen>
-    with ItemActions<StarredScreen> {
+    with ItemActions<StarredScreen>, ReloadWhenShown<StarredScreen> {
+  // Realtime changes reload this screen only while it's showing.
+  @override
+  Future<void> reloadShown() => _load();
+
   // No single space here.
   @override
   String? get itemsSpaceId => null;
@@ -69,7 +74,7 @@ class _StarredScreenState extends State<StarredScreen>
     _spacesWatcher = TableWatcher(
       channelName: 'starred-spaces',
       table: 'spaces',
-      onChange: _load,
+      onChange: reloadWhenShown,
     );
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId != null) {
@@ -78,7 +83,7 @@ class _StarredScreenState extends State<StarredScreen>
         table: 'space_items',
         filterColumn: 'user_id',
         filterValue: userId,
-        onChange: _load,
+        onChange: reloadWhenShown,
       );
     }
   }

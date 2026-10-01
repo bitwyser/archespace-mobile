@@ -97,9 +97,16 @@ class ContentLock extends ChangeNotifier {
     if (changed) notifyListeners();
   }
 
-  /// Record one space's lock (for lists that load spaces as raw rows).
-  void registerSpace(String id, {required bool locked, String? parentId}) {
-    if (_record(id, locked, parentId)) notifyListeners();
+  /// Record spaces' locks from raw rows (for lists that don't build [Space]s),
+  /// with one update for the lot.
+  void registerSpaces(
+    Iterable<({String id, bool locked, String? parentId})> spaces,
+  ) {
+    var changed = false;
+    for (final s in spaces) {
+      changed |= _record(s.id, s.locked, s.parentId);
+    }
+    if (changed) notifyListeners();
   }
 
   bool _record(String id, bool locked, String? parentId) {

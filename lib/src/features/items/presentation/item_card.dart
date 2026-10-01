@@ -111,9 +111,14 @@ class _ItemCardState extends State<ItemCard>
     WidgetsBinding.instance.addPostFrameCallback((_) => _measureBody());
   }
 
+  // Whether this card's content was hidden at the last build, so a lock
+  // change elsewhere doesn't rebuild every card in the list.
+  bool? _wasHidden;
+
   /// An item opened or hidden again: its body is shown or covered.
   void _onLockChanged() {
     if (!mounted) return;
+    if (ContentLock.instance.isItemHidden(widget.item) == _wasHidden) return;
     setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) => _measureBody());
   }
@@ -181,6 +186,7 @@ class _ItemCardState extends State<ItemCard>
     // Locked (itself or its space) and not opened with the PIN: the content,
     // Copy and Export PDF stay out of reach.
     final hidden = ContentLock.instance.isItemHidden(item);
+    _wasHidden = hidden;
     final canCopy = !hidden && isCopyableType(item.type);
     // Styled like a space card: borderless on a lighter surface with a soft
     // shadow, and a soft accent border only when selected. Pinned is shown by
@@ -966,6 +972,19 @@ class _Code extends StatelessWidget {
     return truncated ? '$text\n…' : text;
   }
 
+  // Auto-detection tries every language, so its answer is kept per snippet:
+  // a card scrolling back into view (or rebuilt) doesn't run it again.
+  static final Map<String, String?> _languageCache = {};
+
+  static String? _detectLanguage(String snippet) {
+    if (_languageCache.containsKey(snippet)) return _languageCache[snippet];
+    final lang = highlight.parse(snippet, autoDetection: true).language;
+    if (_languageCache.length >= 200) {
+      _languageCache.remove(_languageCache.keys.first);
+    }
+    return _languageCache[snippet] = lang;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (code.trim().isEmpty) return const _Empty();
@@ -979,7 +998,7 @@ class _Code extends StatelessWidget {
     );
 
     final shown = _snippet();
-    final lang = highlight.parse(shown, autoDetection: true).language;
+    final lang = _detectLanguage(shown);
     final Widget body = (lang == null || lang.isEmpty)
         ? Padding(
             padding: const EdgeInsets.all(12),

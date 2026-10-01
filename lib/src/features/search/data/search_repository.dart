@@ -70,15 +70,18 @@ class SearchRepository {
 
     final hits = <SearchHit>[];
     final spaceNameById = <String, String>{};
+    ContentLock.instance.registerSpaces([
+      for (final row in spaceRows)
+        (
+          id: row['id'] as String,
+          locked: (row['locked'] ?? false) as bool,
+          parentId: row['parent_id'] as String?,
+        ),
+    ]);
 
     for (final row in spaceRows) {
       final id = row['id'] as String;
       final locked = (row['locked'] ?? false) as bool;
-      ContentLock.instance.registerSpace(
-        id,
-        locked: locked,
-        parentId: row['parent_id'] as String?,
-      );
       final name = await ArcheCrypto.decryptArc1(
         (row['name'] ?? '') as String,
         _masterKey,
