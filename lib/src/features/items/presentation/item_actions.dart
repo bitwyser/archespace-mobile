@@ -155,7 +155,8 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
     if (!lock.isItemHidden(item)) return true;
     final ok = await askVaultPin(
       context,
-      title: 'Unlock item',
+      title: 'Open protected item',
+      confirmLabel: 'Open',
       message:
           'Enter your vault PIN to open '
           '"${item.title.isEmpty ? 'Untitled' : item.title}".',
@@ -171,11 +172,11 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
     if (item.locked && !lock.isRevealed(item.id)) {
       final ok = await askVaultPin(
         context,
-        title: 'Remove lock',
+        title: 'Remove protection',
         message:
-            'Enter your vault PIN to remove the lock. The content will show '
+            'Enter your vault PIN to remove protection. The content will show '
             'without the PIN.',
-        confirmLabel: 'Remove lock',
+        confirmLabel: 'Remove protection',
       );
       if (!ok) return;
     }
@@ -184,11 +185,16 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
       if (!item.locked) lock.hide(item.id);
       if (mounted) {
         reloadItems();
-        showSuccessSnack(context, item.locked ? 'Lock removed' : 'Item locked');
+        showSuccessSnack(
+          context,
+          item.locked ? 'Protection removed' : 'Item protected',
+        );
       }
     } catch (_) {
       showItemError(
-        item.locked ? "Couldn't remove the lock." : "Couldn't lock the item.",
+        item.locked
+            ? "Couldn't remove protection."
+            : "Couldn't protect the item.",
       );
     }
   }

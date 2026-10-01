@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// A full-page "Locked" state with an Unlock button, shown in place of locked
-/// content until the vault PIN opens it.
+/// A full-page "Protected" state with an Open button, shown in place of
+/// protected content until the vault PIN opens it.
 class LockedView extends StatelessWidget {
   const LockedView({super.key, required this.message, required this.onUnlock});
 
@@ -25,10 +25,14 @@ class LockedView extends StatelessWidget {
                 color: scheme.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Icon(Icons.lock_outline, size: 30, color: scheme.primary),
+              child: Icon(
+                Icons.shield_outlined,
+                size: 30,
+                color: scheme.primary,
+              ),
             ),
             const SizedBox(height: 16),
-            Text('Locked', style: textTheme.titleLarge),
+            Text('Protected', style: textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(
               message,
@@ -38,11 +42,7 @@ class LockedView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: onUnlock,
-              icon: const Icon(Icons.lock_open_outlined),
-              label: const Text('Unlock'),
-            ),
+            FilledButton(onPressed: onUnlock, child: const Text('Open')),
           ],
         ),
       ),

@@ -185,14 +185,14 @@ class SpaceCard extends StatelessWidget {
                               Padding(
                                 padding: const EdgeInsets.only(left: 4),
                                 child: Icon(
-                                  hidden
-                                      ? Icons.lock_outline
-                                      : Icons.lock_open_outlined,
+                                  Icons.shield_outlined,
                                   size: 16,
                                   color: hidden
                                       ? scheme.onSurfaceVariant
                                       : scheme.primary,
-                                  semanticLabel: hidden ? 'Locked' : 'Unlocked',
+                                  semanticLabel: hidden
+                                      ? 'Protected'
+                                      : 'Protected, open',
                                 ),
                               ),
                           ],
@@ -260,7 +260,9 @@ class SpaceCard extends StatelessWidget {
                                   height: 40,
                                   value: 'lock',
                                   child: Text(
-                                    space.locked ? 'Remove lock' : 'Lock',
+                                    space.locked
+                                        ? 'Remove protection'
+                                        : 'Protect',
                                   ),
                                 ),
                               // Editing shows the description, so a hidden

@@ -150,9 +150,9 @@ class PdfExporter {
       style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
     ),
     pw.SizedBox(height: 4),
-    // A locked item that isn't open stays out of the file.
+    // A protected item that isn't open stays out of the file.
     if (ContentLock.instance.isItemHidden(item))
-      pw.Text('Locked')
+      pw.Text('Protected')
     else
       ..._body(item),
     pw.Divider(),

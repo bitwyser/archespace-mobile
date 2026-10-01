@@ -11,7 +11,8 @@ import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 Future<bool> unlockSpace(BuildContext context, Space space) async {
   final ok = await askVaultPin(
     context,
-    title: 'Unlock space',
+    title: 'Open protected space',
+    confirmLabel: 'Open',
     message:
         'Enter your vault PIN to open '
         '"${space.name.isEmpty ? 'Untitled' : space.name}".',
@@ -32,11 +33,11 @@ Future<bool> toggleSpaceLock(
   if (locked && !lock.isRevealed(space.id)) {
     final ok = await askVaultPin(
       context,
-      title: 'Remove lock',
+      title: 'Remove protection',
       message:
-          'Enter your vault PIN to remove the lock. The space will open '
+          'Enter your vault PIN to remove protection. The space will open '
           'without the PIN.',
-      confirmLabel: 'Remove lock',
+      confirmLabel: 'Remove protection',
     );
     if (!ok) return false;
   }
@@ -45,14 +46,17 @@ Future<bool> toggleSpaceLock(
       VaultSession.instance.masterKey,
     ).setLocked(space.id, !locked);
     if (context.mounted) {
-      showSuccessSnack(context, locked ? 'Lock removed' : 'Space locked');
+      showSuccessSnack(
+        context,
+        locked ? 'Protection removed' : 'Space protected',
+      );
     }
     return true;
   } catch (_) {
     if (context.mounted) {
       showErrorSnack(
         context,
-        locked ? "Couldn't remove the lock." : "Couldn't lock the space.",
+        locked ? "Couldn't remove protection." : "Couldn't protect the space.",
       );
     }
     return false;

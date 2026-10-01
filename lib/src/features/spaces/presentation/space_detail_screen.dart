@@ -431,8 +431,8 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
     // CreateFabs).
     return [
       ActionIconButton(
-        icon: Icons.lock_outline,
-        tooltip: _locked ? 'Locked - tap to remove the lock' : 'Lock',
+        icon: Icons.shield_outlined,
+        tooltip: _locked ? 'Protected - tap to remove protection' : 'Protect',
         onPressed: _toggleLock,
         selected: _locked,
       ),

@@ -283,16 +283,16 @@ class _ItemCardState extends State<ItemCard>
                               semanticLabel: 'Starred',
                             ),
                           ),
-                        // Locked: a closed lock, or an open one (tap to hide
-                        // again) once the PIN has opened it.
+                        // Protected: a shield, or once the PIN has opened it,
+                        // a button to hide it again.
                         if (hidden)
                           Padding(
                             padding: const EdgeInsets.only(left: 4),
                             child: Icon(
-                              Icons.lock_outline,
+                              Icons.shield_outlined,
                               size: 16,
                               color: scheme.onSurfaceVariant,
-                              semanticLabel: 'Locked',
+                              semanticLabel: 'Protected',
                             ),
                           )
                         else if (item.locked)
@@ -301,12 +301,12 @@ class _ItemCardState extends State<ItemCard>
                             width: 28,
                             child: IconButton(
                               icon: Icon(
-                                Icons.lock_open_outlined,
+                                Icons.visibility_off_outlined,
                                 size: 16,
                                 color: scheme.primary,
                               ),
                               padding: EdgeInsets.zero,
-                              tooltip: 'Lock again',
+                              tooltip: 'Hide again',
                               onPressed: () =>
                                   ContentLock.instance.hide(item.id),
                             ),
@@ -433,7 +433,9 @@ class _ItemCardState extends State<ItemCard>
                             PopupMenuItem(
                               height: 40,
                               value: 'lock',
-                              child: Text(item.locked ? 'Remove lock' : 'Lock'),
+                              child: Text(
+                                item.locked ? 'Remove protection' : 'Protect',
+                              ),
                             ),
                           if (onDuplicate != null)
                             const PopupMenuItem(
@@ -542,7 +544,8 @@ class _ItemCardState extends State<ItemCard>
     final item = widget.item;
     final ok = await askVaultPin(
       context,
-      title: 'Unlock item',
+      title: 'Open protected item',
+      confirmLabel: 'Open',
       message:
           'Enter your vault PIN to open '
           '"${item.title.isEmpty ? 'Untitled' : item.title}".',
@@ -550,7 +553,7 @@ class _ItemCardState extends State<ItemCard>
     if (ok) ContentLock.instance.revealItem(item);
   }
 
-  /// In place of a hidden locked item's content. The card's tap (which opens
+  /// In place of a hidden protected item's content. The card's tap (which opens
   /// the item) asks for the PIN first.
   Widget _lockedBody(ColorScheme scheme) {
     final textTheme = Theme.of(context).textTheme;
@@ -564,15 +567,15 @@ class _ItemCardState extends State<ItemCard>
       ),
       child: Column(
         children: [
-          Icon(Icons.lock_outline, size: 20, color: scheme.onSurfaceVariant),
+          Icon(Icons.shield_outlined, size: 20, color: scheme.onSurfaceVariant),
           const SizedBox(height: 6),
           Text(
-            'Locked',
+            'Protected',
             style: textTheme.titleSmall?.copyWith(color: scheme.onSurface),
           ),
           const SizedBox(height: 2),
           Text(
-            'Tap to unlock with your vault PIN',
+            'Tap to open with your vault PIN',
             textAlign: TextAlign.center,
             style: textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
