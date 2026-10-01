@@ -277,13 +277,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _SettingTile(
                   icon: Icons.verified_user_outlined,
                   title: 'Two-factor authentication',
-                  status: switch (_twoFactorOn) {
-                    true => 'On',
-                    false => 'Off',
-                    null => null,
-                  },
-                  statusOn: _twoFactorOn == true,
                   subtitle: 'A code from your authenticator app at sign-in.',
+                  // Shows that it's on; off, the row opens its set-up.
+                  trailing: _twoFactorOn == true
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const _OnPill(),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.chevron_right,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ],
+                        )
+                      : null,
                   onTap: () async {
                     await Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -666,8 +676,6 @@ class _SettingTile extends StatelessWidget {
     required this.icon,
     required this.title,
     this.subtitle,
-    this.status,
-    this.statusOn = false,
     this.trailing,
     this.onTap,
     this.chevron = true,
@@ -677,11 +685,6 @@ class _SettingTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
-
-  /// A short state ("On" / "Off") shown before the subtitle, set apart by a
-  /// dot; accent-coloured when [statusOn].
-  final String? status;
-  final bool statusOn;
   final Widget? trailing;
   final VoidCallback? onTap;
 
@@ -699,30 +702,45 @@ class _SettingTile extends StatelessWidget {
         title,
         style: TextStyle(fontWeight: FontWeight.w600, color: color),
       ),
-      subtitle: status != null
-          ? Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: status,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: statusOn ? scheme.primary : null,
-                    ),
-                  ),
-                  if (subtitle != null) TextSpan(text: '  ·  $subtitle'),
-                ],
-              ),
-            )
-          : subtitle == null
-          ? null
-          : Text(subtitle!),
+      subtitle: subtitle == null ? null : Text(subtitle!),
       trailing:
           trailing ??
           (chevron
               ? Icon(Icons.chevron_right, color: scheme.onSurfaceVariant)
               : null),
       onTap: onTap,
+    );
+  }
+}
+
+/// "On", as a small accent pill at the end of a setting row (2FA).
+class _OnPill extends StatelessWidget {
+  const _OnPill();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check, size: 14, color: scheme.primary),
+          const SizedBox(width: 4),
+          Text(
+            'On',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: scheme.primary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
