@@ -475,17 +475,19 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
               onPressed: _changePin,
             ),
             const SizedBox(height: 8),
-            // Forgot the current PIN: reset it with the recovery code instead.
-            Center(
-              child: TextButton(
-                onPressed: _loading
-                    ? null
-                    : () => Navigator.of(context).pushReplacement(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const ResetPinScreen(),
-                        ),
+            // Forgot the current PIN: reset it with the recovery code instead
+            // (styled like the login password's reset link).
+            OutlinedButton(
+              onPressed: _loading
+                  ? null
+                  : () => Navigator.of(context).pushReplacement(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const ResetPinScreen(),
                       ),
-                child: const Text('Forgot your PIN? Use your recovery code'),
+                    ),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text('Forgot your PIN? Use your recovery code'),
               ),
             ),
           ],
