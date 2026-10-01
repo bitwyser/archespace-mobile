@@ -9,7 +9,7 @@
 [![Version](https://img.shields.io/github/v/release/bitwyser/archespace-mobile)](https://github.com/bitwyser/archespace-mobile/releases)
 [![License](https://img.shields.io/github/license/bitwyser/archespace-mobile)](LICENSE)
 
-ArcheSpace is an open source, encrypted workspace for organising everything you're working on. Group your information, knowledge, projects, notes, secrets, code, checklists, and ideas into spaces, and fill each space with the content type that fits: notes, rich text and markdown, checklists and lists, tables, code snippets, drawings, PIN-protected secrets, and even two-factor (TOTP) codes. Everything is taggable, searchable, and kept in one place across your devices.
+ArcheSpace is an open source, encrypted workspace for organising everything you're working on. Group your information, knowledge, projects, notes, secrets, code, checklists, and ideas into spaces, and fill each space with the content type that fits: plain notes, rich text documents, checklists and lists, tables, code snippets, drawings, and even two-factor (TOTP) codes. Anything sensitive can be protected so it only opens with your vault PIN. Everything is taggable, searchable, and kept in one place across your devices.
 
 Privacy is built in, not bolted on. It follows a zero-knowledge architecture: your content is encrypted on-device and the backend only ever stores ciphertext, so the server, its operators, and the developers never see your data in readable form.
 
@@ -34,14 +34,18 @@ This is the Android and iOS app, built with Flutter. It talks to the **same Supa
 ## Features
 
 - **Spaces** for separating projects and ideas, with one level of nesting (sub-spaces), tags, a space colour, pinning, and drag-and-drop reordering.
-- **Many item types** for different kinds of content, from notes to a built-in authenticator (see [Item types](#item-types)).
+- **Many item types** for different kinds of content, from notes and rich text documents to a built-in authenticator (see [Item types](#item-types)).
+- **Protect** any item or space so its content only opens with your vault PIN (or fingerprint / face when biometric unlock is on); its name stays visible (see [Security model](#security-model)).
+- **Read-only spaces**: lock a space against edits (enforced by the database) while still viewing, copying, and exporting it.
+- **Starred** view for quick access to the spaces and items you use most, wherever they live.
+- **One + button** that opens New item and New space.
 - **Grid or list views**, per-view sort (default / name / newest), and search: a unified search across spaces, tags, and item content with jump-to-item, plus a compact in-space search that filters a space's items by title or tag.
-- **Navigation drawer** for Spaces, Archive, and Recycle bin (with live counts), plus quick Lock, Sign out, and Settings.
+- **Navigation drawer** for Spaces, Starred, Archive, and Recycle bin (with live counts), plus quick Lock, Sign out, and Settings.
 - **Auto-save**, one-tap copy, bulk actions, and duplicate / move / archive / restore / delete workflows.
 - **Undo** for archive and move-to-bin, right from the confirmation snackbar.
 - **Archive** and a **recycle bin** (restore or permanently delete).
 - **PDF export** of a whole space or a single item via the native share/print sheet, with a branded header, footer URL, and page numbers.
-- **JSON backup** import and export, in the same format as the web app.
+- **Encrypted backups** in the same format as the web app: a backup file only opens with your vault, and imports on any account.
 - **Appearance**: System / Dark / Light modes and five accent colours (mint, lavender, amber, sky, rose), synced to your account, plus a one-tap theme shuffle in the drawer.
 - **Encrypted vault** with configurable auto-lock and optional biometric unlock (fingerprint or face) (see [Security model](#security-model)).
 - **Optional two-factor sign-in** (TOTP) with a one-time backup code.
@@ -57,17 +61,16 @@ This is the Android and iOS app, built with Flutter. It talks to the **same Supa
 | Type | Description |
 |------|-------------|
 | Note | Free-form plain text. |
-| Rich Text | Formatted text (bold, italic, underline, font size) stored as sanitised HTML. |
-| Markdown | Markdown formatting with click-to-edit preview. |
-| List | Simple bullet list. |
-| Numbered List | Ordered list with automatic numbering that updates as rows are added, removed, or reordered. |
+| Rich text | A full document editor, the same one as the web app (bundled offline): headings, bullet, numbered and task lists, quotes, code blocks, tables, links, highlight, text alignment, superscript and subscript, line spacing, and find and replace (with regular expressions), from a native toolbar. Cards show a native preview. |
+| List | Bullet or numbered list (a Numbered checkbox switches between them); numbering updates as rows are added, removed, or reordered. |
 | Checklist | Items with checkboxes and progress tracking. |
 | Cards | Title and description pairs for planning and grouping ideas. |
 | Table | Rows and columns of text with a header row. Copies as tab-separated values that paste straight into a spreadsheet. |
-| Secret | PIN-protected text: the title stays visible, but the content is hidden and requires re-entering your vault PIN to view or edit. |
 | Drawing | Freehand vector sketch or diagram. |
 | Code | A code snippet in a monospace block with automatic syntax highlighting (language auto-detected). Copies as plain text. |
 | Authenticator | On-device TOTP codes with live countdowns; the secrets are encrypted in your vault. |
+
+Older item types are converted automatically: Markdown notes open as Rich text (and are saved that way on the next edit), and Secrets become Notes after unlock (protect them to keep them behind your PIN).
 
 ## Security model
 
@@ -97,6 +100,18 @@ ArcheSpace uses a device-side vault model. You sign in with Supabase Auth using 
 - Disabling 2FA requires re-entering the login password.
 - This shares the same Supabase project and `mfa_backup_codes` schema as the web app, so 2FA enabled on one client applies to sign-in on both.
 
+**Protected items and spaces**
+
+- A protected item keeps its title and tags visible, and a protected space its name; the content stays hidden until you enter your vault PIN (or confirm with biometrics when biometric unlock is on), including in search, Starred, PDF export, and copy.
+- Opened content hides again when the vault locks. Five wrong PINs in a row lock the whole vault.
+- Protection is a PIN check inside an already unlocked vault (the content is encrypted with the same vault key as everything else), so it guards against someone using your unlocked phone, not against someone who can inspect the running app.
+
+**Encrypted backups**
+
+- A backup file holds your spaces and items encrypted with the vault key, plus that key wrapped with your vault PIN (as the server stores it), in the same format as the web app.
+- It opens directly in the same vault, and anywhere else (another account, or after a vault reset) with the vault PIN you had when exporting. After a PIN change, older backups still need the earlier PIN.
+- Older readable backups still import.
+
 **Recovery**
 
 - A one-time recovery code is generated during initial vault setup and shown once - it is not emailed, so it must be saved when shown.
@@ -113,7 +128,7 @@ ArcheSpace uses a device-side vault model. You sign in with Supabase Auth using 
 
 - The app cannot recover encrypted content without either the current vault PIN or the current recovery code - there's no backdoor.
 - If both the vault PIN and recovery code are lost, encrypted space data cannot be decrypted.
-- JSON exports are saved to your device and should be stored carefully; imported backups are encrypted before upload.
+- Backups are encrypted, but a short vault PIN can be guessed offline if a backup file leaks; a longer PIN or passphrase makes backups much harder to open. Store them carefully.
 - Client-side encryption is only as safe as the code your device runs. Settings shows the exact build commit (linked to GitHub) so you can verify the running code against a tagged release (see [Release verification](#release-verification)).
 
 **Privacy and legal**
@@ -216,7 +231,8 @@ You can also run the workflow manually from the Actions tab.
 | Encryption | AES-256-GCM with Argon2id / PBKDF2 key derivation (`cryptography`) |
 | Secure storage | `flutter_secure_storage` (Android Keystore / iOS Keychain) |
 | Biometrics | `local_auth` |
-| Markdown | `flutter_markdown` |
+| Rich text | The web app's Tiptap editor, bundled offline into `assets/rich_text_editor.html` and run in `webview_flutter`, with a native toolbar and preview |
+| Markdown | `flutter_markdown` (older Markdown notes) and `markdown` (Markdown notes in imported backups) |
 | Syntax highlighting | `flutter_highlight` + `highlight` (automatic language detection for the Code item type) |
 | PDF export | `pdf` + `printing` (native share/print sheet) |
 | Files | `file_picker` (JSON backup), `path_provider` (offline cache) |
@@ -238,9 +254,10 @@ archespace-mobile/
       app.dart            # root gate: login -> 2FA -> vault setup/unlock -> spaces
       features/
         auth/             # sign in, sign up, password policy, two-factor auth (TOTP)
-        vault/            # crypto vault, PIN/recovery, biometric unlock, setup/unlock
-        spaces/           # spaces list, editor, cards
-        items/            # item types, editors, cards, clipboard
+        vault/            # crypto vault, PIN/recovery, biometric unlock, setup/unlock, protected content
+        spaces/           # spaces list, editor, cards, read-only and protect
+        items/            # item types, editors (incl. the Rich text WebView), cards, clipboard
+        starred/          # starred spaces and items
         search/           # unified search + jump-to-item
         storage/          # archive + recycle bin
         settings/         # account, security, appearance, backup, build footer
@@ -254,6 +271,8 @@ archespace-mobile/
         export/           # PDF exporter
         sort/             # sorting helpers
         util/, widgets/
+  assets/
+    rich_text_editor.html # offline Rich text editor, built from the web repo (npm run build:mobile-editor)
   scripts/
     build-apk.ps1         # local stamped release build
   spec/                   # crypto contract + conformance vectors
@@ -295,7 +314,7 @@ For development questions, contact **[bitwyser@archespace.app](mailto:bitwyser@a
 - Built with Flutter and Dart (Material 3).
 - Backend, authentication, and realtime sync powered by Supabase.
 - Encryption via the `cryptography` package (AES-256-GCM, Argon2id / PBKDF2); the `arc1` format is shared with the web app.
-- Item rendering and editing with `flutter_markdown`, `flutter_highlight` + `highlight`, and a custom freehand drawing canvas; PDF export via `pdf` + `printing`.
+- Rich text editing with Tiptap (shared with the web app) in `webview_flutter`; item rendering with `flutter_markdown`, `flutter_highlight` + `highlight`, and a custom freehand drawing canvas; PDF export via `pdf` + `printing`.
 - Source hosted on GitHub.
 - Crafted and maintained by BitWyser.
 
