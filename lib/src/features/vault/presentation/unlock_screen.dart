@@ -82,7 +82,7 @@ class _UnlockScreenState extends State<UnlockScreen> {
       if (!ok) return;
       final masterKey = await _store.readMasterKey();
       if (masterKey == null) {
-        // Stored key vanished (e.g. cleared) — fall back to PIN.
+        // Stored key vanished (e.g. cleared) - fall back to PIN.
         setState(() => _biometricEnabled = false);
         return;
       }

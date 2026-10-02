@@ -187,7 +187,7 @@ class _RichTextWebEditorState extends State<RichTextWebEditor> {
     );
   }
 
-  // ── Find and replace ──
+  // Find and replace
 
   void _runSearch() {
     _call(

@@ -1,10 +1,8 @@
 import 'package:flutter/foundation.dart';
 
-/// Holds the unlocked vault master key for the lifetime of the process.
-///
-/// For this first slice the key lives in memory only. A later slice moves the
-/// wrapped key into the platform keystore (flutter_secure_storage) behind a
-/// biometric gate. [unlocked] lets the UI react to lock/unlock.
+/// Holds the unlocked vault master key in memory for the lifetime of the
+/// process (biometric unlock keeps its own copy, see SecureKeyStore).
+/// [unlocked] lets the UI react to lock/unlock.
 class VaultSession {
   VaultSession._();
   static final VaultSession instance = VaultSession._();

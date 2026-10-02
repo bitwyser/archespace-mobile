@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:archespace_mobile/src/features/items/domain/rich_doc.dart';
 
-/// Definition of an item type: label, icon, and whether a mobile editor exists
-/// yet. Editors are being added one type at a time; [editable] gates which
-/// types show in the "add item" picker and open for editing on tap.
+/// Definition of an item type: label, description, icon and colour.
 class ItemTypeDef {
   const ItemTypeDef({
     required this.type,
@@ -12,7 +10,6 @@ class ItemTypeDef {
     required this.description,
     required this.icon,
     required this.color,
-    this.editable = false,
     this.addable = true,
   });
 
@@ -24,7 +21,6 @@ class ItemTypeDef {
   /// Accent colour for this type (badge + add-menu icon), matching the web's
   /// per-type palette.
   final Color color;
-  final bool editable;
 
   /// Offered in the add-item menu. False for a variant of another type (a
   /// numbered List), which opens and edits normally but isn't picked there.
@@ -41,13 +37,10 @@ class ItemTypeDef {
 const Map<int, Color> _kLightTypeColors = {
   0xFF60A5FA: Color(0xFF2563EB), // blue
   0xFFFB7185: Color(0xFFE11D48), // rose
-  0xFF2DD4BF: Color(0xFF0F766E), // teal
   0xFFC084FC: Color(0xFF9333EA), // purple
-  0xFFF472B6: Color(0xFFDB2777), // pink
   0xFF4ADE80: Color(0xFF15803D), // green
   0xFFFBBF24: Color(0xFFB45309), // amber
   0xFF38BDF8: Color(0xFF0369A1), // sky
-  0xFF818CF8: Color(0xFF4F46E5), // indigo
   0xFFE879F9: Color(0xFFC026D3), // fuchsia
   0xFFFB923C: Color(0xFFC2410C), // orange
   0xFF34D399: Color(0xFF047857), // emerald
@@ -60,7 +53,6 @@ const List<ItemTypeDef> kItemTypes = [
     description: 'Free-form plain text',
     icon: Icons.notes,
     color: Color(0xFF60A5FA), // blue
-    editable: true,
   ),
   ItemTypeDef(
     type: 'richtext',
@@ -68,7 +60,6 @@ const List<ItemTypeDef> kItemTypes = [
     description: 'Headings, lists, tasks, tables, links and more',
     icon: Icons.text_fields,
     color: Color(0xFFFB7185), // rose
-    editable: true,
   ),
   ItemTypeDef(
     // An old Markdown note: shown as Rich text, and saved as Rich text the
@@ -78,7 +69,6 @@ const List<ItemTypeDef> kItemTypes = [
     description: 'Headings, lists, tasks, tables, links and more',
     icon: Icons.text_fields,
     color: Color(0xFFFB7185), // rose, like Rich text
-    editable: true,
     addable: false,
   ),
   ItemTypeDef(
@@ -87,7 +77,6 @@ const List<ItemTypeDef> kItemTypes = [
     description: 'Bullet or numbered list',
     icon: Icons.list,
     color: Color(0xFFC084FC), // purple
-    editable: true,
   ),
   ItemTypeDef(
     // A List with numbers on (its Numbered checkbox); not a separate choice.
@@ -96,7 +85,6 @@ const List<ItemTypeDef> kItemTypes = [
     description: 'Bullet or numbered list',
     icon: Icons.format_list_numbered,
     color: Color(0xFFC084FC), // purple, like List
-    editable: true,
     addable: false,
   ),
   ItemTypeDef(
@@ -105,7 +93,6 @@ const List<ItemTypeDef> kItemTypes = [
     description: 'Items with checkboxes',
     icon: Icons.checklist,
     color: Color(0xFF4ADE80), // green
-    editable: true,
   ),
   ItemTypeDef(
     type: 'card_list',
@@ -113,7 +100,6 @@ const List<ItemTypeDef> kItemTypes = [
     description: 'Title and description pairs',
     icon: Icons.view_agenda_outlined,
     color: Color(0xFFFBBF24), // amber
-    editable: true,
   ),
   ItemTypeDef(
     type: 'table',
@@ -121,7 +107,6 @@ const List<ItemTypeDef> kItemTypes = [
     description: 'Rows and columns of text',
     icon: Icons.table_chart_outlined,
     color: Color(0xFF38BDF8), // sky
-    editable: true,
   ),
   ItemTypeDef(
     type: 'draw',
@@ -129,7 +114,6 @@ const List<ItemTypeDef> kItemTypes = [
     description: 'Freehand sketch',
     icon: Icons.brush_outlined,
     color: Color(0xFFE879F9), // fuchsia
-    editable: true,
   ),
   ItemTypeDef(
     type: 'code',
@@ -137,7 +121,6 @@ const List<ItemTypeDef> kItemTypes = [
     description: 'Code snippet with syntax highlighting',
     icon: Icons.data_object,
     color: Color(0xFFFB923C), // orange
-    editable: true,
   ),
   ItemTypeDef(
     type: 'authenticator',
@@ -145,7 +128,6 @@ const List<ItemTypeDef> kItemTypes = [
     description: 'Two-factor (TOTP) codes for your accounts',
     icon: Icons.shield_outlined,
     color: Color(0xFF34D399), // emerald
-    editable: true,
   ),
 ];
 
@@ -156,13 +138,13 @@ ItemTypeDef? itemTypeDef(String type) {
   return null;
 }
 
-bool isEditableType(String type) => itemTypeDef(type)?.editable ?? false;
+/// A known type, so its card opens the editor on tap.
+bool isEditableType(String type) => itemTypeDef(type) != null;
 
 /// The starting content for a newly created item, matching the web defaults.
 Map<String, dynamic> defaultContentFor(String type) {
   switch (type) {
     case 'textbox':
-    case 'markdown':
       return {'text': ''};
     case 'richtext':
       return {'doc': kEmptyRichDoc};

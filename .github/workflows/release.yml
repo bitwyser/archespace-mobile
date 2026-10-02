@@ -52,7 +52,6 @@ jobs:
       - name: Compute build metadata
         run: |
           echo "BUILD_HASH=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
-          echo "BUILD_TIME=$(git log -1 --format=%cI)" >> "$GITHUB_ENV"
           VERSION="${REF#v}"
           echo "APP_VERSION=${VERSION}" >> "$GITHUB_ENV"
 
@@ -65,8 +64,7 @@ jobs:
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
             --dart-define=APP_VERSION="$APP_VERSION" \
-            --dart-define=BUILD_HASH="$BUILD_HASH" \
-            --dart-define=BUILD_TIME="$BUILD_TIME"
+            --dart-define=BUILD_HASH="$BUILD_HASH"
 
       - name: Rename and checksum the APK
         run: |

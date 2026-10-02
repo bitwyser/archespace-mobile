@@ -632,12 +632,12 @@ class _ResetPinScreenState extends State<ResetPinScreen> {
 
     setState(() => _loading = true);
     try {
-      final code = await _vault.changePinWithRecoveryCode(
+      final result = await _vault.recoverWithCode(
         _requireUserId(_auth),
         _recoveryCode.text,
         _next.text,
       );
-      setState(() => _newCode = code);
+      setState(() => _newCode = result.recoveryCode);
       _recoveryCode.clear();
       _next.clear();
       _confirm.clear();
@@ -1420,7 +1420,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
             Expanded(
               child: FilledButton(
                 onPressed: _busy ? null : _confirmEnroll,
-                child: Text(_busy ? 'Verifying…' : 'Verify & enable'),
+                child: Text(_busy ? 'Verifying...' : 'Verify & enable'),
               ),
             ),
           ],

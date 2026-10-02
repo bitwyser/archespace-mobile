@@ -52,7 +52,7 @@ class ItemCard extends StatefulWidget {
   final VoidCallback? onTogglePin;
   final VoidCallback? onToggleStar;
 
-  /// Lock / remove the lock. A hidden locked item shows a Locked panel
+  /// Protect / remove protection. A hidden protected item shows a panel
   /// instead of its content; tapping the card (onTap) asks for the PIN.
   final VoidCallback? onToggleLock;
 
@@ -112,7 +112,7 @@ class _ItemCardState extends State<ItemCard>
     WidgetsBinding.instance.addPostFrameCallback((_) => _measureBody());
   }
 
-  // Whether this card's content was hidden at the last build, so a lock
+  // Whether this card's content was hidden at the last build, so a change
   // change elsewhere doesn't rebuild every card in the list.
   bool? _wasHidden;
 
@@ -184,7 +184,7 @@ class _ItemCardState extends State<ItemCard>
     final onExport = widget.onExport;
     final onToggleLock = widget.onToggleLock;
     final scheme = Theme.of(context).colorScheme;
-    // Locked (itself or its space) and not opened with the PIN: the content,
+    // Protected (itself or its space) and not opened with the PIN: the content,
     // Copy and Export PDF stay out of reach.
     final hidden = ContentLock.instance.isItemHidden(item);
     _wasHidden = hidden;
@@ -946,7 +946,7 @@ class _Code extends StatelessWidget {
       text = text.substring(0, _kPreviewChars);
       truncated = true;
     }
-    return truncated ? '$text\n…' : text;
+    return truncated ? '$text\n...' : text;
   }
 
   // Auto-detection tries every language, so its answer is kept per snippet:

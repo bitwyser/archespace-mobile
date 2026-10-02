@@ -25,7 +25,6 @@ class VaultService {
   SupabaseClient get _client => Supabase.instance.client;
 
   static const String _checkPlaintext = 'ARCHE_VAULT_V1_OK';
-  static const String _vaultFormat = 'pin_wrapped';
   static const String _metaCacheKey = 'user_encryption';
 
   Future<bool> hasVault(String userId) async {
@@ -236,7 +235,7 @@ class VaultService {
 
   /// Unlock with the recovery code, set [newPin], and rotate the recovery code.
   /// Returns the recovered master key (to unlock the session straight away) and
-  /// the new recovery code to show once. Used by the forgot-PIN flow.
+  /// the new recovery code to show once (forgot-PIN, and from Settings).
   Future<({Uint8List masterKey, String recoveryCode})> recoverWithCode(
     String userId,
     String recoveryCode,
@@ -263,17 +262,6 @@ class VaultService {
     final nextCode = generateRecoveryCode();
     await _persistPinWrapped(userId, newPin, masterKey, recoveryCode: nextCode);
     return (masterKey: masterKey, recoveryCode: nextCode);
-  }
-
-  /// Unlock with the recovery code, set [newPin], and rotate the recovery code.
-  /// Returns the new recovery code to show once.
-  Future<String> changePinWithRecoveryCode(
-    String userId,
-    String recoveryCode,
-    String newPin,
-  ) async {
-    final result = await recoverWithCode(userId, recoveryCode, newPin);
-    return result.recoveryCode;
   }
 
   Future<Uint8List> _unlockWithPin(
@@ -357,7 +345,6 @@ class VaultService {
       'salt': pinSalt,
       'key_check': keyCheck,
       'wrapped_key': wrappedKey,
-      'vault_format': _vaultFormat,
     };
 
     if (recoveryCode != null) {

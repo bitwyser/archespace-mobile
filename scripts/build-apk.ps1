@@ -10,7 +10,6 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $hash = (git rev-parse --short HEAD).Trim()
-$time = (git log -1 --format=%cI).Trim()
 
 # App version from pubspec (strip any +buildNumber suffix).
 $versionLine = Select-String -Path 'pubspec.yaml' -Pattern '^version:\s*(.+)$' | Select-Object -First 1
@@ -25,5 +24,4 @@ if (-not (git status --porcelain)) {
 flutter build $Target --release `
     --dart-define-from-file=env.json `
     --dart-define=APP_VERSION=$version `
-    --dart-define=BUILD_HASH=$hash `
-    --dart-define=BUILD_TIME=$time
+    --dart-define=BUILD_HASH=$hash

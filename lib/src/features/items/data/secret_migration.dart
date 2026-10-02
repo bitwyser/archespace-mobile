@@ -19,7 +19,7 @@ class SecretMigration {
   static bool _ranThisSession = false;
 
   /// A Note's content from a secret's content (its nested ciphertext opened).
-  static Future<Map<String, dynamic>> noteContent(
+  static Future<Map<String, dynamic>> _noteContent(
     Map<dynamic, dynamic> content,
     List<int> masterKey,
   ) async {
@@ -56,17 +56,11 @@ class SecretMigration {
     for (final row in rows) {
       try {
         final m = row as Map;
-        final raw = m['content'];
-        var content = <dynamic, dynamic>{};
-        if (raw is Map) {
-          content = raw;
-        } else if (raw is String && raw.isNotEmpty) {
-          final decoded = jsonDecode(
-            await ArcheCrypto.decryptArc1(raw, masterKey),
-          );
-          if (decoded is Map) content = decoded;
-        }
-        final note = await noteContent(content, masterKey);
+        final content = await ArcheCrypto.decryptJsonMap(
+          m['content'],
+          masterKey,
+        );
+        final note = await _noteContent(content, masterKey);
         // Only the type and body change; title and tags stay as they are.
         await client
             .from('space_items')

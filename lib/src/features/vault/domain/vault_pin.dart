@@ -1,9 +1,7 @@
 /// Vault secret validation, ported from the web `vaultPin.js`.
 ///
-/// The vault secret can be a numeric PIN or an alphanumeric passphrase. Only
-/// length is enforced (the minimum stays low for backwards compatibility);
-/// weak choices are surfaced via a warning, not blocked, so existing short
-/// PINs keep working.
+/// The vault secret can be a numeric PIN or a passphrase. Only length is
+/// enforced; weak choices get a warning, not a block.
 library;
 
 const int vaultPinMinLength = 4;

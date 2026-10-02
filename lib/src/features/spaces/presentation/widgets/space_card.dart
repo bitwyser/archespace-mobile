@@ -5,10 +5,9 @@ import 'package:archespace_mobile/src/features/spaces/domain/space_colors.dart';
 import 'package:archespace_mobile/src/features/vault/application/content_lock.dart';
 import 'package:archespace_mobile/src/shared/widgets/select_box.dart';
 
-/// A space rendered as a content card: a subtle border that turns accent when
-/// pinned or selected, the space colour as a top border only, and a single
-/// content block with the pin indicator, name, and actions menu on one row,
-/// followed by the description, tag chips, and a subtle item-count caption.
+/// A space as a borderless card: the space colour as a curved top border, the
+/// pin marker, name and actions menu on one row, then the description, tag
+/// chips and the item count.
 class SpaceCard extends StatelessWidget {
   const SpaceCard({
     super.key,
@@ -44,7 +43,7 @@ class SpaceCard extends StatelessWidget {
   /// Read-only on / off. Null hides it.
   final VoidCallback? onToggleReadOnly;
 
-  /// Lock / remove the lock. Null hides it.
+  /// Protect / remove protection. Null hides it.
   final VoidCallback? onToggleLock;
   final bool selectMode;
   final bool selected;
@@ -92,14 +91,14 @@ class SpaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    // Rebuild when a locked space is opened or hidden again.
+    // Rebuild when a protected space is opened or hidden again.
     listenable: ContentLock.instance,
     builder: (context, _) => _build(context),
   );
 
   Widget _build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    // Locked (itself or its parent) and not opened: the name, tags and count
+    // Protected (itself or its parent) and not opened: the name, tags and count
     // show; the description and editing wait for the PIN.
     final lock = ContentLock.instance;
     final hidden =
@@ -243,7 +242,7 @@ class SpaceCard extends StatelessWidget {
                                     space.starred ? 'Unstar' : 'Star',
                                   ),
                                 ),
-                              // Read-only locks the space's content (details
+                              // Read-only freezes the space's content (details
                               // and items); managing the space itself stays.
                               if (onToggleReadOnly != null)
                                 PopupMenuItem(
@@ -266,7 +265,7 @@ class SpaceCard extends StatelessWidget {
                                   ),
                                 ),
                               // Editing shows the description, so a hidden
-                              // locked space opens first.
+                              // protected space opens first.
                               if (!space.readOnly && !hidden)
                                 const PopupMenuItem(
                                   height: 40,
@@ -380,12 +379,12 @@ class _TopBorderPainter extends CustomPainter {
     final r = radius;
     const t = _thickness;
     final ri = r - t;
-    const s45 = 0.70710678; // sin/cos 45° — band is full thickness here
-    const sTip = 0.92718385; // sin 68° — outer point where the band tapers out
-    const cTip = 0.37460659; // cos 68°
-    // Inner edge stays a concentric band down to the 45° diagonal; the outer
-    // edge continues a little further, and the two meet so each end narrows to a
-    // gradual point instead of a straight diagonal cut.
+    const s45 = 0.70710678; // sin/cos 45 deg: the band is full thickness here
+    const sTip = 0.92718385; // sin 68 deg: where the band tapers out
+    const cTip = 0.37460659; // cos 68 deg
+    // Inner edge stays a concentric band down to the 45-degree diagonal; the
+    // outer edge continues a little further, and the two meet so each end
+    // narrows to a gradual point instead of a straight diagonal cut.
     final iLeft = Offset(r - ri * s45, r - ri * s45);
     final iRight = Offset(w - (r - ri * s45), r - ri * s45);
     final tipLeft = Offset(r * (1 - sTip), r * (1 - cTip));

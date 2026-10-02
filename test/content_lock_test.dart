@@ -50,7 +50,7 @@ void main() {
     expect(lock.isItemHidden(inSub), isTrue);
     expect(lock.isItemHidden(_item('y', spaceId: 'open')), isFalse);
 
-    // Opening the item opens the locked space above it.
+    // Opening the item opens the protected space above it.
     lock.revealItem(inSub);
     expect(lock.isSpaceHidden('sub'), isFalse);
     expect(lock.isRevealed('top'), isTrue);

@@ -51,7 +51,7 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
   }
 
   Future<void> editItem(SpaceItem item) async {
-    // A locked item (or one in a locked space) opens after the vault PIN.
+    // A protected item (or one in a protected space) opens after the PIN.
     if (!await unlockItem(item) || !mounted) return;
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -75,7 +75,7 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
     if (saved == true && mounted) reloadItems();
   }
 
-  /// The add sheet: every editable item type.
+  /// The add sheet: every item type offered there.
   void openAddItemSheet() {
     // Scroll-controlled with a fixed ~70% height so it opens taller than the
     // default half sheet but not full screen; the list scrolls within it. The
@@ -90,9 +90,7 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
           child: ListView(
             padding: const EdgeInsets.only(bottom: 8),
             children: [
-              for (final def in kItemTypes.where(
-                (d) => d.editable && d.addable,
-              ))
+              for (final def in kItemTypes.where((d) => d.addable))
                 ListTile(
                   visualDensity: VisualDensity.compact,
                   leading: Container(
@@ -165,7 +163,7 @@ mixin ItemActions<T extends StatefulWidget> on State<T> {
     return ok;
   }
 
-  /// Lock is instant and hides the content at once. Removing a lock needs
+  /// Protecting is instant and hides the content at once. Removing it needs
   /// the PIN, unless the item was already opened with it.
   Future<void> toggleLockItem(SpaceItem item) async {
     final lock = ContentLock.instance;

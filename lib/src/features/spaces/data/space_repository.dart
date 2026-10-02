@@ -69,7 +69,7 @@ class SpaceRepository {
     return (spaces: _registerLocks(await _decode(rows)), fromCache: false);
   }
 
-  /// Tell ContentLock which spaces are locked, so their items stay hidden
+  /// Tell ContentLock which spaces are protected, so their items stay hidden
   /// wherever they're listed (Starred, search).
   List<Space> _registerLocks(List<Space> spaces) {
     ContentLock.instance.setSpaces(spaces);
@@ -96,7 +96,7 @@ class SpaceRepository {
             starred: (m['starred'] ?? false) as bool,
             readOnly: (m['read_only'] ?? false) as bool,
             locked: (m['locked'] ?? false) as bool,
-            tags: await _decodeTags(m['tags']),
+            tags: await ArcheCrypto.decryptTags(m['tags'], _masterKey),
             color: m['color'] as String?,
             parentId: m['parent_id'] as String?,
             itemCount: (m['_item_count'] ?? 0) as int,
@@ -113,20 +113,6 @@ class SpaceRepository {
     return spaces;
   }
 
-  Future<List<String>> _decodeTags(Object? raw) async {
-    if (raw is List) return raw.map((e) => e.toString()).toList();
-    if (raw is String && raw.isNotEmpty) {
-      final text = raw.startsWith('arc1:')
-          ? await ArcheCrypto.decryptArc1(raw, _masterKey)
-          : raw;
-      try {
-        final decoded = jsonDecode(text);
-        if (decoded is List) return decoded.map((e) => e.toString()).toList();
-      } catch (_) {}
-    }
-    return const [];
-  }
-
   Future<String> _enc(String value) =>
       ArcheCrypto.encryptArc1(value, _masterKey);
 
@@ -134,7 +120,7 @@ class SpaceRepository {
       ArcheCrypto.encryptArc1(jsonEncode(tags), _masterKey);
 
   /// Duplicate a space and all its (non-deleted, non-archived) items. Item
-  /// ciphertext is copied verbatim — it's already encrypted with the same key.
+  /// ciphertext is copied verbatim - it's already encrypted with the same key.
   Future<void> duplicateSpace(Space space) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw StateError('Not authenticated');
@@ -151,7 +137,7 @@ class SpaceRepository {
       'description': await _enc(space.description),
       'color': space.color,
       'position': existing.length,
-      // A copy of a locked space stays locked.
+      // A copy of a protected space stays protected.
       'locked': space.locked,
     };
     if (space.tags.isNotEmpty) payload['tags'] = await _encTags(space.tags);
@@ -258,7 +244,7 @@ class SpaceRepository {
     await _client.from('spaces').update({'read_only': readOnly}).eq('id', id);
   }
 
-  /// Lock / remove the lock (a flag only; nothing is re-encrypted).
+  /// Protect / remove protection (a flag only; nothing is re-encrypted).
   Future<void> setLocked(String id, bool locked) async {
     await _client.from('spaces').update({'locked': locked}).eq('id', id);
     ContentLock.instance.setSpaceLocked(id, locked);

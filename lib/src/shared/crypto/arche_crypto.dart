@@ -17,8 +17,8 @@ class ArcheCrypto {
   static const _tagLength = 16; // AES-GCM 128-bit auth tag
   static final AesGcm _aes = AesGcm.with256bits(nonceLength: 12);
 
-  // Argon2id parameters for new vaults, matching the web (OWASP-aligned):
-  // 19 MiB, 2 passes, 1 lane.
+  // Argon2id parameters, matching the web (OWASP-aligned): 19 MiB, 2 passes,
+  // 1 lane.
   static const _argonMemory = 19456; // KiB
   static const _argonIterations = 2;
   static const _argonParallelism = 1;
@@ -41,45 +41,36 @@ class ArcheCrypto {
     return 'argon2id\$$_argonMemory\$$_argonIterations\$$_argonParallelism\$${base64.encode(salt)}';
   }
 
-  /// Derive the 32-byte AES key from a vault secret using the KDF described by
-  /// the self-describing [descriptor] (`argon2id$m$t$p$saltB64`, or a plain
-  /// base64 salt for legacy PBKDF2).
+  /// Derive the 32-byte AES key from a vault secret using the Argon2id
+  /// parameters in [descriptor] (`argon2id$m$t$p$saltB64`).
   static Future<Uint8List> deriveVaultKey(
     String secret,
     String descriptor,
   ) async {
-    if (descriptor.startsWith('argon2id\$')) {
-      final parts = descriptor.split('\$'); // [argon2id, m, t, p, saltB64]
-      final algorithm = Argon2id(
-        memory: int.parse(parts[1]), // KiB
-        iterations: int.parse(parts[2]),
-        parallelism: int.parse(parts[3]),
-        hashLength: 32,
-      );
-      final key = await algorithm.deriveKey(
-        secretKey: SecretKey(utf8.encode(secret)),
-        nonce: base64.decode(parts[4]),
-      );
-      return Uint8List.fromList(await key.extractBytes());
+    final parts = descriptor.split('\$'); // [argon2id, m, t, p, saltB64]
+    if (parts.length != 5 || parts[0] != 'argon2id') {
+      throw const FormatException('Unsupported vault key format.');
     }
-
-    // Legacy PBKDF2: the descriptor is a plain base64 salt.
-    final pbkdf2 = Pbkdf2(
-      macAlgorithm: Hmac.sha256(),
-      iterations: 310000,
-      bits: 256,
+    final algorithm = Argon2id(
+      memory: int.parse(parts[1]), // KiB
+      iterations: int.parse(parts[2]),
+      parallelism: int.parse(parts[3]),
+      hashLength: 32,
     );
-    final key = await pbkdf2.deriveKey(
+    final key = await algorithm.deriveKey(
       secretKey: SecretKey(utf8.encode(secret)),
-      nonce: base64.decode(descriptor),
+      nonce: base64.decode(parts[4]),
     );
     return Uint8List.fromList(await key.extractBytes());
   }
 
-  /// Decrypt an `arc1:` value with a raw 32-byte AES key. Non-`arc1` input is
-  /// returned unchanged (treated as plaintext), matching the web behaviour.
+  /// Decrypt an `arc1:` value with a raw 32-byte AES key. An empty value
+  /// decrypts to ''; anything else that isn't `arc1:` is rejected.
   static Future<String> decryptArc1(String value, List<int> keyBytes) async {
-    if (!value.startsWith(_prefix)) return value;
+    if (value.isEmpty) return '';
+    if (!value.startsWith(_prefix)) {
+      throw const FormatException('Not an encrypted value');
+    }
     final body = value.substring(_prefix.length);
     final dot = body.indexOf('.');
     if (dot < 0) throw const FormatException('Invalid arc1 payload');
@@ -95,6 +86,36 @@ class ArcheCrypto {
       secretKey: SecretKey(keyBytes),
     );
     return utf8.decode(clear);
+  }
+
+  /// Decrypt an encrypted JSON object (an item's content); `{}` when empty.
+  static Future<Map<String, dynamic>> decryptJsonMap(
+    Object? value,
+    List<int> keyBytes,
+  ) async {
+    if (value is! String || value.isEmpty) return <String, dynamic>{};
+    final text = await decryptArc1(value, keyBytes);
+    if (text.isEmpty) return <String, dynamic>{};
+    final decoded = jsonDecode(text);
+    return decoded is Map
+        ? decoded.cast<String, dynamic>()
+        : <String, dynamic>{};
+  }
+
+  /// Decrypt a row's tags. Tags left at the column default (an empty list)
+  /// were never encrypted.
+  static Future<List<String>> decryptTags(
+    Object? value,
+    List<int> keyBytes,
+  ) async {
+    if (value is List) return value.map((e) => e.toString()).toList();
+    if (value is! String || value.isEmpty) return const [];
+    final text = await decryptArc1(value, keyBytes);
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is List) return decoded.map((e) => e.toString()).toList();
+    } catch (_) {}
+    return const [];
   }
 
   /// Encrypt a string into an `arc1:` value (fresh random 12-byte IV).

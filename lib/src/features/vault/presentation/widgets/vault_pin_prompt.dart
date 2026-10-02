@@ -7,7 +7,7 @@ import 'package:archespace_mobile/src/features/vault/data/biometric_service.dart
 import 'package:archespace_mobile/src/features/vault/data/secure_key_store.dart';
 import 'package:archespace_mobile/src/features/vault/data/vault_service.dart';
 
-/// Ask for the vault PIN before showing or releasing locked content. Resolves
+/// Ask for the vault PIN before showing protected content. Resolves
 /// true once the right PIN is entered (or, when biometric unlock is on, a
 /// fingerprint / face is confirmed), false if cancelled. After
 /// [ContentLock.maxAttempts] wrong PINs in a row the vault locks.

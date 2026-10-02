@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:archespace_mobile/src/features/items/domain/rich_doc.dart';
@@ -25,14 +23,14 @@ class SearchHit {
   final String id;
 
   /// Lowercased content text (an item's body, a space's description), matched
-  /// only while it isn't hidden by a lock.
+  /// only while it isn't hidden by Protect.
   final String contentText;
 
-  /// The item or space itself is locked (see ContentLock).
+  /// The item or space itself is protected (see ContentLock).
   final bool locked;
 
-  /// Whether [query] (lowercased) matches. A locked item or space, or one
-  /// inside a locked space, is found by its name and tags only until opened:
+  /// Whether [query] (lowercased) matches. A protected item or space, or one
+  /// inside a protected space, is found by its name and tags only until opened:
   /// matching its content would reveal what it says.
   bool matches(String query) {
     if (haystack.contains(query)) return true;
@@ -90,7 +88,7 @@ class SearchRepository {
         (row['description'] ?? '') as String,
         _masterKey,
       );
-      final tags = await _decodeTags(row['tags']);
+      final tags = await ArcheCrypto.decryptTags(row['tags'], _masterKey);
       spaceNameById[id] = name;
       hits.add(
         SearchHit(
@@ -119,8 +117,11 @@ class SearchRepository {
         (row['title'] ?? '') as String,
         _masterKey,
       );
-      final content = await _decodeContent(row['content']);
-      final tags = await _decodeTags(row['tags']);
+      final content = await ArcheCrypto.decryptJsonMap(
+        row['content'],
+        _masterKey,
+      );
+      final tags = await ArcheCrypto.decryptTags(row['tags'], _masterKey);
       final spaceId = row['space_id'] as String?;
       hits.add(
         SearchHit(
@@ -140,31 +141,6 @@ class SearchRepository {
     }
 
     return hits;
-  }
-
-  Future<Map<String, dynamic>> _decodeContent(Object? raw) async {
-    if (raw is Map) return raw.cast<String, dynamic>();
-    if (raw is String && raw.isNotEmpty) {
-      final text = await ArcheCrypto.decryptArc1(raw, _masterKey);
-      if (text.isEmpty) return {};
-      final decoded = jsonDecode(text);
-      if (decoded is Map) return decoded.cast<String, dynamic>();
-    }
-    return {};
-  }
-
-  Future<List<String>> _decodeTags(Object? raw) async {
-    if (raw is List) return raw.map((e) => e.toString()).toList();
-    if (raw is String && raw.isNotEmpty) {
-      final text = raw.startsWith('arc1:')
-          ? await ArcheCrypto.decryptArc1(raw, _masterKey)
-          : raw;
-      try {
-        final decoded = jsonDecode(text);
-        if (decoded is List) return decoded.map((e) => e.toString()).toList();
-      } catch (_) {}
-    }
-    return [];
   }
 }
 

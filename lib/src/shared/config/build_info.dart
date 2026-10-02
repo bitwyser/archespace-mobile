@@ -1,7 +1,6 @@
-/// Build provenance, injected at compile time via `--dart-define` (mirrors the
-/// web `buildInfo.js`). Surfacing the commit hash lets users verify the
-/// installed app matches the audited, open-source release. See the README for
-/// the build command.
+/// Build provenance, injected at compile time via `--dart-define`. The commit
+/// hash lets people check that the installed app matches the open-source
+/// release. See the README for the build command.
 class BuildInfo {
   const BuildInfo._();
 
@@ -13,7 +12,6 @@ class BuildInfo {
     'BUILD_HASH',
     defaultValue: 'dev',
   );
-  static const String buildTime = String.fromEnvironment('BUILD_TIME');
 
   static const String repoUrl = 'https://github.com/bitwyser/archespace-mobile';
 

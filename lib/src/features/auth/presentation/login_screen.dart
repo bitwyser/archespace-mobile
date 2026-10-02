@@ -64,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _switchMode(_Mode mode) {
     // Clear the form when switching, so nothing carries between sign-in and
-    // create-account (matches web, where the two are separate pages).
+    // create-account.
     _password.clear();
     _confirm.clear();
     setState(() {
@@ -210,9 +210,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// Live password-requirements checklist shown on sign-up (mirrors web): a 2x2
-  /// grid of rules that tick green as the password satisfies each one, so the
-  /// requirements are visible before submitting (Postel's Law).
+  /// Password requirements on sign-up: a 2x2 grid of rules that tick green as
+  /// the password meets each one.
   Widget _buildPasswordChecklist(BuildContext context) {
     final pw = _password.text;
     final checks = <(String, bool)>[

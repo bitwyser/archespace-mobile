@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Subscribes to Supabase postgres changes on [table] (optionally filtered by
 /// [filterColumn] == [filterValue]) and calls [onChange], debounced to coalesce
-/// bursts — e.g. a reorder that touches many rows, or the realtime echo of the
+/// bursts - e.g. a reorder that touches many rows, or the realtime echo of the
 /// app's own writes. Mirrors the web hooks' 250ms coalescing.
 class TableWatcher {
   TableWatcher({

@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 
-/// Consistent, tinted snackbars used app-wide (Law of Similarity): success
-/// follows the accent color (the seeded theme's primary), errors use the error
-/// color, and neutral notices use a quiet surface tint. Each carries a leading
-/// icon so the kind reads at a glance (Doherty: clear, immediate feedback).
-///
-/// Mirrors the web app's accent-colored success toast. Prefer these over
-/// calling `ScaffoldMessenger.showSnackBar` directly so every message looks and
-/// behaves the same.
+/// Tinted snackbars used app-wide: success in the accent colour, errors in the
+/// error colour, and neutral notices on a quiet surface tint, each with a
+/// leading icon. Use these rather than `ScaffoldMessenger.showSnackBar`
+/// directly, so every message looks the same.
 enum SnackKind { success, error, info }
 
 /// Show a success snackbar (accent-tinted). [message] should be short.
@@ -17,10 +13,6 @@ void showSuccessSnack(BuildContext context, String message) =>
 /// Show an error snackbar (error-tinted).
 void showErrorSnack(BuildContext context, String message) =>
     showAppSnack(context, message, SnackKind.error);
-
-/// Show a neutral/informational snackbar.
-void showInfoSnack(BuildContext context, String message) =>
-    showAppSnack(context, message, SnackKind.info);
 
 void showAppSnack(
   BuildContext context,

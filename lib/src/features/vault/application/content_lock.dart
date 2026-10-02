@@ -4,11 +4,11 @@ import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 
-/// Locked items and spaces. A locked item keeps its title and tags in view
-/// and a locked space its name, but the content needs the vault PIN again.
-/// An item in a locked space (or in a sub-space of one) is hidden too,
-/// wherever it's listed. The lock is a flag on the row; the content is
-/// encrypted with the vault key as always.
+/// Protected items and spaces. A protected item keeps its title and tags in
+/// view and a protected space its name, but the content needs the vault PIN
+/// again. An item in a protected space (or in a sub-space of one) is hidden
+/// too, wherever it's listed. Protect is the `locked` flag on the row; the
+/// content is encrypted with the vault key as always.
 ///
 /// What has been opened lives only in memory: restarting the app, or the
 /// vault locking, hides it all again.
@@ -26,7 +26,7 @@ class ContentLock extends ChangeNotifier {
   bool isRevealed(String id) => _revealed.contains(id);
 
   /// Whether a space's contents must stay hidden: it, or its parent, is
-  /// locked and not opened.
+  /// protected and not opened.
   bool isSpaceHidden(String? spaceId) {
     var id = spaceId;
     // Spaces nest one level; the bound only guards against a bad cycle.
@@ -48,7 +48,7 @@ class ContentLock extends ChangeNotifier {
     if (_revealed.add(id)) notifyListeners();
   }
 
-  /// Open everything that hides [item]: its own lock and its spaces'.
+  /// Open everything that hides [item]: its own protection and its spaces'.
   void revealItem(SpaceItem item) {
     var changed = false;
     if (item.locked) changed |= _revealed.add(item.id);
@@ -62,7 +62,7 @@ class ContentLock extends ChangeNotifier {
     if (changed) notifyListeners();
   }
 
-  /// Open a space and any locked space above it.
+  /// Open a space and any protected space above it.
   void revealSpace(String spaceId) {
     var changed = false;
     String? id = spaceId;
@@ -75,7 +75,7 @@ class ContentLock extends ChangeNotifier {
     if (changed) notifyListeners();
   }
 
-  /// A space's lock as last loaded, or null if it hasn't been seen.
+  /// A space's protection as last loaded, or null if it hasn't been seen.
   bool? isSpaceLocked(String id) => _spaces[id]?.locked;
 
   void hide(String id) {
@@ -88,7 +88,7 @@ class ContentLock extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Record which spaces are locked (called whenever spaces load).
+  /// Record which spaces are protected (called whenever spaces load).
   void setSpaces(Iterable<Space> spaces) {
     var changed = false;
     for (final s in spaces) {
@@ -97,7 +97,7 @@ class ContentLock extends ChangeNotifier {
     if (changed) notifyListeners();
   }
 
-  /// Record spaces' locks from raw rows (for lists that don't build [Space]s),
+  /// Record spaces' protection from raw rows (lists that don't build [Space]s),
   /// with one update for the lot.
   void registerSpaces(
     Iterable<({String id, bool locked, String? parentId})> spaces,
@@ -116,7 +116,7 @@ class ContentLock extends ChangeNotifier {
     return true;
   }
 
-  /// A space was just locked or unlocked here (ahead of the next load).
+  /// A space's protection was just changed here (ahead of the next load).
   void setSpaceLocked(String id, bool locked) {
     final current = _spaces[id];
     _spaces[id] = (locked: locked, parentId: current?.parentId);
@@ -124,8 +124,8 @@ class ContentLock extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Wrong PINs entered in a row at the lock prompt. After [maxAttempts] the
-  /// whole vault locks, so a lock can't be guessed at.
+  /// Wrong PINs entered in a row at the protected-content prompt. After
+  /// [maxAttempts] the whole vault locks, so the PIN can't be guessed at.
   int failedAttempts = 0;
   static const int maxAttempts = 5;
 }

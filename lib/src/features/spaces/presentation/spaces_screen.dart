@@ -231,7 +231,7 @@ class _SpacesScreenState extends State<SpacesScreen>
     }
   }
 
-  /// Read-only on / off: locks the space's details and items, not the space.
+  /// Read-only on / off: freezes the space's details and items, not the space.
   Future<void> _toggleReadOnlySpace(Space space) async {
     try {
       await _spaceRepo.setReadOnly(space.id, !space.readOnly);
@@ -256,7 +256,7 @@ class _SpacesScreenState extends State<SpacesScreen>
     }
   }
 
-  // ── Selection mode (spaces and dashboard items together) ──
+  // Selection mode (spaces and dashboard items together)
   int get _selectedCount => _selected.length + _selectedItems.length;
 
   void _enterSelect() => setState(() => _selectMode = true);

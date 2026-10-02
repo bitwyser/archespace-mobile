@@ -117,7 +117,7 @@ class _StarredScreenState extends State<StarredScreen>
     }
   }
 
-  // ── Space actions ──
+  // Space actions
   Future<void> _spaceOp(
     Future<void> Function(SpaceRepository) op,
     String errorMsg, {

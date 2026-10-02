@@ -380,7 +380,7 @@ class _NoteEditorState extends State<_NoteEditor> {
       textAlignVertical: TextAlignVertical.top,
       keyboardType: TextInputType.multiline,
       decoration: InputDecoration(
-        hintText: widget.readOnly ? 'Empty' : 'Start writing…',
+        hintText: widget.readOnly ? 'Empty' : 'Start writing...',
         border: InputBorder.none,
       ),
     );
@@ -388,7 +388,7 @@ class _NoteEditorState extends State<_NoteEditor> {
 }
 
 /// Plain monospace, tab-friendly editor for the `code` item type
-/// (`{ code: "…" }`). Editing is unstyled monospace; syntax highlighting is
+/// (`{ code: "..." }`). Editing is unstyled monospace; syntax highlighting is
 /// applied in the read view (item card), where the language is auto-detected.
 class _CodeEditor extends StatefulWidget {
   const _CodeEditor({required this.content, this.readOnly = false});
@@ -433,7 +433,7 @@ class _CodeEditorState extends State<_CodeEditor> {
         color: Theme.of(context).colorScheme.onSurface,
       ),
       decoration: InputDecoration(
-        hintText: widget.readOnly ? 'Empty' : 'Paste or write code…',
+        hintText: widget.readOnly ? 'Empty' : 'Paste or write code...',
         border: InputBorder.none,
         isCollapsed: true,
       ),
@@ -622,7 +622,7 @@ class _ListEditorState extends State<_ListEditor> {
                               )
                             : null,
                         decoration: InputDecoration(
-                          hintText: widget.readOnly ? null : 'Item…',
+                          hintText: widget.readOnly ? null : 'Item...',
                           border: InputBorder.none,
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(
@@ -1135,7 +1135,7 @@ const List<String> _kInkColors = [
 const List<double> _kInkSizes = [4, 8, 16];
 
 /// Freehand canvas for `draw`
-/// (`{ strokes: [{ points: [[x, y, pressure], …], color, size }] }`).
+/// (`{ strokes: [{ points: [[x, y, pressure], ...], color, size }] }`).
 /// Points are captured in a fixed 1000x600 logical space so drawings scale and
 /// match the read renderer / web. Includes colour + size pickers, undo, clear.
 class _DrawEditor extends StatefulWidget {

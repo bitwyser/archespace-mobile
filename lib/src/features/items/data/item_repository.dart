@@ -92,8 +92,8 @@ class ItemRepository {
               (m['title'] ?? '') as String,
               _masterKey,
             ),
-            content: await _decryptContent(m['content']),
-            tags: await _decodeTags(m['tags']),
+            content: await ArcheCrypto.decryptJsonMap(m['content'], _masterKey),
+            tags: await ArcheCrypto.decryptTags(m['tags'], _masterKey),
             pinned: (m['pinned'] ?? false) as bool,
             starred: (m['starred'] ?? false) as bool,
             locked: (m['locked'] ?? false) as bool,
@@ -108,31 +108,6 @@ class ItemRepository {
       }
     }
     return items;
-  }
-
-  Future<Map<String, dynamic>> _decryptContent(Object? raw) async {
-    if (raw is Map) return raw.cast<String, dynamic>();
-    if (raw is String && raw.isNotEmpty) {
-      final text = await ArcheCrypto.decryptArc1(raw, _masterKey);
-      if (text.isEmpty) return <String, dynamic>{};
-      final decoded = jsonDecode(text);
-      if (decoded is Map) return decoded.cast<String, dynamic>();
-    }
-    return <String, dynamic>{};
-  }
-
-  Future<List<String>> _decodeTags(Object? raw) async {
-    if (raw is List) return raw.map((e) => e.toString()).toList();
-    if (raw is String && raw.isNotEmpty) {
-      final text = raw.startsWith('arc1:')
-          ? await ArcheCrypto.decryptArc1(raw, _masterKey)
-          : raw;
-      try {
-        final decoded = jsonDecode(text);
-        if (decoded is List) return decoded.map((e) => e.toString()).toList();
-      } catch (_) {}
-    }
-    return const [];
   }
 
   Future<String> _encTags(List<String> tags) =>
@@ -154,11 +129,10 @@ class ItemRepository {
 
   /// Re-encrypt and save an existing item's title + content. Queued offline.
   ///
-  /// Goes through the write queue as an upsert, so the row must carry the
-  /// columns a fresh insert would need: `type` and `user_id` are NOT NULL with
-  /// no default, plus the item's `space_id` (null for a dashboard item). Without
-  /// them the upsert's insert path violates NOT NULL even when the row already
-  /// exists, which surfaced as a misleading "could not save" error.
+  /// Goes through the write queue as an upsert, so the row carries what a
+  /// fresh insert needs: `type` and `user_id` (NOT NULL, no default) and the
+  /// item's `space_id` (null for a dashboard item). Without them the insert
+  /// path fails even when the row already exists.
   Future<void> updateItem({
     required String id,
     required String? spaceId,
@@ -187,7 +161,7 @@ class ItemRepository {
     await _client.from('space_items').update({'starred': starred}).eq('id', id);
   }
 
-  /// Lock / remove the lock (a flag only; the content is not re-encrypted).
+  /// Protect / remove protection (a flag only; nothing is re-encrypted).
   Future<void> setLocked(String id, bool locked) async {
     await _client.from('space_items').update({'locked': locked}).eq('id', id);
   }
@@ -225,7 +199,7 @@ class ItemRepository {
       'title': await _encTitle(title),
       'content': await _encContent(item.content),
       'position': await _endPosition(spaceId),
-      // A copy of a locked item stays locked.
+      // A copy of a protected item stays protected.
       'locked': item.locked,
     });
   }

@@ -28,7 +28,7 @@ class Space {
   /// copied and exported, but not changed.
   final bool readOnly;
 
-  /// Locked: the name shows, but opening the space (and its sub-spaces and
+  /// Protected: the name shows, but opening the space (and its sub-spaces and
   /// items, wherever they're listed) needs the vault PIN (see ContentLock).
   final bool locked;
   final List<String> tags;

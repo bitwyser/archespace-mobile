@@ -84,7 +84,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
   void initState() {
     super.initState();
     ContentLock.instance.addListener(_onLockChanged);
-    // A locked space asks for the PIN as it opens.
+    // A protected space asks for the PIN as it opens.
     if (_hidden) WidgetsBinding.instance.addPostFrameCallback((_) => _unlock());
     _load();
     SharedPreferences.getInstance().then((prefs) {
@@ -112,7 +112,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
     );
   }
 
-  /// Opened or hidden again (or the lock changed): show or cover the space.
+  /// Opened or hidden again (or protection changed): show or cover the space.
   void _onLockChanged() {
     if (mounted) setState(() {});
   }
@@ -305,7 +305,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
     onDelete: () => _deleteSubSpace(sub),
   );
 
-  // ── Selection mode ──
+  // Selection mode
   void _enterSelect() => setState(() => _selectMode = true);
 
   void _exitSelect() => setState(() {
@@ -527,14 +527,14 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
     );
   }
 
-  /// Locked (itself or its parent) and not opened with the PIN.
+  /// Protected (itself or its parent) and not opened with the PIN.
   bool get _hidden {
     final lock = ContentLock.instance;
     return lock.isSpaceHidden(widget.space.id) ||
         (widget.space.locked && !lock.isRevealed(widget.space.id));
   }
 
-  /// This space's own lock: as last loaded, else as it was passed in.
+  /// This space's own protection: as last loaded, else as it was passed in.
   bool get _locked =>
       ContentLock.instance.isSpaceLocked(widget.space.id) ??
       widget.space.locked;

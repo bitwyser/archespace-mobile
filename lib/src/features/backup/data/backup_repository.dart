@@ -1,9 +1,7 @@
 import 'dart:convert';
 
-import 'package:markdown/markdown.dart' as md;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:archespace_mobile/src/features/items/data/secret_migration.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/features/vault/data/vault_service.dart';
 import 'package:archespace_mobile/src/shared/crypto/arche_crypto.dart';
@@ -15,8 +13,7 @@ import 'package:archespace_mobile/src/shared/crypto/arche_crypto.dart';
 /// server stores it). So it opens as-is in the same vault, and anywhere else
 /// with the vault PIN of the time. Each space carries its fields and an
 /// `items` array ({ type, title, content, position, pinned }); the top-level
-/// `items` are the dashboard's (no space). Import also accepts the older
-/// readable formats (versioned, and the bare array).
+/// `items` are the dashboard's (no space).
 class BackupRepository {
   BackupRepository(this._masterKey);
 
@@ -29,29 +26,6 @@ class BackupRepository {
   Future<String> _enc(String v) => ArcheCrypto.encryptArc1(v, _masterKey);
   Future<String> _encJson(Object? v) =>
       ArcheCrypto.encryptArc1(jsonEncode(v), _masterKey);
-
-  Future<List<String>> _decTags(Object? raw) async {
-    if (raw is List) return raw.map((e) => e.toString()).toList();
-    if (raw is String && raw.isNotEmpty) {
-      final text = raw.startsWith('arc1:') ? await _dec(raw) : raw;
-      try {
-        final d = jsonDecode(text);
-        if (d is List) return d.map((e) => e.toString()).toList();
-      } catch (_) {}
-    }
-    return const [];
-  }
-
-  Future<Map<String, dynamic>> _decContent(Object? raw) async {
-    if (raw is Map) return raw.cast<String, dynamic>();
-    if (raw is String && raw.isNotEmpty) {
-      final text = await _dec(raw);
-      if (text.isEmpty) return {};
-      final d = jsonDecode(text);
-      if (d is Map) return d.cast<String, dynamic>();
-    }
-    return {};
-  }
 
   /// Active items of one space, or the dashboard's items (no space) for `null`,
   /// decrypted for the backup.
@@ -72,10 +46,9 @@ class BackupRepository {
       items.add({
         'type': it['type'],
         'title': await _dec(it['title']),
-        'content': await _decContent(it['content']),
+        'content': await ArcheCrypto.decryptJsonMap(it['content'], _masterKey),
         'position': it['position'],
         'pinned': it['pinned'] ?? false,
-        // Only written when set, so older app versions read the file as before.
         if (it['locked'] == true) 'locked': true,
       });
     }
@@ -99,7 +72,7 @@ class BackupRepository {
         'name': await _dec(s['name']),
         'description': await _dec(s['description']),
         'color': s['color'],
-        'tags': await _decTags(s['tags']),
+        'tags': await ArcheCrypto.decryptTags(s['tags'], _masterKey),
         'pinned': s['pinned'] ?? false,
         if (s['locked'] == true) 'locked': true,
         'position': s['position'],
@@ -158,30 +131,8 @@ class BackupRepository {
         skipped++;
         continue;
       }
-      var type = it['type'];
-      var content = it['content'];
-      // Secrets (a removed type) come in as Notes when they're from this
-      // vault; one sealed to another vault can't be opened, so it's skipped.
-      if (type == 'secret' && content is Map) {
-        try {
-          content = await SecretMigration.noteContent(content, _masterKey);
-          type = 'textbox';
-        } catch (_) {
-          skipped++;
-          continue;
-        }
-      }
-      // Markdown (a removed type) comes in as Rich text: its HTML, which the
-      // editor turns into its own format when the note is next opened.
-      if (type == 'markdown' && content is Map) {
-        final text = content['text'];
-        if (text is! String) {
-          skipped++;
-          continue;
-        }
-        content = {'html': md.markdownToHtml(text)};
-        type = 'richtext';
-      }
+      final type = it['type'];
+      final content = it['content'];
       if (type is! String || !knownTypes.contains(type)) {
         skipped++;
         continue;
@@ -208,13 +159,12 @@ class BackupRepository {
     return (imported: rows.length, skipped: skipped);
   }
 
-  /// Import a backup: encrypt and insert new spaces + items. Accepts the
-  /// encrypted format and the older readable ones (`{ version, spaces }` and
-  /// the bare array). An encrypted backup from another vault needs the vault
-  /// PIN it was made with: [askBackupPin] is given a `check` that tries a PIN,
-  /// and resolves false to cancel (then this returns null). Otherwise returns
-  /// how many spaces and items were imported, and how many items were skipped
-  /// (unknown type / malformed content).
+  /// Import an encrypted backup: re-encrypt and insert its spaces + items. A
+  /// backup from another vault needs the vault PIN it was made with:
+  /// [askBackupPin] is given a `check` that tries a PIN, and resolves false to
+  /// cancel (then this returns null). Otherwise returns how many spaces and
+  /// items were imported, and how many items were skipped (unknown type or
+  /// malformed content).
   Future<({int spaces, int items, int skipped})?> importJson(
     String text, {
     Future<bool> Function(Future<bool> Function(String pin) check)?
@@ -223,38 +173,36 @@ class BackupRepository {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw StateError('Not authenticated');
 
-    var parsed = jsonDecode(text);
-    if (_isEncrypted(parsed)) {
-      final sealed = parsed as Map;
-      var contents = await _open(sealed, _masterKey);
-      if (contents == null) {
-        if (askBackupPin == null) {
-          throw const FormatException('This backup is from another vault.');
-        }
-        final vault = (sealed['vault'] as Map).cast<String, dynamic>();
-        final ok = await askBackupPin((pin) async {
-          try {
-            final key = await VaultService().unwrapWithPin(vault, pin);
-            contents = await _open(sealed, key);
-            return contents != null;
-          } on VaultException catch (e) {
-            if (e.message == 'Incorrect PIN.') return false;
-            rethrow;
-          }
-        });
-        if (!ok) return null;
+    final sealed = jsonDecode(text);
+    if (!_isEncrypted(sealed)) {
+      throw const FormatException(
+        'Only encrypted ArcheSpace backups can be imported.',
+      );
+    }
+    sealed as Map;
+    var contents = await _open(sealed, _masterKey);
+    if (contents == null) {
+      if (askBackupPin == null) {
+        throw const FormatException('This backup is from another vault.');
       }
-      parsed = contents;
+      final vault = (sealed['vault'] as Map).cast<String, dynamic>();
+      final ok = await askBackupPin((pin) async {
+        try {
+          final key = await VaultService().unwrapWithPin(vault, pin);
+          contents = await _open(sealed, key);
+          return contents != null;
+        } on VaultException catch (e) {
+          if (e.message == 'Incorrect PIN.') return false;
+          rethrow;
+        }
+      });
+      if (!ok) return null;
     }
-    // Current format is { version, spaces: [...] }; older backups are a bare list.
-    final List<dynamic> parsedSpaces;
-    if (parsed is List) {
-      parsedSpaces = parsed;
-    } else if (parsed is Map && parsed['spaces'] is List) {
-      parsedSpaces = parsed['spaces'] as List;
-    } else {
-      throw const FormatException('Expected a list of spaces.');
+    final parsed = contents;
+    if (parsed is! Map || parsed['spaces'] is! List) {
+      throw const FormatException('The encrypted contents are damaged.');
     }
+    final parsedSpaces = parsed['spaces'] as List;
 
     final existing = await _client
         .from('spaces')
@@ -263,7 +211,11 @@ class BackupRepository {
         .isFilter('archived_at', null);
     var spacePos = existing.length;
 
-    final knownTypes = kItemTypes.map((d) => d.type).toSet();
+    // An old Markdown item isn't accepted: the database no longer takes it.
+    final knownTypes = kItemTypes
+        .map((d) => d.type)
+        .where((t) => t != 'markdown')
+        .toSet();
     var itemsImported = 0;
     var itemsSkipped = 0;
     var spacesImported = 0;
@@ -290,7 +242,7 @@ class BackupRepository {
             'name': await _enc(name),
             'description': await _enc(description),
             'color': color,
-            'tags': tags.isEmpty ? null : await _encJson(tags),
+            'tags': await _encJson(tags),
             'pinned': raw['pinned'] == true,
             'locked': raw['locked'] == true,
             'position': spacePos++,
@@ -307,8 +259,8 @@ class BackupRepository {
       itemsSkipped += result.skipped;
     }
 
-    // Dashboard items (outside any space), present in newer backups only.
-    if (parsed is Map && parsed['items'] is List) {
+    // Dashboard items (outside any space).
+    if (parsed['items'] is List) {
       final result = await _importItems(
         parsed['items'] as List,
         null,

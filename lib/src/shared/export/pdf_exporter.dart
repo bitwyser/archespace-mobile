@@ -203,7 +203,7 @@ class PdfExporter {
     }
   }
 
-  // ── Rich text (Tiptap JSON) ──
+  // Rich text (Tiptap JSON)
   // Flat, splittable widgets only (see _section): each block is one spanning
   // RichText, and nesting is shown with a leading indent rather than a
   // Padding (which can't split across pages).

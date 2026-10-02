@@ -79,7 +79,7 @@ ArcheSpace uses a device-side vault model. You sign in with Supabase Auth using 
 **Encryption**
 
 - Space and item content (names, descriptions, tags, titles, and content) is encrypted on-device with AES-256-GCM before it reaches Supabase. Only non-sensitive metadata - IDs, timestamps, positions, and flags like pinned/archived/deleted - stays in plain form.
-- The vault secret is never stored as plaintext. It can be a numeric PIN or a longer passphrase. On setup, the app generates a random vault master key, which is wrapped with a key derived from your PIN or passphrase using Argon2id, a memory-hard key-derivation function. Vaults created on the web with legacy PBKDF2 still unlock here.
+- The vault secret is never stored as plaintext. It can be a numeric PIN or a longer passphrase. On setup, the app generates a random vault master key, which is wrapped with a key derived from your PIN or passphrase using Argon2id, a memory-hard key-derivation function.
 - The crypto format (`arc1`) is byte-compatible with the web app and validated against shared conformance vectors (see [`spec/`](spec/)), so data encrypted on either client decrypts on the other.
 
 **Sessions and access**
@@ -110,7 +110,6 @@ ArcheSpace uses a device-side vault model. You sign in with Supabase Auth using 
 
 - A backup file holds your spaces and items encrypted with the vault key, plus that key wrapped with your vault PIN (as the server stores it), in the same format as the web app.
 - It opens directly in the same vault, and anywhere else (another account, or after a vault reset) with the vault PIN you had when exporting. After a PIN change, older backups still need the earlier PIN.
-- Older readable backups still import.
 
 **Recovery**
 
@@ -170,7 +169,7 @@ cp env.example.json env.json
 
 ### 4. Add mobile redirect URLs in Supabase
 
-Because this app shares the backend, add its auth redirect URLs alongside the web ones in **Supabase → Authentication → URL Configuration**. Password reset links open the web app's reset page (the Supabase Site URL); after resetting, sign in again on mobile.
+Because this app shares the backend, add its auth redirect URLs alongside the web ones in **Supabase > Authentication > URL Configuration**. Password reset links open the web app's reset page (the Supabase Site URL); after resetting, sign in again on mobile.
 
 ### 5. Choose single-user or multi-user
 
@@ -199,7 +198,7 @@ flutter run --dart-define-from-file=env.json
 Or invoke Flutter directly:
 
 ```bash
-flutter build apk --release --dart-define-from-file=env.json --dart-define=BUILD_HASH=$(git rev-parse --short HEAD) --dart-define=BUILD_TIME=$(git log -1 --format=%cI)
+flutter build apk --release --dart-define-from-file=env.json --dart-define=BUILD_HASH=$(git rev-parse --short HEAD)
 ```
 
 Commit your changes first so the stamped hash exists on GitHub. The release APK is currently signed with the debug key (see `android/app/build.gradle.kts`); add a real keystore before distributing through an app store.
@@ -208,7 +207,7 @@ Commit your changes first so the stamped hash exists on GitHub. The release APK 
 
 Pushing a `v*` tag runs the **Release APK** workflow ([`.github/workflows/release.yml`](.github/workflows/release.yml)), which builds the APK on CI, stamps it with the exact commit, and publishes it to a GitHub Release with a SHA-256 checksum. The app version shown in Settings links to that commit, so anyone can confirm the installed binary was built from the audited, open-source code.
 
-The workflow needs two repository secrets (the same values as `env.json`), set under **Settings → Secrets and variables → Actions**:
+The workflow needs two repository secrets (the same values as `env.json`), set under **Settings > Secrets and variables > Actions**:
 
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
@@ -228,11 +227,11 @@ You can also run the workflow manually from the Actions tab.
 |-------|------------|
 | Framework | Flutter (Material 3), Dart |
 | Backend | Supabase Auth, PostgreSQL, Row Level Security, Realtime (`supabase_flutter`) |
-| Encryption | AES-256-GCM with Argon2id / PBKDF2 key derivation (`cryptography`) |
+| Encryption | AES-256-GCM with Argon2id key derivation (`cryptography`) |
 | Secure storage | `flutter_secure_storage` (Android Keystore / iOS Keychain) |
 | Biometrics | `local_auth` |
 | Rich text | The web app's Tiptap editor, bundled offline into `assets/rich_text_editor.html` and run in `webview_flutter`, with a native toolbar and preview |
-| Markdown | `flutter_markdown` (older Markdown notes) and `markdown` (Markdown notes in imported backups) |
+| Markdown | `flutter_markdown` (older Markdown notes) |
 | Syntax highlighting | `flutter_highlight` + `highlight` (automatic language detection for the Code item type) |
 | PDF export | `pdf` + `printing` (native share/print sheet) |
 | Files | `file_picker` (JSON backup), `path_provider` (offline cache) |
@@ -264,7 +263,7 @@ archespace-mobile/
         backup/           # JSON import/export
       shared/
         config/           # app config + build info
-        crypto/           # arc1 port (AES-GCM, Argon2id/PBKDF2)
+        crypto/           # arc1 port (AES-GCM, Argon2id)
         data/             # encrypted offline read cache
         offline/          # durable write queue
         realtime/         # postgres-changes watcher
@@ -313,7 +312,7 @@ For development questions, contact **[bitwyser@archespace.app](mailto:bitwyser@a
 
 - Built with Flutter and Dart (Material 3).
 - Backend, authentication, and realtime sync powered by Supabase.
-- Encryption via the `cryptography` package (AES-256-GCM, Argon2id / PBKDF2); the `arc1` format is shared with the web app.
+- Encryption via the `cryptography` package (AES-256-GCM, Argon2id); the `arc1` format is shared with the web app.
 - Rich text editing with Tiptap (shared with the web app) in `webview_flutter`; item rendering with `flutter_markdown`, `flutter_highlight` + `highlight`, and a custom freehand drawing canvas; PDF export via `pdf` + `printing`.
 - Source hosted on GitHub.
 - Crafted and maintained by BitWyser.

@@ -7,7 +7,7 @@ import 'package:archespace_mobile/src/features/vault/application/vault_session.d
 import 'package:archespace_mobile/src/features/vault/presentation/widgets/vault_pin_prompt.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
 
-/// Open a locked space with the vault PIN. True when it can be shown.
+/// Open a protected space with the vault PIN. True when it can be shown.
 Future<bool> unlockSpace(BuildContext context, Space space) async {
   final ok = await askVaultPin(
     context,
@@ -21,9 +21,9 @@ Future<bool> unlockSpace(BuildContext context, Space space) async {
   return ok;
 }
 
-/// Lock a space, or remove its lock. Locking is instant and hides it at
-/// once; removing the lock needs the PIN unless the space is already open.
-/// True when the lock changed (the caller reloads).
+/// Protect a space, or remove its protection. Protecting is instant and hides
+/// it at once; removing it needs the PIN unless the space is already open.
+/// True when it changed (the caller reloads).
 Future<bool> toggleSpaceLock(
   BuildContext context,
   Space space, {

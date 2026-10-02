@@ -5,7 +5,7 @@ import 'package:path_provider/path_provider.dart';
 
 /// A tiny JSON-file cache under the app support directory, used to keep the
 /// last-seen **encrypted** rows for offline reads. Only ciphertext is written
-/// to disk — decryption still needs the in-memory master key — so this does not
+/// to disk - decryption still needs the in-memory master key - so this does not
 /// weaken the zero-knowledge model.
 class CacheStore {
   const CacheStore._();

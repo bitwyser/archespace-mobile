@@ -1,8 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// Global error handling for the app, mirroring the web's ErrorBoundary +
-/// ErrorScreen:
+/// Global error handling:
 ///
 ///  * [installErrorHandling] routes framework errors through [_report] (still
 ///    printing to the console) and replaces Flutter's default red error box
@@ -10,8 +9,7 @@ import 'package:flutter/material.dart';
 ///  * [reportZoneError] handles uncaught async errors; pass it as the
 ///    `runZonedGuarded` handler in `main`.
 ///
-/// There is no crash-reporting backend wired up yet, so errors are logged. A
-/// reporter (Sentry, Crashlytics, …) can be dropped into [_report] later.
+/// Errors are only logged; no crash reporter is used.
 void installErrorHandling() {
   ErrorWidget.builder = _friendlyErrorWidget;
   FlutterError.onError = (details) {

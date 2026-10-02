@@ -9,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
   # arc1 crypto port: Argon2id + AES-GCM (pure Dart).
   cryptography: ^2.7.0
   # Same backend as the web app (Auth, Postgres, RLS, Realtime).
@@ -20,9 +19,6 @@ dependencies:
   # Markdown rendering for old Markdown notes (until they're edited, which
   # turns them into Rich text).
   flutter_markdown: ^0.7.4
-  # Markdown notes in an imported backup become Rich text (HTML, converted to
-  # the editor's format when next opened).
-  markdown: ^7.3.0
   # The Rich text editor: the web's Tiptap editor, bundled offline into
   # assets/rich_text_editor.html, runs in a WebView.
   webview_flutter: ^4.14.1

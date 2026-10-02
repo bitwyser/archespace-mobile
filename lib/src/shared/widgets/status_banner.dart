@@ -4,9 +4,8 @@ import 'package:flutter/material.dart';
 enum StatusTone { info, pending }
 
 /// A thin, full-width status banner pinned at the top of a list (e.g. an
-/// offline notice or a pending-sync notice). Shared so every status banner
-/// looks and behaves the same (Law of Similarity) and reads as a persistent
-/// state, distinct from the transient snackbars.
+/// offline notice or a pending-sync notice): a persistent state, unlike the
+/// transient snackbars.
 class StatusBanner extends StatelessWidget {
   const StatusBanner({
     super.key,

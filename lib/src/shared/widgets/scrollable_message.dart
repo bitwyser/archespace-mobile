@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// A consistent empty / error state: an icon, a plain-language title, an
-/// optional detail line, and an optional primary action (e.g. Retry or a
-/// create button). Scrolls like [ScrollableMessage] so it works inside a
-/// `RefreshIndicator`. Reused across screens so every empty/error state looks
-/// and behaves the same (Law of Similarity), always gives the user a clear
-/// next step (Peak-End), and never dead-ends on a raw error dump (Postel).
+/// The empty / error state used across screens: an icon, a plain-language
+/// title, an optional detail line, and an optional action (e.g. Retry). It
+/// scrolls, so it works inside a `RefreshIndicator`.
 class StateMessage extends StatelessWidget {
   const StateMessage({
     super.key,

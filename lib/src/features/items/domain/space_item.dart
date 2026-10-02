@@ -23,8 +23,8 @@ class SpaceItem {
   /// In the Starred view. A quick-access flag only: it never affects order.
   final bool starred;
 
-  /// Locked: the title and tags show, but the content needs the vault PIN
-  /// (see ItemLock). A flag only; the content is encrypted as always.
+  /// Protected: the title and tags show, but the content needs the vault PIN
+  /// (see ContentLock). A flag only; the content is encrypted as always.
   final bool locked;
 
   /// The item's space, or null for a dashboard item. Always read from the row,

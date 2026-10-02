@@ -254,7 +254,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: ListView(
           padding: const EdgeInsets.only(bottom: 8),
           children: [
-            // ── Account ──
+            // Account
             const _SectionTitle(
               'Account',
               'Your email, login password and sign-in security.',
@@ -340,7 +340,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
 
-            // ── Vault ──
+            // Vault
             const _SectionTitle(
               'Vault',
               'Your vault PIN encrypts everything you store. It is separate '
@@ -437,11 +437,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
 
-            // ── Appearance ──
+            // Appearance
             const _SectionTitle('Appearance', 'Theme and accent colour.'),
             const _AppearanceGroup(),
 
-            // ── Backup ──
+            // Backup
             const _SectionTitle(
               'Backup',
               'Download a copy of your data, or restore one.',
@@ -470,7 +470,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
 
-            // ── About ──
+            // About
             const _SectionTitle('About', null),
             _SettingGroup(
               children: [
@@ -505,8 +505,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 }
 
 /// Shows the app version, which links to the exact source commit this build
-/// was compiled from on GitHub, so anyone can verify the running binary against
-/// the audited, open-source code.
+/// was compiled from on GitHub, so anyone can check the running app against
+/// the open-source code.
 class _BuildFooter extends StatefulWidget {
   const _BuildFooter();
 

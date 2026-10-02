@@ -11,9 +11,8 @@ import 'package:archespace_mobile/src/shared/widgets/brand_wordmark.dart';
 import 'package:archespace_mobile/src/shared/widgets/confirm_dialog.dart';
 
 /// The app's navigation drawer: the brand mark plus a theme "shuffle" at the
-/// top, the primary destinations (Spaces, Archive, Recycle bin) with their
-/// counts, and the session actions (Lock, Sign out, Settings) pinned to the
-/// bottom.
+/// top, the destinations (Spaces, Starred, Archive, Recycle bin) with their
+/// counts, and the session actions (Lock, Sign out, Settings) at the bottom.
 class AppDrawer extends StatefulWidget {
   const AppDrawer({
     super.key,

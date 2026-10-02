@@ -18,7 +18,7 @@ class StoredEntry {
 }
 
 /// Lists and manages archived / soft-deleted spaces and items. Transitions:
-/// active → archived (archived_at), active → bin (deleted_at); restore clears
+/// active -> archived (archived_at), active -> bin (deleted_at); restore clears
 /// the relevant column; purge hard-deletes.
 class StorageRepository {
   StorageRepository(this._masterKey);
@@ -161,7 +161,7 @@ class StorageRepository {
     await _client.from(_table(e)).delete().eq('id', e.id);
   }
 
-  // ── Bulk operations (multi-select) ──────────────────────────
+  // Bulk operations (multi-select)
 
   /// Split entries into (spaceIds, itemIds) for batched table updates.
   (List<String>, List<String>) _split(Iterable<StoredEntry> entries) => (

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-/// Rich Text item support: parse and serialise the same sanitised HTML subset
-/// the web app stores in `{ html }`, so the two clients interoperate.
+/// The old Rich text format (`{ html }`, before the Tiptap editor): read for
+/// display, plain text and PDF until the item is converted.
 ///
-/// Supported inline formatting (matching the web toolbar and sanitiser):
+/// Supported inline formatting:
 ///   - bold: `b` / `strong`
 ///   - italic: `i` / `em`
 ///   - underline: `u`
@@ -62,7 +62,7 @@ double? fontSizeForLevel(int level) {
   }
 }
 
-// ── HTML -> spans ─────────────────────────────────────────────
+// HTML -> spans
 
 class _Frame {
   _Frame({
@@ -227,84 +227,9 @@ String _decodeEntities(String s) {
       .replaceAll('&amp;', '&');
 }
 
-// ── spans -> HTML ─────────────────────────────────────────────
-
-String _escape(String s) => s
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-
-/// Serialise runs to the sanitised HTML subset the web app reads.
-String richSpansToHtml(List<RichSpan> spans) {
-  final out = StringBuffer();
-  for (final span in spans) {
-    if (span.text.isEmpty) continue;
-    // Escape, then turn newlines into <br>.
-    final parts = span.text.split('\n');
-    for (var i = 0; i < parts.length; i++) {
-      if (i > 0) out.write('<br>');
-      final text = parts[i];
-      if (text.isEmpty) continue;
-      var open = '';
-      var close = '';
-      if (span.size != kDefaultFontLevel) {
-        open += '<font size="${span.size}">';
-        close = '</font>$close';
-      }
-      if (span.bold) {
-        open += '<b>';
-        close = '</b>$close';
-      }
-      if (span.italic) {
-        open += '<i>';
-        close = '</i>$close';
-      }
-      if (span.underline) {
-        open += '<u>';
-        close = '</u>$close';
-      }
-      out.write('$open${_escape(text)}$close');
-    }
-  }
-  return out.toString();
-}
-
 /// Flatten Rich Text HTML to plain text (for search, clipboard, PDF).
 String richHtmlToPlainText(String? html) =>
     parseRichHtml(html).map((s) => s.text).join().trim();
-
-// ── spans <-> (text, attrs) for the editing controller ────────
-
-/// Per-character formatting used by the editing controller.
-class CharAttr {
-  const CharAttr({
-    this.bold = false,
-    this.italic = false,
-    this.underline = false,
-    this.size = kDefaultFontLevel,
-  });
-
-  final bool bold;
-  final bool italic;
-  final bool underline;
-  final int size;
-
-  CharAttr copyWith({bool? bold, bool? italic, bool? underline, int? size}) =>
-      CharAttr(
-        bold: bold ?? this.bold,
-        italic: italic ?? this.italic,
-        underline: underline ?? this.underline,
-        size: size ?? this.size,
-      );
-
-  bool same(CharAttr o) =>
-      bold == o.bold &&
-      italic == o.italic &&
-      underline == o.underline &&
-      size == o.size;
-}
 
 /// Build a Flutter [TextSpan] tree from runs, over an optional [base] style.
 TextSpan richSpansToTextSpan(List<RichSpan> spans, {TextStyle? base}) {
