@@ -546,9 +546,10 @@ class _SpacesScreenState extends State<SpacesScreen>
           ? null
           : AppDrawer(
               refreshToken: _drawerOpens,
-              spacesCount: (_spaces ?? const <Space>[])
+              spaces: (_spaces ?? const <Space>[])
                   .where((s) => s.parentId == null)
-                  .length,
+                  .toList(),
+              onOpenSpace: _openSpace,
             ),
       appBar: _selectMode
           ? AppBar(
@@ -1025,22 +1026,24 @@ class _SpacesScreenState extends State<SpacesScreen>
     );
   }
 
+  // Reload on return: items may have moved between the space and here.
+  void _openSpace(Space space) => Navigator.of(context)
+      .push(
+        MaterialPageRoute<void>(
+          builder: (_) => SpaceDetailScreen(space: space),
+        ),
+      )
+      .then((_) {
+        if (mounted) _load();
+      });
+
   Widget _spaceCard(Space space, {EdgeInsetsGeometry? margin}) => SpaceCard(
     space: space,
     margin: margin,
     selectMode: _selectMode,
     selected: _selected.contains(space.id),
     onSelectToggle: () => _toggleSelect(space.id),
-    // Reload on return: items may have moved between the space and here.
-    onTap: () => Navigator.of(context)
-        .push(
-          MaterialPageRoute<void>(
-            builder: (_) => SpaceDetailScreen(space: space),
-          ),
-        )
-        .then((_) {
-          if (mounted) _load();
-        }),
+    onTap: () => _openSpace(space),
     onTogglePin: () => _togglePinSpace(space),
     onToggleStar: () => _toggleStarSpace(space),
     onToggleReadOnly: () => _toggleReadOnlySpace(space),
