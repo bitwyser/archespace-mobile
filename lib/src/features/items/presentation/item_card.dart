@@ -14,7 +14,6 @@ import 'package:archespace_mobile/src/features/items/domain/draw.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_clipboard.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/features/items/domain/rich_text_html.dart';
-import 'package:archespace_mobile/src/features/items/domain/totp.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
 import 'package:archespace_mobile/src/features/vault/application/content_lock.dart';
 import 'package:archespace_mobile/src/features/vault/presentation/widgets/vault_pin_prompt.dart';
@@ -775,14 +774,6 @@ class _ItemBody extends StatelessWidget {
           strokes: (c['strokes'] as List?) ?? const [],
           orientation: c['orientation'],
         );
-      case 'authenticator':
-        final entries = ((c['entries'] as List?) ?? const [])
-            .whereType<Map>()
-            .map((e) => e.cast<String, dynamic>())
-            .toList();
-        return entries.isEmpty
-            ? const _Empty()
-            : _AuthenticatorPreview(entries: entries);
       default:
         return Text('Unsupported item type: ${item.type}');
     }
@@ -1177,123 +1168,4 @@ Color _parseColor(Object? hex, Color fallback) {
     if (value != null) return Color(0xFF000000 | value);
   }
   return fallback;
-}
-
-/// Read-only preview of an Authenticator item: each account's live TOTP code
-/// with a per-code countdown, refreshed every second.
-class _AuthenticatorPreview extends StatefulWidget {
-  const _AuthenticatorPreview({required this.entries});
-
-  final List<Map<String, dynamic>> entries;
-
-  @override
-  State<_AuthenticatorPreview> createState() => _AuthenticatorPreviewState();
-}
-
-class _AuthenticatorPreviewState extends State<_AuthenticatorPreview> {
-  Timer? _timer;
-  final Map<String, String> _codes = {};
-  int _now = DateTime.now().millisecondsSinceEpoch;
-
-  @override
-  void initState() {
-    super.initState();
-    _refresh();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() => _now = DateTime.now().millisecondsSinceEpoch);
-      _refresh();
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _refresh() async {
-    for (final e in widget.entries) {
-      final code = await generateTotp(
-        (e['secret'] ?? '').toString(),
-        digits: (e['digits'] as num?)?.toInt() ?? 6,
-        period: (e['period'] as num?)?.toInt() ?? 30,
-        algorithm: (e['algorithm'] ?? 'SHA1').toString(),
-      );
-      if (!mounted) return;
-      if (code != null) _codes[(e['id'] ?? '').toString()] = code;
-    }
-    if (mounted) setState(() {});
-  }
-
-  String _formatCode(String code) {
-    if (code.length == 6) return '${code.substring(0, 3)} ${code.substring(3)}';
-    return code;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [for (final e in widget.entries) _row(context, scheme, e)],
-    );
-  }
-
-  Widget _row(
-    BuildContext context,
-    ColorScheme scheme,
-    Map<String, dynamic> e,
-  ) {
-    final id = (e['id'] ?? '').toString();
-    final issuer = (e['issuer'] ?? '').toString().trim();
-    final label = (e['label'] ?? '').toString().trim();
-    final name = [issuer, label].where((s) => s.isNotEmpty).join(' · ');
-    final period = (e['period'] as num?)?.toInt() ?? 30;
-    final remaining = period - (_now ~/ 1000) % period;
-    final code = _codes[id];
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (name.isNotEmpty)
-                  Text(
-                    name,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                Text(
-                  code == null ? '••• •••' : _formatCode(code),
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 2,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                    color: scheme.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            '${remaining}s',
-            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-          ),
-        ],
-      ),
-    );
-  }
 }

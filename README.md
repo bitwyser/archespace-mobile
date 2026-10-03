@@ -4,7 +4,7 @@
 [![Version](https://img.shields.io/github/v/release/bitwyser/archespace-mobile)](https://github.com/bitwyser/archespace-mobile/releases)
 [![License](https://img.shields.io/github/license/bitwyser/archespace-mobile)](LICENSE)
 
-ArcheSpace is an open source, encrypted workspace for organising everything you're working on. Group your information, knowledge, projects, notes, secrets, code, checklists, and ideas into spaces, and fill each space with the content type that fits: plain notes, rich text documents, checklists and lists, tables, code snippets, drawings, and even two-factor (TOTP) codes. Anything sensitive can be protected so it only opens with your vault PIN. Everything is taggable, searchable, and kept in one place across your devices.
+ArcheSpace is an open source, encrypted workspace for organising everything you're working on. Group your information, knowledge, projects, notes, secrets, code, checklists, and ideas into spaces, and fill each space with the content type that fits: plain notes, rich text documents, checklists and lists, tables, code snippets, and drawings. Anything sensitive can be protected so it only opens with your vault PIN. Everything is taggable, searchable, and kept in one place across your devices.
 
 Privacy is built in, not bolted on. It follows a zero-knowledge architecture: your content is encrypted on-device and the backend only ever stores ciphertext, so the server, its operators, and the developers never see your data in readable form.
 
@@ -29,7 +29,7 @@ This is the Android and iOS app, built with Flutter. It talks to the **same Supa
 ## Features
 
 - **Spaces** for separating projects and ideas, with one level of nesting (sub-spaces), tags, a space colour, pinning, and drag-and-drop reordering.
-- **Many item types** for different kinds of content, from notes and rich text documents to a built-in authenticator (see [Item types](#item-types)).
+- **Many item types** for different kinds of content, from notes and checklists to rich text documents, tables, drawings and code (see [Item types](#item-types)).
 - **Protect** any item or space so its content only opens with your vault PIN (or fingerprint / face when biometric unlock is on); its name stays visible (see [Security model](#security-model)).
 - **Read-only spaces**: lock a space against edits (enforced by the database) while still viewing, copying, and exporting it.
 - **Starred** view for quick access to the spaces and items you use most, wherever they live.
@@ -63,7 +63,6 @@ This is the Android and iOS app, built with Flutter. It talks to the **same Supa
 | Table | Rows and columns of text with a header row. Copies as tab-separated values that paste straight into a spreadsheet. |
 | Drawing | Freehand vector sketch or diagram. |
 | Code | A code snippet in a monospace block with automatic syntax highlighting (language auto-detected). Copies as plain text. |
-| Authenticator | On-device TOTP codes with live countdowns; the secrets are encrypted in your vault. |
 
 Older item types are converted automatically: Markdown notes open as Rich text (and are saved that way on the next edit), and Secrets become Notes after unlock (protect them to keep them behind your PIN).
 
