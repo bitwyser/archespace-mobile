@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// The app-open landing screen: the app icon, the name and a one-line value
-/// prop, with a single clear "Get started" action that continues to the
-/// sign-in / create-account screen.
+/// The app-open landing screen: the name and a one-line value prop, with a
+/// single clear "Get started" action that continues to the sign-in /
+/// create-account screen.
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key, required this.onContinue});
 
@@ -22,16 +22,6 @@ class SplashScreen extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: Image.asset(
-                      'assets/icon/app_icon.png',
-                      width: 76,
-                      height: 76,
-                      semanticLabel: 'ArcheSpace',
-                    ),
-                  ),
-                  const SizedBox(height: 24),
                   Text(
                     'ArcheSpace',
                     style: theme.textTheme.headlineSmall?.copyWith(
