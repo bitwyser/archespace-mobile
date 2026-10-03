@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:archespace_mobile/src/features/vault/domain/recovery_code.dart';
@@ -82,7 +83,28 @@ class VaultService {
     if (meta == null) {
       throw VaultException('No vault PIN is configured for this account.');
     }
-    return _unlockWithPin(meta, pin);
+    final masterKey = await _unlockWithPin(meta, pin);
+    await _upgradeLegacyPinSalt(userId, pin, masterKey, meta);
+    return masterKey;
+  }
+
+  /// A vault made before Argon2id (PBKDF2 salt) is re-wrapped with Argon2id
+  /// the first time its PIN opens it. Only the wrapped key changes, so the
+  /// content is untouched. Best effort: if it can't be saved now (offline),
+  /// the next unlock tries again.
+  Future<void> _upgradeLegacyPinSalt(
+    String userId,
+    String pin,
+    Uint8List masterKey,
+    Map<String, dynamic> meta,
+  ) async {
+    final salt = meta['salt'];
+    if (salt is! String || !ArcheCrypto.isLegacySaltDescriptor(salt)) return;
+    try {
+      await _persistPinWrapped(userId, pin, masterKey);
+    } catch (e) {
+      debugPrint('Could not move the vault to Argon2id yet: $e');
+    }
   }
 
   /// The vault's PIN-wrapped key, for an encrypted backup to carry: the same

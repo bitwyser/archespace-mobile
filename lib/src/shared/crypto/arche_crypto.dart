@@ -23,6 +23,13 @@ class ArcheCrypto {
   static const _argonIterations = 2;
   static const _argonParallelism = 1;
 
+  // PBKDF2-SHA-256 iterations that pre-Argon2id vaults were made with.
+  static const _legacyPbkdf2Iterations = 310000;
+
+  /// Whether a stored salt predates Argon2id (a plain base64 PBKDF2 salt).
+  static bool isLegacySaltDescriptor(String descriptor) =>
+      !descriptor.startsWith('argon2id\$');
+
   /// Generate a fresh random 32-byte AES-256 master key. Equivalent to the
   /// web's `crypto.subtle.generateKey` + raw export.
   static Uint8List randomAesKey() {
@@ -42,13 +49,27 @@ class ArcheCrypto {
   }
 
   /// Derive the 32-byte AES key from a vault secret using the Argon2id
-  /// parameters in [descriptor] (`argon2id$m$t$p$saltB64`).
+  /// parameters in [descriptor] (`argon2id$m$t$p$saltB64`). A vault made
+  /// before Argon2id stores a plain base64 salt for PBKDF2; it still opens,
+  /// and unlock moves it to Argon2id (see VaultService).
   static Future<Uint8List> deriveVaultKey(
     String secret,
     String descriptor,
   ) async {
+    if (isLegacySaltDescriptor(descriptor)) {
+      final pbkdf2 = Pbkdf2(
+        macAlgorithm: Hmac.sha256(),
+        iterations: _legacyPbkdf2Iterations,
+        bits: 256,
+      );
+      final key = await pbkdf2.deriveKey(
+        secretKey: SecretKey(utf8.encode(secret)),
+        nonce: base64.decode(descriptor),
+      );
+      return Uint8List.fromList(await key.extractBytes());
+    }
     final parts = descriptor.split('\$'); // [argon2id, m, t, p, saltB64]
-    if (parts.length != 5 || parts[0] != 'argon2id') {
+    if (parts.length != 5) {
       throw const FormatException('Unsupported vault key format.');
     }
     final algorithm = Argon2id(
