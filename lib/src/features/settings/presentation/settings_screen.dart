@@ -7,6 +7,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:archespace_mobile/src/features/spaces/presentation/widgets/app_drawer.dart';
 import 'package:archespace_mobile/src/shared/config/build_info.dart';
 import 'package:archespace_mobile/src/shared/config/legal.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
@@ -248,7 +249,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final email = _auth.currentUser?.email;
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      drawer: const AppDrawer(current: DrawerPage.settings),
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
+      // Keep Back; the drawer opens with a slide from the left.
+      appBar: AppBar(
+        leading: const BackButton(),
+        title: const Text('Settings'),
+      ),
       body: SafeArea(
         top: false,
         child: ListView(

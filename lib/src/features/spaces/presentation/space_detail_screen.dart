@@ -10,6 +10,7 @@ import 'package:archespace_mobile/src/features/spaces/data/space_repository.dart
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_editor_screen.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_lock_actions.dart';
+import 'package:archespace_mobile/src/features/spaces/presentation/widgets/app_drawer.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/widgets/space_card.dart';
 import 'package:archespace_mobile/src/features/storage/application/storage_counts.dart';
 import 'package:archespace_mobile/src/features/vault/application/content_lock.dart';
@@ -548,9 +549,17 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    final drawer = AppDrawer(
+      current: DrawerPage.space,
+      spaceId: widget.space.id,
+    );
     if (_hidden) {
       return Scaffold(
+        drawer: drawer,
+        drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
         appBar: AppBar(
+          // Keep Back; the drawer opens with a slide from the left.
+          leading: const BackButton(),
           titleSpacing: 0,
           title: Text(
             widget.space.name.isEmpty ? 'Untitled' : widget.space.name,
@@ -564,6 +573,8 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
     }
     final hasItems = (_items ?? const <SpaceItem>[]).isNotEmpty;
     return Scaffold(
+      drawer: _selectMode ? null : drawer,
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
       appBar: _selectMode
           ? AppBar(
               leading: IconButton(
@@ -581,6 +592,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen>
               ],
             )
           : AppBar(
+              leading: const BackButton(),
               titleSpacing: 0,
               title: Text(
                 widget.space.name.isEmpty ? 'Untitled' : widget.space.name,

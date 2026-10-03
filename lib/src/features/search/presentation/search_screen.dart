@@ -4,6 +4,7 @@ import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/features/search/data/search_repository.dart';
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_detail_screen.dart';
+import 'package:archespace_mobile/src/features/spaces/presentation/widgets/app_drawer.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/shared/widgets/scrollable_message.dart';
 
@@ -70,7 +71,11 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const AppDrawer(current: DrawerPage.other),
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
       appBar: AppBar(
+        // Keep Back; the drawer opens with a slide from the left.
+        leading: const BackButton(),
         title: TextField(
           controller: _controller,
           autofocus: true,

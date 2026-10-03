@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:archespace_mobile/src/features/spaces/application/drawer_spaces.dart';
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/spaces/domain/space_colors.dart';
+import 'package:archespace_mobile/src/features/spaces/presentation/space_detail_screen.dart';
 import 'package:archespace_mobile/src/features/settings/application/appearance_controller.dart';
 import 'package:archespace_mobile/src/features/settings/presentation/settings_screen.dart';
 import 'package:archespace_mobile/src/features/storage/application/storage_counts.dart';
@@ -12,27 +14,30 @@ import 'package:archespace_mobile/src/features/vault/application/vault_session.d
 
 const _spacesOpenKey = 'drawer_spaces_open';
 
+/// The drawer's destinations, to mark the screen it was opened on.
+enum DrawerPage { dashboard, space, starred, archive, bin, settings, other }
+
 /// The app's navigation drawer: a theme "shuffle" at the top, All spaces and
 /// the top-level spaces (folding under their heading), the library (Starred,
 /// Archive, Recycle bin) with counts, and Lock vault and Settings at the
 /// bottom. Sign out lives in Settings.
+///
+/// Every main screen has it, opened by sliding from the left edge (the
+/// dashboard also has a menu button). Its destinations go back to the
+/// dashboard first, so screens don't pile up.
 class AppDrawer extends StatefulWidget {
-  const AppDrawer({
-    super.key,
-    required this.spaces,
-    required this.onOpenSpace,
-    this.refreshToken = 0,
-  });
+  const AppDrawer({super.key, required this.current, this.spaceId});
 
-  /// The top-level spaces, in the home screen's order.
-  final List<Space> spaces;
+  /// The screen it was opened on, shown as selected.
+  final DrawerPage current;
 
-  /// Opens a space (called after the drawer closes).
-  final ValueChanged<Space> onOpenSpace;
+  /// The open space, for [DrawerPage.space].
+  final String? spaceId;
 
-  /// Bumped by the host each time the drawer opens; a change re-fetches the
-  /// archive and bin counts so they stay fresh.
-  final int refreshToken;
+  /// How far in from the left edge a slide opens the drawer: past the system
+  /// back-gesture strip, which would otherwise take the whole default area.
+  static double edgeDragWidth(BuildContext context) =>
+      MediaQuery.systemGestureInsetsOf(context).left + 32;
 
   @override
   State<AppDrawer> createState() => _AppDrawerState();
@@ -47,21 +52,15 @@ class _AppDrawerState extends State<AppDrawer> {
   @override
   void initState() {
     super.initState();
+    // Built each time the drawer opens: refresh the spaces and counts.
+    DrawerSpaces.instance.refresh();
+    StorageCounts.instance.refresh();
     if (_spacesOpenCache == null) {
       SharedPreferences.getInstance().then((prefs) {
         final open = prefs.getBool(_spacesOpenKey) ?? true;
         _spacesOpenCache = open;
         if (mounted) setState(() => _spacesOpen = open);
       });
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant AppDrawer oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // The host bumps refreshToken when the drawer opens - refresh the counts.
-    if (oldWidget.refreshToken != widget.refreshToken) {
-      StorageCounts.instance.refresh();
     }
   }
 
@@ -74,11 +73,43 @@ class _AppDrawerState extends State<AppDrawer> {
     );
   }
 
-  Future<void> _open(BuildContext context, Widget screen) async {
+  bool _isCurrent(DrawerPage page, [String? spaceId]) =>
+      widget.current == page && widget.spaceId == spaceId;
+
+  /// Close the drawer and, unless it's [here] already, go back to the
+  /// dashboard and [then] open the destination from there.
+  void _go(
+    BuildContext context, {
+    required bool here,
+    void Function(NavigatorState navigator)? then,
+  }) {
     final navigator = Navigator.of(context);
     navigator.pop(); // close the drawer
-    await navigator.push(MaterialPageRoute<void>(builder: (_) => screen));
+    if (here) return;
+    navigator.popUntil((route) => route.isFirst);
+    then?.call(navigator);
   }
+
+  void _open(BuildContext context, DrawerPage page, Widget screen) => _go(
+    context,
+    here: _isCurrent(page),
+    then: (navigator) =>
+        navigator.push(MaterialPageRoute<void>(builder: (_) => screen)),
+  );
+
+  void _openSpace(BuildContext context, Space space) => _go(
+    context,
+    here: _isCurrent(DrawerPage.space, space.id),
+    then: (navigator) {
+      final open = DrawerSpaces.instance.onOpenSpace;
+      if (open != null) return open(space);
+      navigator.push(
+        MaterialPageRoute<void>(
+          builder: (_) => SpaceDetailScreen(space: space),
+        ),
+      );
+    },
+  );
 
   void _lock(BuildContext context) {
     VaultSession.instance.lock();
@@ -105,87 +136,10 @@ class _AppDrawerState extends State<AppDrawer> {
               ),
             ),
             Expanded(
-              child: Column(
-                children: [
-                  _tile(
-                    context,
-                    icon: Icons.grid_view_rounded,
-                    label: 'All spaces',
-                    selected: true,
-                    count: widget.spaces.length,
-                    onTap: () => Navigator.of(context).pop(),
-                  ),
-                  if (widget.spaces.isNotEmpty) ...[
-                    _sectionLabel(
-                      context,
-                      'Spaces',
-                      expanded: _spacesOpen,
-                      onTap: _toggleSpaces,
-                    ),
-                    // Only the space list scrolls; the library below stays.
-                    if (_spacesOpen)
-                      Flexible(
-                        child: ListView(
-                          shrinkWrap: true,
-                          padding: EdgeInsets.zero,
-                          children: [
-                            for (final space in widget.spaces)
-                              _tile(
-                                context,
-                                icon: Icons.folder_outlined,
-                                iconColor: spaceColor(
-                                  space.color,
-                                )?.withValues(alpha: 0.8),
-                                label: space.name.isEmpty
-                                    ? 'Untitled'
-                                    : space.name,
-                                protected: space.locked,
-                                onTap: () {
-                                  Navigator.of(context).pop();
-                                  widget.onOpenSpace(space);
-                                },
-                              ),
-                          ],
-                        ),
-                      ),
-                  ],
-                  _sectionLabel(context, 'Library'),
-                  ListenableBuilder(
-                    listenable: StorageCounts.instance,
-                    builder: (context, _) => Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _tile(
-                          context,
-                          icon: Icons.star_outline_rounded,
-                          label: 'Starred',
-                          count: StorageCounts.instance.starred,
-                          onTap: () => _open(context, const StarredScreen()),
-                        ),
-                        _tile(
-                          context,
-                          icon: Icons.archive_outlined,
-                          label: 'Archive',
-                          count: StorageCounts.instance.archive,
-                          onTap: () => _open(
-                            context,
-                            const StorageScreen(mode: StorageMode.archive),
-                          ),
-                        ),
-                        _tile(
-                          context,
-                          icon: Icons.delete_outline,
-                          label: 'Recycle bin',
-                          count: StorageCounts.instance.bin,
-                          onTap: () => _open(
-                            context,
-                            const StorageScreen(mode: StorageMode.bin),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              child: ListenableBuilder(
+                listenable: DrawerSpaces.instance,
+                builder: (context, _) =>
+                    _destinations(context, DrawerSpaces.instance.spaces),
               ),
             ),
             const SizedBox(height: 12),
@@ -199,12 +153,102 @@ class _AppDrawerState extends State<AppDrawer> {
               context,
               icon: Icons.settings_outlined,
               label: 'Settings',
-              onTap: () => _open(context, const SettingsScreen()),
+              selected: _isCurrent(DrawerPage.settings),
+              onTap: () =>
+                  _open(context, DrawerPage.settings, const SettingsScreen()),
             ),
             const SizedBox(height: 8),
           ],
         ),
       ),
+    );
+  }
+
+  /// All spaces, the folding space list and the library.
+  Widget _destinations(BuildContext context, List<Space> spaces) {
+    return Column(
+      children: [
+        _tile(
+          context,
+          icon: Icons.grid_view_rounded,
+          label: 'All spaces',
+          selected: _isCurrent(DrawerPage.dashboard),
+          count: spaces.length,
+          onTap: () => _go(context, here: _isCurrent(DrawerPage.dashboard)),
+        ),
+        if (spaces.isNotEmpty) ...[
+          _sectionLabel(
+            context,
+            'Spaces',
+            expanded: _spacesOpen,
+            onTap: _toggleSpaces,
+          ),
+          // Only the space list scrolls; the library below stays.
+          if (_spacesOpen)
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                children: [
+                  for (final space in spaces)
+                    _tile(
+                      context,
+                      icon: Icons.folder_outlined,
+                      iconColor: spaceColor(
+                        space.color,
+                      )?.withValues(alpha: 0.8),
+                      label: space.name.isEmpty ? 'Untitled' : space.name,
+                      protected: space.locked,
+                      selected: _isCurrent(DrawerPage.space, space.id),
+                      onTap: () => _openSpace(context, space),
+                    ),
+                ],
+              ),
+            ),
+        ],
+        _sectionLabel(context, 'Library'),
+        ListenableBuilder(
+          listenable: StorageCounts.instance,
+          builder: (context, _) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _tile(
+                context,
+                icon: Icons.star_outline_rounded,
+                label: 'Starred',
+                count: StorageCounts.instance.starred,
+                selected: _isCurrent(DrawerPage.starred),
+                onTap: () =>
+                    _open(context, DrawerPage.starred, const StarredScreen()),
+              ),
+              _tile(
+                context,
+                icon: Icons.archive_outlined,
+                label: 'Archive',
+                count: StorageCounts.instance.archive,
+                selected: _isCurrent(DrawerPage.archive),
+                onTap: () => _open(
+                  context,
+                  DrawerPage.archive,
+                  const StorageScreen(mode: StorageMode.archive),
+                ),
+              ),
+              _tile(
+                context,
+                icon: Icons.delete_outline,
+                label: 'Recycle bin',
+                count: StorageCounts.instance.bin,
+                selected: _isCurrent(DrawerPage.bin),
+                onTap: () => _open(
+                  context,
+                  DrawerPage.bin,
+                  const StorageScreen(mode: StorageMode.bin),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

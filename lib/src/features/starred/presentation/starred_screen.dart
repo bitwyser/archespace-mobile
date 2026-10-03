@@ -11,6 +11,7 @@ import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_detail_screen.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_editor_screen.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_lock_actions.dart';
+import 'package:archespace_mobile/src/features/spaces/presentation/widgets/app_drawer.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/widgets/space_card.dart';
 import 'package:archespace_mobile/src/features/storage/application/storage_counts.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
@@ -209,7 +210,10 @@ class _StarredScreenState extends State<StarredScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Starred')),
+      drawer: const AppDrawer(current: DrawerPage.starred),
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
+      // Keep Back; the drawer opens with a slide from the left.
+      appBar: AppBar(leading: const BackButton(), title: const Text('Starred')),
       body: _spaces == null && _error == null
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(

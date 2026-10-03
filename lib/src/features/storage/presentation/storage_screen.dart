@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/features/items/presentation/widgets/type_badge.dart';
+import 'package:archespace_mobile/src/features/spaces/presentation/widgets/app_drawer.dart';
 import 'package:archespace_mobile/src/features/storage/data/storage_repository.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
@@ -230,6 +231,10 @@ class _StorageScreenState extends State<StorageScreen> {
   Widget build(BuildContext context) {
     final hasEntries = _entries?.isNotEmpty ?? false;
     return Scaffold(
+      drawer: _selectMode
+          ? null
+          : AppDrawer(current: _isBin ? DrawerPage.bin : DrawerPage.archive),
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
       appBar: _selectMode
           ? AppBar(
               leading: IconButton(
@@ -247,6 +252,8 @@ class _StorageScreenState extends State<StorageScreen> {
               ],
             )
           : AppBar(
+              // Keep Back; the drawer opens with a slide from the left.
+              leading: const BackButton(),
               title: Text(_isBin ? 'Recycle bin' : 'Archive'),
               actions: [
                 if (hasEntries)

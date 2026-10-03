@@ -8,6 +8,7 @@ import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
 import 'package:archespace_mobile/src/features/items/presentation/item_actions.dart';
 import 'package:archespace_mobile/src/features/items/presentation/item_card.dart';
 import 'package:archespace_mobile/src/features/search/presentation/search_screen.dart';
+import 'package:archespace_mobile/src/features/spaces/application/drawer_spaces.dart';
 import 'package:archespace_mobile/src/features/spaces/data/space_repository.dart';
 import 'package:archespace_mobile/src/features/spaces/domain/space.dart';
 import 'package:archespace_mobile/src/features/spaces/presentation/space_detail_screen.dart';
@@ -66,8 +67,6 @@ class _SpacesScreenState extends State<SpacesScreen>
   String _sort = kSortDefault;
   String _view = 'list';
   final Set<String> _activeTags = {};
-  // Bumped whenever the drawer opens, so it re-fetches its archive/bin counts.
-  int _drawerOpens = 0;
   // A dashboard item opened from search: scrolled to and briefly highlighted.
   final GlobalKey _focusKey = GlobalKey();
   String? _focusItemId;
@@ -76,6 +75,8 @@ class _SpacesScreenState extends State<SpacesScreen>
   @override
   void initState() {
     super.initState();
+    // The drawer on other screens opens spaces through here.
+    DrawerSpaces.instance.onOpenSpace = _openSpace;
     _load();
     // The Secret type was removed: turn any existing secrets into Notes once
     // per session (only an unlocked device can open them), then refresh.
@@ -140,6 +141,7 @@ class _SpacesScreenState extends State<SpacesScreen>
   void dispose() {
     _watcher?.dispose();
     _itemsWatcher?.dispose();
+    DrawerSpaces.instance.clear();
     super.dispose();
   }
 
@@ -158,6 +160,7 @@ class _SpacesScreenState extends State<SpacesScreen>
         .catchError((Object _) => null);
     try {
       final result = await _spaceRepo.listSpaces();
+      DrawerSpaces.instance.publish(result.spaces);
       final itemsResult = await itemsFuture;
       if (mounted) {
         setState(() {
@@ -539,18 +542,10 @@ class _SpacesScreenState extends State<SpacesScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      onDrawerChanged: (isOpen) {
-        if (isOpen) setState(() => _drawerOpens++);
-      },
       drawer: _selectMode
           ? null
-          : AppDrawer(
-              refreshToken: _drawerOpens,
-              spaces: (_spaces ?? const <Space>[])
-                  .where((s) => s.parentId == null)
-                  .toList(),
-              onOpenSpace: _openSpace,
-            ),
+          : const AppDrawer(current: DrawerPage.dashboard),
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
       appBar: _selectMode
           ? AppBar(
               leading: IconButton(
