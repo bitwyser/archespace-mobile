@@ -4,7 +4,7 @@
 [![Version](https://img.shields.io/github/v/release/bitwyser/archespace-mobile)](https://github.com/bitwyser/archespace-mobile/releases)
 [![License](https://img.shields.io/github/license/bitwyser/archespace-mobile)](LICENSE)
 
-ArcheSpace is an open source, encrypted workspace for organising everything you're working on. Group your information, knowledge, projects, notes, secrets, code, checklists, and ideas into spaces, and fill each space with the content type that fits: plain notes, rich text documents, checklists and lists, tables, code snippets, and drawings. Anything sensitive can be protected so it only opens with your vault PIN. Everything is taggable, searchable, and kept in one place across your devices.
+ArcheSpace is an open-source, encrypted space for capturing and organising your information, notes, projects, secrets, code, checklists and ideas. Group them into spaces, and fill each space with the content type that fits: plain notes, rich text documents, lists and checklists, tables, code snippets and drawings. Anything sensitive can be protected so it only opens with your vault PIN. Everything is taggable, searchable and kept in one place, synced across your devices.
 
 Privacy is built in, not bolted on. It follows a zero-knowledge architecture: your content is encrypted on-device and the backend only ever stores ciphertext, so the server, its operators, and the developers never see your data in readable form.
 
