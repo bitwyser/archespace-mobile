@@ -38,8 +38,6 @@ dependencies:
   url_launcher: ^6.3.2
   # QR code for two-factor auth (TOTP) enrolment.
   qr_flutter: ^4.1.0
-  # Render the ArcheSpace logo (SVG) in the login screen and app bar.
-  flutter_svg: ^2.0.10
 
 dev_dependencies:
   flutter_test:
@@ -62,6 +60,8 @@ flutter:
   assets:
     # Built from the web repo: `npm run build:mobile-editor`.
     - assets/rich_text_editor.html
+    # The app icon, shown on the splash screen.
+    - assets/icon/app_icon.png
     - assets/fonts/DejaVuSans.ttf
     - assets/fonts/DejaVuSans-Bold.ttf
     - assets/fonts/DejaVuSansMono.ttf

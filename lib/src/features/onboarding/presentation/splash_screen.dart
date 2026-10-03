@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:archespace_mobile/src/shared/widgets/brand_glyph.dart';
-
-/// The app-open landing screen: the brand mark, name, and a one-line value
+/// The app-open landing screen: the app icon, the name and a one-line value
 /// prop, with a single clear "Get started" action that continues to the
 /// sign-in / create-account screen.
 class SplashScreen extends StatelessWidget {
@@ -24,7 +22,15 @@ class SplashScreen extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const BrandGlyph(size: 76, framed: true),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Image.asset(
+                      'assets/icon/app_icon.png',
+                      width: 76,
+                      height: 76,
+                      semanticLabel: 'ArcheSpace',
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   Text(
                     'ArcheSpace',
@@ -35,7 +41,7 @@ class SplashScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Every shape a thought takes, in one encrypted space.',
+                    'Everything in One Encrypted Space',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: scheme.onSurfaceVariant,

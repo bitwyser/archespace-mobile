@@ -9,14 +9,13 @@ import 'package:archespace_mobile/src/features/storage/application/storage_count
 import 'package:archespace_mobile/src/features/storage/presentation/storage_screen.dart';
 import 'package:archespace_mobile/src/features/starred/presentation/starred_screen.dart';
 import 'package:archespace_mobile/src/features/vault/application/vault_session.dart';
-import 'package:archespace_mobile/src/shared/widgets/brand_wordmark.dart';
 
 const _spacesOpenKey = 'drawer_spaces_open';
 
-/// The app's navigation drawer: the brand mark plus a theme "shuffle" at the
-/// top, All spaces and the top-level spaces (folding under their heading),
-/// the library (Starred, Archive, Recycle bin) with counts, and Lock vault
-/// and Settings at the bottom. Sign out lives in Settings.
+/// The app's navigation drawer: a theme "shuffle" at the top, All spaces and
+/// the top-level spaces (folding under their heading), the library (Starred,
+/// Archive, Recycle bin) with counts, and Lock vault and Settings at the
+/// bottom. Sign out lives in Settings.
 class AppDrawer extends StatefulWidget {
   const AppDrawer({
     super.key,
@@ -92,33 +91,18 @@ class _AppDrawerState extends State<AppDrawer> {
       child: SafeArea(
         child: Column(
           children: [
-            ListenableBuilder(
-              listenable: AppearanceController.instance,
-              builder: (context, _) {
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: BrandWordmark(height: 21),
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.palette_outlined),
-                        tooltip: 'Shuffle accent and theme',
-                        onPressed: () => AppearanceController.instance
-                            .randomize(Theme.of(context).brightness),
-                      ),
-                    ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  icon: const Icon(Icons.palette_outlined),
+                  tooltip: 'Shuffle accent and theme',
+                  onPressed: () => AppearanceController.instance.randomize(
+                    Theme.of(context).brightness,
                   ),
-                );
-              },
+                ),
+              ),
             ),
             Expanded(
               child: Column(

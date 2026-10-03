@@ -11,7 +11,6 @@ import 'package:archespace_mobile/src/features/items/domain/rich_doc.dart';
 import 'package:archespace_mobile/src/features/items/domain/rich_text_html.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
 import 'package:archespace_mobile/src/features/vault/application/content_lock.dart';
-import 'package:archespace_mobile/src/shared/brand/brand_paths.dart';
 
 /// Builds a PDF for a whole space or a single item, per item type. Mirrors the
 /// web PDF export's content structure.
@@ -22,13 +21,12 @@ class PdfExporter {
     String name,
     List<SpaceItem> items,
   ) async {
-    final logo = _logoSvg();
     final stamp = _timestamp();
     final theme = await _theme();
     final doc = pw.Document(theme: theme);
     doc.addPage(
       pw.MultiPage(
-        header: (context) => _pageHeader(logo, stamp),
+        header: (context) => _pageHeader(stamp),
         footer: (context) => _pageFooter(context),
         build: (context) => [
           // The space name once, at the start of the document (not per page).
@@ -46,13 +44,12 @@ class PdfExporter {
   }
 
   static Future<Uint8List> buildItem(SpaceItem item) async {
-    final logo = _logoSvg();
     final stamp = _timestamp();
     final theme = await _theme();
     final doc = pw.Document(theme: theme);
     doc.addPage(
       pw.MultiPage(
-        header: (context) => _pageHeader(logo, stamp),
+        header: (context) => _pageHeader(stamp),
         footer: (context) => _pageFooter(context),
         build: (context) => _section(item),
       ),
@@ -79,14 +76,6 @@ class PdfExporter {
     );
   }
 
-  /// The ArcheSpace wordmark for the page corner: "Arche" in the mint accent,
-  /// "Space" inked dark so it reads on the white PDF page.
-  static String _logoSvg() =>
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="$kBrandWordmarkViewBox">'
-      '<path d="$kBrandArchePath" fill="#32d3aa" fill-rule="evenodd"/>'
-      '<path d="$kBrandSpacePath" fill="#0f1115" fill-rule="evenodd"/>'
-      '</svg>';
-
   /// The export time, e.g. "9/19/26, 8:36 PM".
   static String _timestamp() {
     final n = DateTime.now();
@@ -102,25 +91,24 @@ class PdfExporter {
     color: PdfColors.grey600,
   );
 
-  /// Every page's header: export time top-left, logo top-right.
-  static pw.Widget _pageHeader(String logoSvg, String stamp) => pw.Container(
+  /// Every page's header: export time top-left, the site URL top-right.
+  static pw.Widget _pageHeader(String stamp) => pw.Container(
     margin: const pw.EdgeInsets.only(bottom: 12),
     child: pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.center,
       children: [
         pw.Text(stamp, style: _chromeStyle),
         pw.Spacer(),
-        pw.SizedBox(width: 100, height: 15, child: pw.SvgImage(svg: logoSvg)),
+        pw.Text('https://archespace.app/', style: _chromeStyle),
       ],
     ),
   );
 
-  /// Every page's footer: site URL bottom-left, page number bottom-right.
+  /// Every page's footer: the page number bottom-right.
   static pw.Widget _pageFooter(pw.Context context) => pw.Container(
     margin: const pw.EdgeInsets.only(top: 8),
     child: pw.Row(
       children: [
-        pw.Text('https://archespace.app/', style: _chromeStyle),
         pw.Spacer(),
         pw.Text(
           '${context.pageNumber}/${context.pagesCount}',

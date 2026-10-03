@@ -9,7 +9,6 @@ import 'package:archespace_mobile/src/features/auth/domain/email.dart';
 import 'package:archespace_mobile/src/features/auth/domain/password_policy.dart';
 import 'package:archespace_mobile/src/shared/config/app_config.dart';
 import 'package:archespace_mobile/src/shared/config/legal.dart';
-import 'package:archespace_mobile/src/shared/widgets/brand_glyph.dart';
 
 enum _Mode { signIn, signUp }
 
@@ -298,8 +297,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Center(child: BrandGlyph(size: 64, framed: true)),
-                    const SizedBox(height: 44),
                     Center(
                       child: Text(
                         _isSignUp
