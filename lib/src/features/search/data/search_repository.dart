@@ -144,7 +144,7 @@ class SearchRepository {
   }
 }
 
-/// Type-specific searchable text (title + content). Drawings add nothing
+/// Type-specific searchable text (title + content). Whiteboards add nothing
 /// beyond the title.
 String _itemText(String type, String title, Map<String, dynamic> content) {
   final parts = <String>[title];

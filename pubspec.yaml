@@ -60,6 +60,7 @@ flutter:
   assets:
     # Built from the web repo: `npm run build:mobile-editor`.
     - assets/rich_text_editor.html
+    - assets/whiteboard_editor.html
     # The app icon, shown on the splash screen.
     - assets/icon/app_icon.png
     - assets/fonts/DejaVuSans.ttf

@@ -131,7 +131,8 @@ class BackupRepository {
         skipped++;
         continue;
       }
-      final type = it['type'];
+      // Backups made before the Whiteboard was renamed call it 'draw'.
+      final type = it['type'] == 'draw' ? 'whiteboard' : it['type'];
       final content = it['content'];
       if (type is! String || !knownTypes.contains(type)) {
         skipped++;

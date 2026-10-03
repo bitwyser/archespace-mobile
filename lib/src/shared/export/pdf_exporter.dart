@@ -1,15 +1,13 @@
-import 'dart:math';
 import 'dart:typed_data';
-import 'dart:ui';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import 'package:archespace_mobile/src/features/items/domain/draw.dart';
 import 'package:archespace_mobile/src/features/items/domain/rich_doc.dart';
 import 'package:archespace_mobile/src/features/items/domain/rich_text_html.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
+import 'package:archespace_mobile/src/features/items/domain/whiteboard.dart';
 import 'package:archespace_mobile/src/features/vault/application/content_lock.dart';
 
 /// Builds a PDF for a whole space or a single item, per item type. Mirrors the
@@ -184,8 +182,8 @@ class PdfExporter {
         return _cards(c);
       case 'table':
         return [_table(c)];
-      case 'draw':
-        return [_drawing(c)];
+      case 'whiteboard':
+        return [_whiteboard(c)];
       default:
         return const [];
     }
@@ -458,46 +456,17 @@ class PdfExporter {
     );
   }
 
-  static pw.Widget _drawing(Map<String, dynamic> c) {
-    final strokes = c['strokes'] as List? ?? const [];
-    if (strokes.isEmpty) return pw.Text('(empty drawing)');
-    final logical = drawLogicalSize(c['orientation']);
-    final scale = 360 / max(logical.width, logical.height);
-    return pw.SizedBox(
-      width: logical.width * scale,
-      height: logical.height * scale,
-      child: pw.SvgImage(svg: _drawSvg(strokes, logical)),
-    );
-  }
-
-  static String _drawSvg(List<dynamic> strokes, Size logical) {
-    final w = logical.width.toInt();
-    final h = logical.height.toInt();
-    final buffer = StringBuffer(
-      '<svg viewBox="0 0 $w $h" xmlns="http://www.w3.org/2000/svg">'
-      '<rect width="$w" height="$h" fill="white"/>',
-    );
-    for (final s in strokes) {
-      if (s is! Map) continue;
-      final pts = s['points'] as List? ?? const [];
-      if (pts.isEmpty) continue;
-      final color = (s['color'] ?? '#1e293b').toString();
-      final size = (s['size'] as num?)?.toDouble() ?? 8;
-      final d = StringBuffer();
-      var started = false;
-      for (final p in pts) {
-        if (p is! List || p.length < 2) continue;
-        final x = (p[0] as num).toDouble();
-        final y = (p[1] as num).toDouble();
-        d.write(started ? ' L $x $y' : 'M $x $y');
-        started = true;
-      }
-      buffer.write(
-        '<path d="$d" stroke="$color" stroke-width="$size" '
-        'fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
-      );
+  /// The preview saved with the board; an old drawing gets one when it first
+  /// opens in the app.
+  static pw.Widget _whiteboard(Map<String, dynamic> c) {
+    if (!hasBoardContent(c)) return pw.Text('(empty)');
+    final bytes = boardPreviewBytes(c);
+    if (bytes == null) {
+      return pw.Text('Open this whiteboard in the app to include it.');
     }
-    buffer.write('</svg>');
-    return buffer.toString();
+    return pw.ConstrainedBox(
+      constraints: const pw.BoxConstraints(maxHeight: 360),
+      child: pw.Image(pw.MemoryImage(bytes), fit: pw.BoxFit.contain),
+    );
   }
 }

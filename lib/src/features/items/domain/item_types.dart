@@ -109,10 +109,10 @@ const List<ItemTypeDef> kItemTypes = [
     color: Color(0xFF38BDF8), // sky
   ),
   ItemTypeDef(
-    type: 'draw',
-    label: 'Drawing',
-    description: 'Freehand sketch',
-    icon: Icons.brush_outlined,
+    type: 'whiteboard',
+    label: 'Whiteboard',
+    description: 'Shapes, arrows, text and sketches',
+    icon: Icons.category_outlined,
     color: Color(0xFFE879F9), // fuchsia
   ),
   ItemTypeDef(
@@ -161,8 +161,8 @@ Map<String, dynamic> defaultContentFor(String type) {
           ['', ''],
         ],
       };
-    case 'draw':
-      return {'strokes': <dynamic>[]};
+    case 'whiteboard':
+      return {'elements': <dynamic>[]};
     default:
       return <String, dynamic>{};
   }

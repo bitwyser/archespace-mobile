@@ -16,7 +16,7 @@ bool isCopyableType(String type) => const {
 
 /// Serialize an item's content to plain text for copy-to-clipboard, matching
 /// the web `itemToClipboardText` (lists bulleted/numbered, cards as
-/// title+description, tables as tab-separated values). Drawings yield ''.
+/// title+description, tables as tab-separated values). Whiteboards yield ''.
 String itemClipboardText(SpaceItem item) {
   final c = item.content;
   switch (item.type) {

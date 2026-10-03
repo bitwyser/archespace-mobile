@@ -4,7 +4,7 @@
 [![Version](https://img.shields.io/github/v/release/bitwyser/archespace-mobile)](https://github.com/bitwyser/archespace-mobile/releases)
 [![License](https://img.shields.io/github/license/bitwyser/archespace-mobile)](LICENSE)
 
-ArcheSpace is an open-source, encrypted space for capturing and organising your information, notes, projects, secrets, code, checklists and ideas. Group them into spaces, and fill each space with the content type that fits: plain notes, rich text documents, lists and checklists, tables, code snippets and drawings. Anything sensitive can be protected so it only opens with your vault PIN. Everything is taggable, searchable and kept in one place, synced across your devices.
+ArcheSpace is an open-source, encrypted space for capturing and organising your information, notes, projects, secrets, code, checklists and ideas. Group them into spaces, and fill each space with the content type that fits: plain notes, rich text documents, lists and checklists, tables, code snippets and whiteboards. Anything sensitive can be protected so it only opens with your vault PIN. Everything is taggable, searchable and kept in one place, synced across your devices.
 
 Privacy is built in, not bolted on. It follows a zero-knowledge architecture: your content is encrypted on-device and the backend only ever stores ciphertext, so the server, its operators, and the developers never see your data in readable form.
 
@@ -29,7 +29,7 @@ This is the Android and iOS app, built with Flutter. It talks to the **same Supa
 ## Features
 
 - **Spaces** for separating projects and ideas, with one level of nesting (sub-spaces), tags, a space colour, pinning, and drag-and-drop reordering.
-- **Many item types** for different kinds of content, from notes and checklists to rich text documents, tables, drawings and code (see [Item types](#item-types)).
+- **Many item types** for different kinds of content, from notes and checklists to rich text documents, tables, whiteboards and code (see [Item types](#item-types)).
 - **Protect** any item or space so its content only opens with your vault PIN (or fingerprint / face when biometric unlock is on); its name stays visible (see [Security model](#security-model)).
 - **Read-only spaces**: lock a space against edits (enforced by the database) while still viewing, copying, and exporting it.
 - **Starred** view for quick access to the spaces and items you use most, wherever they live.
@@ -61,7 +61,7 @@ This is the Android and iOS app, built with Flutter. It talks to the **same Supa
 | Checklist | Items with checkboxes and progress tracking. |
 | Cards | Title and description pairs for planning and grouping ideas. |
 | Table | Rows and columns of text with a header row. Copies as tab-separated values that paste straight into a spreadsheet. |
-| Drawing | Freehand vector sketch or diagram. |
+| Whiteboard | An Excalidraw board: shapes, arrows, text and freehand drawing on a canvas you can pan and zoom. |
 | Code | A code snippet in a monospace block with automatic syntax highlighting (language auto-detected). Copies as plain text. |
 
 Older item types are converted automatically: Markdown notes open as Rich text (and are saved that way on the next edit), and Secrets become Notes after unlock (protect them to keep them behind your PIN).
@@ -225,6 +225,7 @@ You can also run the workflow manually from the Actions tab.
 | Secure storage | `flutter_secure_storage` (Android Keystore / iOS Keychain) |
 | Biometrics | `local_auth` |
 | Rich text | The web app's Tiptap editor, bundled offline into `assets/rich_text_editor.html` and run in `webview_flutter`, with a native toolbar and preview |
+| Whiteboard | The web app's Excalidraw board, bundled offline (fonts included) into `assets/whiteboard_editor.html` and run in `webview_flutter`; cards and PDFs show the preview image saved with each board |
 | Markdown | `flutter_markdown` (older Markdown notes) |
 | Syntax highlighting | `flutter_highlight` + `highlight` (automatic language detection for the Code item type) |
 | PDF export | `pdf` + `printing` (native share/print sheet) |
@@ -249,7 +250,7 @@ archespace-mobile/
         auth/             # sign in, sign up, password policy, two-factor auth (TOTP)
         vault/            # crypto vault, PIN/recovery, biometric unlock, setup/unlock, protected content
         spaces/           # spaces list, editor, cards, read-only and protect
-        items/            # item types, editors (incl. the Rich text WebView), cards, clipboard
+        items/            # item types, editors (incl. the Rich text and Whiteboard WebViews), cards, clipboard
         starred/          # starred spaces and items
         search/           # unified search + jump-to-item
         storage/          # archive + recycle bin
@@ -266,6 +267,7 @@ archespace-mobile/
         util/, widgets/
   assets/
     rich_text_editor.html # offline Rich text editor, built from the web repo (npm run build:mobile-editor)
+    whiteboard_editor.html # offline Whiteboard (Excalidraw), built by the same command
   scripts/
     build-apk.ps1         # local stamped release build
   spec/                   # crypto contract + conformance vectors
@@ -307,7 +309,7 @@ For development questions, contact **[support@archespace.app](mailto:support@arc
 - Built with Flutter and Dart (Material 3).
 - Backend, authentication, and realtime sync powered by Supabase.
 - Encryption via the `cryptography` package (AES-256-GCM, Argon2id); the `arc1` format is shared with the web app.
-- Rich text editing with Tiptap (shared with the web app) in `webview_flutter`; item rendering with `flutter_markdown`, `flutter_highlight` + `highlight`, and a custom freehand drawing canvas; PDF export via `pdf` + `printing`.
+- Rich text editing with Tiptap and the Whiteboard with Excalidraw (both shared with the web app) in `webview_flutter`; item rendering with `flutter_markdown` and `flutter_highlight` + `highlight`; PDF export via `pdf` + `printing`.
 - Source hosted on GitHub.
 - Crafted and maintained by BitWyser.
 

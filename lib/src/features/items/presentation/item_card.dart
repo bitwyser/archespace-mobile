@@ -10,11 +10,11 @@ import 'package:archespace_mobile/src/features/items/presentation/rich_doc_view.
 import 'package:archespace_mobile/src/features/items/presentation/widgets/type_badge.dart';
 import 'package:archespace_mobile/src/features/items/domain/rich_doc.dart';
 import 'package:archespace_mobile/src/features/items/domain/code_highlight.dart';
-import 'package:archespace_mobile/src/features/items/domain/draw.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_clipboard.dart';
 import 'package:archespace_mobile/src/features/items/domain/item_types.dart';
 import 'package:archespace_mobile/src/features/items/domain/rich_text_html.dart';
 import 'package:archespace_mobile/src/features/items/domain/space_item.dart';
+import 'package:archespace_mobile/src/features/items/domain/whiteboard.dart';
 import 'package:archespace_mobile/src/features/vault/application/content_lock.dart';
 import 'package:archespace_mobile/src/features/vault/presentation/widgets/vault_pin_prompt.dart';
 import 'package:archespace_mobile/src/shared/widgets/app_snackbar.dart';
@@ -769,11 +769,8 @@ class _ItemBody extends StatelessWidget {
         return _Cards(items: (c['items'] as List?) ?? const []);
       case 'table':
         return _TableView(columns: _columns(c), rows: _rows(c));
-      case 'draw':
-        return _Drawing(
-          strokes: (c['strokes'] as List?) ?? const [],
-          orientation: c['orientation'],
-        );
+      case 'whiteboard':
+        return _Whiteboard(content: c);
       default:
         return Text('Unsupported item type: ${item.type}');
     }
@@ -1058,72 +1055,53 @@ class _TableView extends StatelessWidget {
   }
 }
 
-class _Drawing extends StatelessWidget {
-  const _Drawing({required this.strokes, this.orientation});
+/// A Whiteboard's saved preview image. Decoded once per preview, not on every
+/// rebuild of the list.
+class _Whiteboard extends StatefulWidget {
+  const _Whiteboard({required this.content});
 
-  final List<dynamic> strokes;
-  final Object? orientation;
+  final Map<String, dynamic> content;
+
+  @override
+  State<_Whiteboard> createState() => _WhiteboardState();
+}
+
+class _WhiteboardState extends State<_Whiteboard> {
+  Object? _source;
+  Uint8List? _bytes;
 
   @override
   Widget build(BuildContext context) {
-    if (strokes.isEmpty) return const _Empty();
-    final logical = drawLogicalSize(orientation);
+    final preview = widget.content['preview'];
+    if (!identical(preview, _source)) {
+      _source = preview;
+      _bytes = boardPreviewBytes(widget.content);
+    }
+    final bytes = _bytes;
+    if (bytes == null) {
+      if (!hasBoardContent(widget.content)) return const _Empty();
+      // An old drawing (or a missing preview): opening it makes one.
+      return Text(
+        'Open to view this whiteboard',
+        style: TextStyle(color: Theme.of(context).hintColor),
+      );
+    }
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
-      child: AspectRatio(
-        aspectRatio: logical.width / logical.height,
-        child: ColoredBox(
-          color: Colors.white,
-          child: CustomPaint(
-            painter: _StrokePainter(strokes, logical),
-            size: Size.infinite,
+      child: ColoredBox(
+        color: Colors.white,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 240),
+          child: Image.memory(
+            bytes,
+            width: double.infinity,
+            fit: BoxFit.contain,
+            gaplessPlayback: true,
           ),
         ),
       ),
     );
   }
-}
-
-class _StrokePainter extends CustomPainter {
-  _StrokePainter(this.strokes, this.logical);
-
-  final List<dynamic> strokes;
-  final Size logical;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    for (final s in strokes) {
-      if (s is! Map) continue;
-      final pts = (s['points'] as List?) ?? const [];
-      if (pts.isEmpty) continue;
-      final paint = Paint()
-        ..color = _parseColor(s['color'], const Color(0xFF1E293B))
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..strokeWidth =
-            ((s['size'] as num?)?.toDouble() ?? 8) * size.width / logical.width;
-
-      final path = Path();
-      var started = false;
-      for (final p in pts) {
-        if (p is! List || p.length < 2) continue;
-        final x = (p[0] as num).toDouble() / logical.width * size.width;
-        final y = (p[1] as num).toDouble() / logical.height * size.height;
-        if (!started) {
-          path.moveTo(x, y);
-          started = true;
-        } else {
-          path.lineTo(x, y);
-        }
-      }
-      canvas.drawPath(path, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _StrokePainter oldDelegate) =>
-      oldDelegate.strokes != strokes || oldDelegate.logical != logical;
 }
 
 class _Empty extends StatelessWidget {
@@ -1161,11 +1139,3 @@ List<List<String>> _rows(Map<String, dynamic> c) =>
               .toList(),
         )
         .toList();
-
-Color _parseColor(Object? hex, Color fallback) {
-  if (hex is String && hex.startsWith('#') && hex.length == 7) {
-    final value = int.tryParse(hex.substring(1), radix: 16);
-    if (value != null) return Color(0xFF000000 | value);
-  }
-  return fallback;
-}
